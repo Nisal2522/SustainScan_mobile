@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   Eye, EyeOff, Mail, Lock, ChevronRight, MapPin, ChevronDown,
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
-  ScanLine, QrCode,
+  ScanLine, QrCode, Calendar, Search, ListFilter,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
 import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
@@ -15,8 +15,23 @@ import logEntryPhoto from "../imports/timber.png";
 
 type LoginTab = "client" | "cu";
 type UserType = "client" | "cu";
-type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory";
+type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection";
 type InventoryTab = "all" | "modified";
+type InspectionDay = "today" | "tomorrow" | "later";
+type InspectionStatus = "pending" | "urgent";
+type DayFilter = InspectionDay;
+type StatusFilter = "all" | InspectionStatus;
+
+interface InspectionTask {
+  id: string;
+  shipment: string;
+  exporter: string;
+  location: string;
+  time: string;
+  logs: number;
+  day: InspectionDay;
+  status: InspectionStatus;
+}
 
 interface FormState { email: string; password: string; showPassword: boolean; }
 
@@ -42,7 +57,7 @@ interface AppSession {
 }
 
 const AUTHENTICATED_SCREENS: Screen[] = [
-  "location", "home", "scan-log", "register-log-form", "log-inventory",
+  "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection",
 ];
 
 function loadSession(): AppSession | null {
@@ -143,6 +158,70 @@ const INVENTORY_ITEMS: InventoryItem[] = [
 
 const LAST_SYNC = new Date(Date.now() - 1000 * 60 * 47);
 
+const SCHEDULED_INSPECTIONS: InspectionTask[] = [
+  {
+    id: "1",
+    shipment: "#SHIP-2024-001",
+    exporter: "GreenWood Timber Exports Ltd",
+    location: "Port Terminal A",
+    time: "14:00–16:00",
+    logs: 48,
+    day: "today",
+    status: "urgent",
+  },
+  {
+    id: "2",
+    shipment: "#SHIP-2024-002",
+    exporter: "Nordic Wood Exports",
+    location: "Central Yard 4",
+    time: "16:30–18:00",
+    logs: 32,
+    day: "today",
+    status: "pending",
+  },
+  {
+    id: "3",
+    shipment: "#SHIP-2024-003",
+    exporter: "Coastal Pine Ltd",
+    location: "North Docking Bay",
+    time: "Tomorrow 09:00",
+    logs: 56,
+    day: "tomorrow",
+    status: "pending",
+  },
+  {
+    id: "4",
+    shipment: "#SHIP-2024-004",
+    exporter: "Amazonia Hardwoods",
+    location: "West Logistics Hub",
+    time: "Tomorrow 11:00",
+    logs: 21,
+    day: "tomorrow",
+    status: "pending",
+  },
+  {
+    id: "5",
+    shipment: "#SHIP-2024-005",
+    exporter: "Summit Forest Products",
+    location: "Mountain Depot",
+    time: "Later",
+    logs: 40,
+    day: "later",
+    status: "pending",
+  },
+  {
+    id: "6",
+    shipment: "#SHIP-2024-006",
+    exporter: "Eastern Pine Resale",
+    location: "Eastern Rail Head",
+    time: "Today 15:00",
+    logs: 18,
+    day: "today",
+    status: "urgent",
+  },
+];
+
+
 function formatSyncTime(d: Date) {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
     + " · " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -174,6 +253,42 @@ function PoweredBy() {
 }
 
 // ─── Shared page header: Logo LEFT · [←][🌙][extra] RIGHT ─────────────────────
+
+function AppHeaderBar({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
+  return (
+    <div
+      className="sticky top-0 z-40 w-full"
+      style={{
+        background: dark ? "#1e293b" : "#ffffff",
+        borderBottom: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(15,47,143,0.14)",
+        boxShadow: dark ? "none" : "0 1px 4px rgba(15,47,143,0.06)",
+      }}
+    >
+      <div className="w-full max-w-[480px] mx-auto px-5 py-4">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function BackCardButton({ onClick, dark = false }: { onClick: () => void; dark?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:scale-105 focus:outline-none"
+      style={{
+        background: dark ? "rgba(255,255,255,0.1)" : "#ffffff",
+        color: dark ? "#ffffff" : "#0a1a4a",
+        border: dark ? "1px solid rgba(255,255,255,0.14)" : "1px solid rgba(15,47,143,0.14)",
+        boxShadow: dark ? "none" : "0 1px 4px rgba(15,47,143,0.08)",
+      }}
+      aria-label="Go back"
+    >
+      <ArrowLeft size={18} />
+    </button>
+  );
+}
 
 function PageHeader({ dark, onBack, onDarkToggle, extra }: {
   dark: boolean; onBack?: () => void; onDarkToggle?: () => void; extra?: React.ReactNode;
@@ -513,14 +628,15 @@ function HomeScreen({ location, onLogout, onNavigate, isCU, dark, setDark }: {
 
   return (
     <div className="min-h-screen w-full transition-colors duration-300 animate-fadeIn" style={{ background: bg, fontFamily: "'Inter', sans-serif" }}>
-      <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 py-5 gap-6">
-
-        {/* Logo left · [🌙][👤] right — no back button on home */}
+      <AppHeaderBar dark={dark}>
         <PageHeader
           dark={dark}
           onDarkToggle={() => setDark(!dark)}
           extra={ProfileButton}
         />
+      </AppHeaderBar>
+
+      <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 pb-5 gap-6">
 
         {/* ── Greeting card ── */}
         <div className="rounded-2xl px-5 py-5" style={{ background: GRADIENT, boxShadow: "0 4px 20px rgba(15,47,143,0.35)" }}>
@@ -563,6 +679,21 @@ function HomeScreen({ location, onLogout, onNavigate, isCU, dark, setDark }: {
             </div>
             <ChevronRight size={18} style={{ color: textMuted }} className="group-hover:translate-x-0.5 transition-transform duration-150" />
           </button>
+
+          {isCU && (
+            <button onClick={() => onNavigate("schedule-inspection")}
+              className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
+              style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
+                <Calendar size={26} style={{ color: iconColor }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-base font-bold" style={{ color: textPrimary }}>Schedule Inspection</p>
+                <p className="text-xs mt-0.5" style={{ color: textMuted }}>Plan and manage upcoming inspections</p>
+              </div>
+              <ChevronRight size={18} style={{ color: textMuted }} className="group-hover:translate-x-0.5 transition-transform duration-150" />
+            </button>
+          )}
         </div>
 
         <div className="flex-1" />
@@ -622,26 +753,22 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
 
   return (
     <div className="min-h-screen w-full transition-colors duration-300 animate-fadeIn" style={{ background: bg, fontFamily: "'Inter', sans-serif" }}>
-      <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 py-5 gap-5">
-
-        {/* Back button alone — top left */}
-        <button onClick={onBack}
-          className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 focus:outline-none self-start"
-          style={{ background: dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.08)", color: dark ? "#ffffff" : "#0f2f8f" }}
-          aria-label="Go back">
-          <ArrowLeft size={17} />
-        </button>
-
-        {/* Title: boxed icon + bold h1 */}
+      <AppHeaderBar dark={dark}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.1)" }}>
-            <ScanLine size={20} style={{ color: dark ? "#ffffff" : "#0f2f8f" }} />
+          <BackCardButton onClick={onBack} dark={dark} />
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: dark ? "#ffffff" : "#0a1a4a" }}>
+              Scan Log
+            </h1>
+            <p className="text-xs" style={{ color: textMuted }}>
+              {isCU ? "View scanned log details" : "Record a new log entry"}
+            </p>
           </div>
-          <h1 className="text-xl font-bold tracking-tight" style={{ color: dark ? "#ffffff" : "#0a1a4a" }}>Scan Log</h1>
         </div>
+      </AppHeaderBar>
 
-        <p className="text-sm -mt-1" style={{ color: textMuted }}>
+      <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 py-5 gap-5">
+        <p className="text-sm" style={{ color: textMuted }}>
           {isCU ? "Scan a QR code to view registered log details." : "Tap the QR code below to register a new log entry."}
         </p>
 
@@ -826,28 +953,21 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
 
   return (
     <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#ffffff", fontFamily: "'Inter', sans-serif" }}>
-      <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col">
-
-        {/* Header: back button, then title row below */}
-        <div className="px-5 pt-5 pb-4 sticky top-0 z-20 bg-white flex flex-col gap-3"
-          style={{ borderBottom: "1px solid #e8edf9" }}>
-          <button onClick={onBack}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 focus:outline-none self-start"
-            style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
-            aria-label="Go back">
-            <ArrowLeft size={17} />
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(15,47,143,0.1)" }}>
-              {isCU ? <ScanLine size={20} style={{ color: "#0f2f8f" }} /> : <ClipboardList size={20} style={{ color: "#0f2f8f" }} />}
-            </div>
+      <AppHeaderBar>
+        <div className="flex items-center gap-3">
+          <BackCardButton onClick={onBack} />
+          <div className="min-w-0">
             <h1 className="text-xl font-bold tracking-tight" style={{ color: "#0a1a4a" }}>
               {screenTitle}
             </h1>
+            <p className="text-xs" style={{ color: "#5a6a99" }}>
+              {viewOnly ? "View log details" : "Enter log registration details"}
+            </p>
           </div>
         </div>
+      </AppHeaderBar>
 
+      <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col">
         {/* Form */}
         <div className="flex flex-col gap-5 px-5 py-6 pb-10">
 
@@ -1096,6 +1216,279 @@ function InventoryRow({ item, dark }: { item: InventoryItem; dark: boolean }) {
   );
 }
 
+// ─── Schedule Inspection Screen ───────────────────────────────────────────────
+
+function ScheduleInspectionScreen({
+  onBack,
+}: {
+  onBack: () => void;
+}) {
+  const [dayFilter, setDayFilter] = useState<DayFilter>("today");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [query, setQuery] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  const filtersActive = dayFilter !== "today" || statusFilter !== "all";
+
+  useEffect(() => {
+    if (!filterOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setFilterOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [filterOpen]);
+
+  const filtered = SCHEDULED_INSPECTIONS.filter(task => {
+    if (task.day !== dayFilter) return false;
+    if (statusFilter !== "all" && task.status !== statusFilter) return false;
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      return (
+        task.shipment.toLowerCase().includes(q) ||
+        task.exporter.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
+  const dayChips: { id: DayFilter; label: string }[] = [
+    { id: "today", label: "Today" },
+    { id: "tomorrow", label: "Tomorrow" },
+    { id: "later", label: "Later" },
+  ];
+
+  const statusChips: { id: StatusFilter; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "pending", label: "Pending" },
+    { id: "urgent", label: "Urgent" },
+  ];
+
+  const selectStyle = {
+    background: "#ffffff",
+    border: "1px solid rgba(15,47,143,0.14)",
+    color: "#0a1a4a",
+  } as const;
+
+  return (
+    <div
+      className="min-h-screen w-full animate-fadeIn"
+      style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif", color: "#0a1a4a" }}
+    >
+      <AppHeaderBar>
+        <div className="flex items-center gap-3">
+          <BackCardButton onClick={onBack} />
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: "#0a1a4a" }}>
+              Schedule Inspection
+            </h1>
+            <p className="text-xs" style={{ color: "#5a6a99" }}>
+              Your assigned log grading tasks
+            </p>
+          </div>
+        </div>
+      </AppHeaderBar>
+
+      <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 py-5 gap-5">
+          {/* Search + filter */}
+          <div className="relative" ref={filterRef}>
+            <div className="flex items-center gap-2">
+              <div
+                className="flex-1 flex items-center gap-3 h-12 px-3.5 rounded-xl"
+                style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)" }}
+              >
+                <Search size={18} style={{ color: "#5a6a99", flexShrink: 0 }} />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Search shipment ID or exporter"
+                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#5a6a99]/70"
+                  style={{ color: "#0a1a4a" }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setFilterOpen(v => !v)}
+                className="relative w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-95 transition-transform"
+                style={{
+                  background: filterOpen || filtersActive ? "#93c5fd" : "rgba(15,47,143,0.08)",
+                  color: "#0f2f8f",
+                  border: `1px solid ${filterOpen || filtersActive ? "#93c5fd" : "rgba(15,47,143,0.14)"}`,
+                }}
+                aria-label="Open filters"
+                aria-expanded={filterOpen}
+              >
+                <ListFilter size={20} />
+                {filtersActive && (
+                  <span
+                    className="absolute top-2 right-2 w-2 h-2 rounded-full"
+                    style={{ background: "#d4183d" }}
+                  />
+                )}
+              </button>
+            </div>
+
+            {filterOpen && (
+              <div
+                className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 rounded-xl p-4 flex flex-col gap-4 shadow-lg"
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid rgba(15,47,143,0.14)",
+                  boxShadow: "0 8px 28px rgba(15,47,143,0.16)",
+                }}
+                role="dialog"
+                aria-label="Filter inspections"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+                    Filters
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDayFilter("today");
+                      setStatusFilter("all");
+                    }}
+                    className="text-xs font-semibold focus:outline-none"
+                    style={{ color: "#0f2f8f" }}
+                  >
+                    Reset
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="filter-schedule" className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                    Schedule
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="filter-schedule"
+                      value={dayFilter}
+                      onChange={e => setDayFilter(e.target.value as DayFilter)}
+                      className="w-full h-12 appearance-none rounded-xl pl-3.5 pr-10 text-sm font-medium outline-none focus:outline-none"
+                      style={selectStyle}
+                    >
+                      {dayChips.map(opt => (
+                        <option key={opt.id} value={opt.id}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={16}
+                      className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2"
+                      style={{ color: "#5a6a99" }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="filter-status" className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                    Status
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="filter-status"
+                      value={statusFilter}
+                      onChange={e => setStatusFilter(e.target.value as StatusFilter)}
+                      className="w-full h-12 appearance-none rounded-xl pl-3.5 pr-10 text-sm font-medium outline-none focus:outline-none"
+                      style={selectStyle}
+                    >
+                      {statusChips.map(opt => (
+                        <option key={opt.id} value={opt.id}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={16}
+                      className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2"
+                      style={{ color: "#5a6a99" }}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setFilterOpen(false)}
+                  className="w-full h-11 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-transform"
+                  style={{ background: GRADIENT }}
+                >
+                  Apply filters
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Task list */}
+          <div className="flex flex-col gap-3">
+            {filtered.length === 0 ? (
+              <div
+                className="rounded-xl p-5 text-center"
+                style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)" }}
+              >
+                <p className="text-sm font-medium" style={{ color: "#0a1a4a" }}>
+                  No inspections {dayFilter === "today" ? "today" : dayFilter === "tomorrow" ? "tomorrow" : "later"}
+                </p>
+                <p className="text-xs mt-1" style={{ color: "#5a6a99" }}>
+                  Try another filter or clear your search.
+                </p>
+              </div>
+            ) : (
+              filtered.map(task => (
+                <article
+                  key={task.id}
+                  className="rounded-xl p-4 flex flex-col gap-3"
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid rgba(15,47,143,0.14)",
+                    boxShadow: "0 1px 3px rgba(15,47,143,0.06)",
+                  }}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold"
+                      style={
+                        task.status === "urgent"
+                          ? { background: "rgba(212,24,61,0.10)", color: "#d4183d" }
+                          : { background: "rgba(15,47,143,0.08)", color: "#5a6a99" }
+                      }
+                    >
+                      {task.status === "urgent" ? "Urgent" : "Pending"}
+                    </span>
+                    <span
+                      className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold"
+                      style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                    >
+                      {task.shipment}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <h3 className="text-[15px] font-bold leading-snug" style={{ color: "#0a1a4a" }}>
+                      {task.exporter}
+                    </h3>
+                    <p className="text-xs leading-relaxed" style={{ color: "#5a6a99" }}>
+                      {task.location} · {task.time} · {task.logs} logs
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="w-full h-12 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-transform hover:brightness-110"
+                    style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
+                  >
+                    Start Inspection
+                  </button>
+                </article>
+              ))
+            )}
+          </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Log Inventory Screen ─────────────────────────────────────────────────────
 
 function LogInventoryScreen({ dark, onBack }: { dark: boolean; onBack: () => void; }) {
@@ -1109,29 +1502,19 @@ function LogInventoryScreen({ dark, onBack }: { dark: boolean; onBack: () => voi
 
   return (
     <div className="min-h-screen w-full transition-colors duration-300 animate-fadeIn" style={{ background: bg, fontFamily: "'Inter', sans-serif" }}>
-      <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 py-5 gap-5">
-
-        {/* Back button */}
-        <button onClick={onBack}
-          className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 focus:outline-none self-start"
-          style={{ background: dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.08)", color: dark ? "#ffffff" : "#0f2f8f" }}
-          aria-label="Go back">
-          <ArrowLeft size={17} />
-        </button>
-
-        {/* Title: boxed icon + bold h1 */}
-        <div className="flex items-center gap-3 -mt-1">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.1)" }}>
-            <Package size={20} style={{ color: dark ? "#ffffff" : "#0f2f8f" }} />
-          </div>
-          <div>
+      <AppHeaderBar dark={dark}>
+        <div className="flex items-center gap-3">
+          <BackCardButton onClick={onBack} dark={dark} />
+          <div className="min-w-0">
             <h1 className="text-xl font-bold tracking-tight" style={{ color: textPrimary }}>Log Inventory</h1>
             <p className="text-xs" style={{ color: textMuted }}>
               {INVENTORY_ITEMS.length} records · {INVENTORY_ITEMS.filter(i => i.modified).length} modified
             </p>
           </div>
         </div>
+      </AppHeaderBar>
+
+      <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 py-5 gap-5">
 
         {/* Tabs */}
         <div className="flex gap-2 p-1 rounded-2xl" style={{ background: dark ? "rgba(255,255,255,0.06)" : "rgba(232, 237, 249, 0.55)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}>
@@ -1221,6 +1604,13 @@ export default function App() {
     />
   );
   if (screen === "log-inventory") return <LogInventoryScreen dark={dark} onBack={() => setScreen("home")} />;
+  if (screen === "schedule-inspection") {
+    return (
+      <ScheduleInspectionScreen
+        onBack={() => setScreen("home")}
+      />
+    );
+  }
   return (
     <HomeScreen
       location={location}
