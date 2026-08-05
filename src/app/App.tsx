@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import {
   Eye, EyeOff, Mail, Lock, ChevronRight, MapPin, ChevronDown,
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
-  ScanLine, QrCode, Calendar, Search, ListFilter, X,
+  ScanLine, QrCode, Calendar, Search, ListFilter, X, Truck, CheckCircle2, ArrowRight,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
 import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
@@ -16,12 +16,13 @@ import logEntryPhoto from "../imports/timber.png";
 
 type LoginTab = "client" | "cu";
 type UserType = "client" | "cu";
-type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection";
+type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details";
 type InventoryTab = "all" | "modified";
 type InspectionDay = "today" | "tomorrow" | "later";
 type InspectionStatus = "pending" | "urgent";
 type DayFilter = InspectionDay;
 type StatusFilter = "all" | InspectionStatus;
+type SubInspectionStatus = "not-started" | "in-progress" | "completed";
 
 interface InspectionTask {
   id: string;
@@ -33,6 +34,13 @@ interface InspectionTask {
   day: InspectionDay;
   status: InspectionStatus;
 }
+
+interface InspectionProgress {
+  preShipment: SubInspectionStatus;
+  loading: SubInspectionStatus;
+}
+
+const EMPTY_INSPECTION_PROGRESS: InspectionProgress = { preShipment: "not-started", loading: "not-started" };
 
 interface FormState { email: string; password: string; showPassword: boolean; }
 
@@ -58,7 +66,7 @@ interface AppSession {
 }
 
 const AUTHENTICATED_SCREENS: Screen[] = [
-  "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection",
+  "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection", "inspection-details",
 ];
 
 function loadSession(): AppSession | null {
@@ -1251,8 +1259,12 @@ function InventoryRow({ item, dark }: { item: InventoryItem; dark: boolean }) {
 
 function ScheduleInspectionScreen({
   onBack,
+  onStartInspection,
+  getProgress,
 }: {
   onBack: () => void;
+  onStartInspection: (task: InspectionTask) => void;
+  getProgress: (taskId: string) => InspectionProgress;
 }) {
   const [dayFilter, setDayFilter] = useState<DayFilter>("today");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -1452,10 +1464,16 @@ function ScheduleInspectionScreen({
 
                 <button
                   type="button"
+                  onClick={() => onStartInspection(task)}
                   className="w-full h-12 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-transform hover:brightness-110"
                   style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
                 >
-                  Start Inspection
+                  {(() => {
+                    const p = getProgress(task.id);
+                    const allDone = p.preShipment === "completed" && p.loading === "completed";
+                    const anyStarted = p.preShipment !== "not-started" || p.loading !== "not-started";
+                    return allDone ? "View Inspection" : anyStarted ? "Continue Inspection" : "Start Inspection";
+                  })()}
                 </button>
               </article>
             ))
@@ -1587,6 +1605,183 @@ function ScheduleInspectionScreen({
   );
 }
 
+// ─── Inspection Details Screen ────────────────────────────────────────────────
+
+const SUB_STATUS_CONFIG: Record<SubInspectionStatus, { label: string; bg: string; color: string }> = {
+  "not-started": { label: "Not Started", bg: "rgba(90,106,153,0.12)", color: "#5a6a99" },
+  "in-progress": { label: "In Progress", bg: "rgba(15,47,143,0.10)", color: "#0f2f8f" },
+  "completed": { label: "Completed", bg: "rgba(16,185,129,0.12)", color: "#059669" },
+};
+
+function SubInspectionStatusPill({ status }: { status: SubInspectionStatus }) {
+  const cfg = SUB_STATUS_CONFIG[status];
+  return (
+    <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11px] font-semibold flex-shrink-0" style={{ background: cfg.bg, color: cfg.color }}>
+      {status === "in-progress" && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: cfg.color }} />}
+      {status === "completed" && <CheckCircle2 size={12} />}
+      Status: {cfg.label}
+    </span>
+  );
+}
+
+interface InspectionStepConfig {
+  key: "preShipment" | "loading";
+  title: string;
+  shortLabel: string;
+  description: string;
+  icon: React.ReactNode;
+}
+
+const INSPECTION_STEPS: InspectionStepConfig[] = [
+  {
+    key: "preShipment",
+    title: "Pre-Shipment Inspection",
+    shortLabel: "Pre-Shipment",
+    description: "Verify product quality, packaging, and compliance before shipment.",
+    icon: <ClipboardList size={20} />,
+  },
+  {
+    key: "loading",
+    title: "Loading Inspection",
+    shortLabel: "Loading",
+    description: "Verify loading process and cargo condition.",
+    icon: <Truck size={20} />,
+  },
+];
+
+function InspectionDetailsScreen({ task, progress, onAdvance, onBack }: {
+  task: InspectionTask;
+  progress: InspectionProgress;
+  onAdvance: (key: "preShipment" | "loading") => void;
+  onBack: () => void;
+}) {
+  const [infoExpanded, setInfoExpanded] = useState(false);
+  const scheduleLabel = task.day === "today" ? `Today · ${task.time}` : task.day === "tomorrow" ? `Tomorrow · ${task.time}` : task.time;
+
+  return (
+    <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
+      <AppHeaderBar>
+        <div className="flex items-center gap-3">
+          <BackCardButton onClick={onBack} />
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>{task.shipment}</h1>
+            <p className="text-xs truncate" style={{ color: "#5a6a99" }}>{task.exporter}</p>
+          </div>
+        </div>
+      </AppHeaderBar>
+
+      <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-6">
+
+        {/* Inspection Info — read only, expandable */}
+        <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)", boxShadow: "0 1px 4px rgba(15,47,143,0.06)" }}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#f0f4ff", border: "1px solid rgba(15,47,143,0.18)" }}>
+              <ClipboardList size={18} style={{ color: "#0f2f8f" }} />
+            </div>
+            <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0" style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.28)", color: "#0f2f8f" }}>
+              <Lock size={10} /> Read Only
+            </span>
+          </div>
+
+          <div>
+            <h2 className="text-base font-bold" style={{ color: "#0a1a4a" }}>Inspection Info</h2>
+            <p className="text-xs leading-relaxed mt-1.5" style={{ color: "#5a6a99" }}>
+              Read-only shipment data: reference number, client &amp; location details, and schedule vs status overview.
+            </p>
+          </div>
+
+          {infoExpanded && (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3.5 pt-3" style={{ borderTop: "1px solid rgba(15,47,143,0.10)" }}>
+              {[
+                ["Reference No.", task.shipment],
+                ["Client", task.exporter],
+                ["Location", task.location],
+                ["Schedule", scheduleLabel],
+                ["Status", task.status === "urgent" ? "Urgent" : "Pending"],
+                ["Logs", `${task.logs} logs`],
+                ["Inspector", "Assigned on arrival"],
+                ["Notes", "No additional remarks"],
+              ].map(([label, val]) => (
+                <div key={label}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{label}</p>
+                  <p className="text-sm font-semibold mt-0.5 truncate" style={{ color: "#0a1a4a" }}>{val}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setInfoExpanded(v => !v)}
+            className="self-end w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 focus:outline-none transition-colors hover:brightness-105"
+            style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+            aria-label={infoExpanded ? "Show less" : "Show more"}
+          >
+            <ArrowRight size={16} style={{ transform: infoExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+          </button>
+        </div>
+
+        {/* Inspection process — connected timeline */}
+        <div className="relative pb-1">
+          <div className="absolute left-6 top-6 bottom-6 w-0.5 rounded-full" style={{ background: "linear-gradient(180deg, rgba(15,47,143,0.35), rgba(15,47,143,0.08))" }} aria-hidden="true" />
+
+          <div className="flex flex-col gap-8">
+            {INSPECTION_STEPS.map((step, idx) => {
+              const status = progress[step.key];
+              const isDone = status === "completed";
+              const isActive = status === "in-progress";
+              return (
+                <div key={step.key} className="relative flex gap-4">
+                  <div
+                    className="relative z-10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{
+                      background: "#ffffff",
+                      color: isDone ? "#059669" : "#0f2f8f",
+                      border: `2px solid ${isDone ? "rgba(5,150,105,0.35)" : "rgba(15,47,143,0.18)"}`,
+                      boxShadow: isActive
+                        ? "0 0 0 4px rgba(15,47,143,0.12), 0 0 16px rgba(15,47,143,0.35)"
+                        : "0 1px 4px rgba(15,47,143,0.10)",
+                    }}
+                  >
+                    {isDone ? <CheckCircle2 size={20} /> : step.icon}
+                  </div>
+
+                  <div className="flex-1 min-w-0 flex flex-col gap-2 pt-1.5">
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <h3 className="text-[15px] font-bold" style={{ color: "#0a1a4a" }}>
+                        {idx + 1}. {step.title}
+                      </h3>
+                    </div>
+                    <p className="text-xs leading-relaxed" style={{ color: "#5a6a99" }}>{step.description}</p>
+                    <div><SubInspectionStatusPill status={status} /></div>
+
+                    <button
+                      type="button"
+                      onClick={() => onAdvance(step.key)}
+                      disabled={isDone}
+                      className="w-full h-12 mt-1 rounded-xl text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all duration-200 hover:brightness-110 disabled:active:scale-100 disabled:hover:brightness-100"
+                      style={{
+                        background: isDone ? "#eef1f6" : GRADIENT,
+                        color: isDone ? "#94a3b8" : "#ffffff",
+                        boxShadow: isDone ? "none" : "0 4px 16px rgba(15,47,143,0.30)",
+                      }}
+                    >
+                      {isDone ? <><CheckCircle2 size={16} /> Completed</> : isActive
+                        ? <>Continue {step.shortLabel} <ChevronRight size={16} /></>
+                        : <>Start {step.shortLabel} <ChevronRight size={16} /></>}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 // ─── Log Inventory Screen ─────────────────────────────────────────────────────
 
 function LogInventoryScreen({ dark, onBack }: { dark: boolean; onBack: () => void; }) {
@@ -1653,8 +1848,24 @@ export default function App() {
   const [dark, setDark] = useState(restored?.dark ?? false);
   const [userType, setUserType] = useState<UserType>(restored?.userType ?? "client");
   const [registerLogPrefill, setRegisterLogPrefill] = useState<RegisterLogFormData | null>(null);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
+  const [inspectionProgressById, setInspectionProgressById] = useState<Record<string, InspectionProgress>>({});
 
   const isCU = userType === "cu";
+
+  const getInspectionProgress = (taskId: string): InspectionProgress =>
+    inspectionProgressById[taskId] ?? EMPTY_INSPECTION_PROGRESS;
+
+  const advanceInspectionProgress = (taskId: string, key: "preShipment" | "loading") => {
+    setInspectionProgressById(prev => {
+      const current = prev[taskId] ?? EMPTY_INSPECTION_PROGRESS;
+      const currentStatus = current[key];
+      const nextStatus: SubInspectionStatus =
+        currentStatus === "not-started" ? "in-progress" :
+        currentStatus === "in-progress" ? "completed" : "completed";
+      return { ...prev, [taskId]: { ...current, [key]: nextStatus } };
+    });
+  };
 
   useEffect(() => {
     const vp = document.querySelector(".mobile-viewport");
@@ -1711,6 +1922,20 @@ export default function App() {
     return (
       <ScheduleInspectionScreen
         onBack={() => setScreen("home")}
+        onStartInspection={task => { setSelectedInspectionId(task.id); setScreen("inspection-details"); }}
+        getProgress={getInspectionProgress}
+      />
+    );
+  }
+  if (screen === "inspection-details") {
+    const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
+    if (!task) return null;
+    return (
+      <InspectionDetailsScreen
+        task={task}
+        progress={getInspectionProgress(task.id)}
+        onAdvance={key => advanceInspectionProgress(task.id, key)}
+        onBack={() => setScreen("schedule-inspection")}
       />
     );
   }
