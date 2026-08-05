@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Eye, EyeOff, Mail, Lock, ChevronRight, MapPin, ChevronDown,
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
@@ -782,7 +783,7 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
       ];
 
   return (
-    <div className="min-h-screen w-full transition-colors duration-300 animate-fadeIn" style={{ background: bg, fontFamily: "'Inter', sans-serif" }}>
+    <div className="relative min-h-screen w-full transition-colors duration-300 animate-fadeIn" style={{ background: bg, fontFamily: "'Inter', sans-serif" }}>
       <AppHeaderBar dark={dark}>
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} dark={dark} />
@@ -797,7 +798,7 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
         </div>
       </AppHeaderBar>
 
-      <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 py-5 gap-5">
+      <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-5">
         <p className="text-sm" style={{ color: textMuted }}>
           {isCU ? "Scan a QR code to view registered log details." : "Tap the QR code below to register a new log entry."}
         </p>
@@ -835,7 +836,7 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
 
         {registeredDialogOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center px-5"
+            className="absolute inset-0 z-50 flex items-center justify-center px-5"
             style={{ background: "rgba(10, 22, 70, 0.55)", backdropFilter: "blur(4px)" }}
             role="dialog"
             aria-modal="true"
@@ -1259,12 +1260,38 @@ function ScheduleInspectionScreen({
   const [draftStatus, setDraftStatus] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [overlayBox, setOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
 
   const filtersActive = dayFilter !== "today" || statusFilter !== "all";
+
+  const syncOverlayBox = () => {
+    const device = document.querySelector(".mobile-device");
+    if (device) {
+      const r = device.getBoundingClientRect();
+      setOverlayBox({ top: r.top, left: r.left, width: r.width, height: r.height });
+    } else {
+      setOverlayBox({ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight });
+    }
+  };
+
+  useEffect(() => {
+    if (!filterOpen) return;
+    syncOverlayBox();
+    const vp = document.querySelector(".mobile-viewport");
+    window.addEventListener("resize", syncOverlayBox);
+    window.addEventListener("scroll", syncOverlayBox, true);
+    vp?.addEventListener("scroll", syncOverlayBox);
+    return () => {
+      window.removeEventListener("resize", syncOverlayBox);
+      window.removeEventListener("scroll", syncOverlayBox, true);
+      vp?.removeEventListener("scroll", syncOverlayBox);
+    };
+  }, [filterOpen]);
 
   const openFilters = () => {
     setDraftDay(dayFilter);
     setDraftStatus(statusFilter);
+    syncOverlayBox();
     setFilterOpen(true);
   };
 
@@ -1314,7 +1341,7 @@ function ScheduleInspectionScreen({
 
   return (
     <div
-      className="relative min-h-screen w-full animate-fadeIn"
+      className="min-h-screen w-full animate-fadeIn"
       style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif", color: "#0a1a4a" }}
     >
       <AppHeaderBar>
@@ -1331,11 +1358,11 @@ function ScheduleInspectionScreen({
         </div>
       </AppHeaderBar>
 
-      <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 py-5 gap-5">
+      <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-5">
         {/* Search + filter */}
         <div className="flex items-center gap-2">
           <div
-            className="flex-1 flex items-center gap-3 h-12 px-3.5 rounded-xl"
+            className="flex-1 min-w-0 flex items-center gap-3 h-12 px-3.5 rounded-xl"
             style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)" }}
           >
             <Search size={18} style={{ color: "#5a6a99", flexShrink: 0 }} />
@@ -1344,7 +1371,7 @@ function ScheduleInspectionScreen({
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Search shipment ID or exporter"
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#5a6a99]/70"
+              className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-[#5a6a99]/70"
               style={{ color: "#0a1a4a" }}
             />
           </div>
@@ -1371,7 +1398,7 @@ function ScheduleInspectionScreen({
         </div>
 
         {/* Task list */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 pb-2">
           {filtered.length === 0 ? (
             <div
               className="rounded-xl p-5 text-center"
@@ -1436,9 +1463,17 @@ function ScheduleInspectionScreen({
         </div>
       </div>
 
-      {/* Filter bottom sheet */}
-      {filterOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end animate-fadeIn">
+      {filterOpen && overlayBox && createPortal(
+        <div
+          className="z-50 flex flex-col justify-end"
+          style={{
+            position: "fixed",
+            top: overlayBox.top,
+            left: overlayBox.left,
+            width: overlayBox.width,
+            height: overlayBox.height,
+          }}
+        >
           <button
             type="button"
             className="absolute inset-0 border-0 p-0 cursor-default"
@@ -1451,7 +1486,7 @@ function ScheduleInspectionScreen({
             onClick={closeFilters}
           />
           <div
-            className="relative z-10 w-full max-w-[480px] mx-auto rounded-t-3xl px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5"
+            className="relative z-10 w-full rounded-t-3xl px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5"
             style={{
               background: "#ffffff",
               boxShadow: "0 -8px 32px rgba(15,47,143,0.18)",
@@ -1545,7 +1580,8 @@ function ScheduleInspectionScreen({
               Apply filters
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -1619,6 +1655,11 @@ export default function App() {
   const [registerLogPrefill, setRegisterLogPrefill] = useState<RegisterLogFormData | null>(null);
 
   const isCU = userType === "cu";
+
+  useEffect(() => {
+    const vp = document.querySelector(".mobile-viewport");
+    if (vp) vp.scrollTop = 0;
+  }, [screen]);
 
   useEffect(() => {
     if (!AUTHENTICATED_SCREENS.includes(screen)) {
