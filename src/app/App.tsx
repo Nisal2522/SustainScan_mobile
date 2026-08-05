@@ -32,6 +32,52 @@ const BG_URL = bgImage;
 
 const GRADIENT = "linear-gradient(135deg,#1a45b5 0%,#0f2f8f 60%,#0a1f6b 100%)";
 
+const SESSION_KEY = "sustainscan-session";
+
+interface AppSession {
+  screen: Screen;
+  userType: UserType;
+  location: string;
+  dark: boolean;
+}
+
+const AUTHENTICATED_SCREENS: Screen[] = [
+  "location", "home", "scan-log", "register-log-form", "log-inventory",
+];
+
+function loadSession(): AppSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as Partial<AppSession>;
+    if (
+      typeof data.screen !== "string" ||
+      !AUTHENTICATED_SCREENS.includes(data.screen as Screen) ||
+      (data.userType !== "client" && data.userType !== "cu") ||
+      typeof data.location !== "string" ||
+      typeof data.dark !== "boolean"
+    ) {
+      return null;
+    }
+    return {
+      screen: data.screen as Screen,
+      userType: data.userType,
+      location: data.location,
+      dark: data.dark,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(session: AppSession) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
 const CONCESSIONS = ["Concession Unit A", "Concession Unit B"];
 
 const CU_CLIENT_DIRECTORY = [
@@ -1120,13 +1166,22 @@ function LogInventoryScreen({ dark, onBack }: { dark: boolean; onBack: () => voi
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("login");
-  const [location, setLocation] = useState("");
-  const [dark, setDark] = useState(false);
-  const [userType, setUserType] = useState<UserType>("client");
+  const restored = useRef(loadSession()).current;
+  const [screen, setScreen] = useState<Screen>(restored?.screen ?? "login");
+  const [location, setLocation] = useState(restored?.location ?? "");
+  const [dark, setDark] = useState(restored?.dark ?? false);
+  const [userType, setUserType] = useState<UserType>(restored?.userType ?? "client");
   const [registerLogPrefill, setRegisterLogPrefill] = useState<RegisterLogFormData | null>(null);
 
   const isCU = userType === "cu";
+
+  useEffect(() => {
+    if (!AUTHENTICATED_SCREENS.includes(screen)) {
+      clearSession();
+      return;
+    }
+    saveSession({ screen, userType, location, dark });
+  }, [screen, userType, location, dark]);
 
   if (screen === "login") return (
     <LoginScreen
@@ -1170,7 +1225,12 @@ export default function App() {
     <HomeScreen
       location={location}
       isCU={isCU}
-      onLogout={() => { setUserType("client"); setScreen("login"); }}
+      onLogout={() => {
+        clearSession();
+        setUserType("client");
+        setLocation("");
+        setScreen("login");
+      }}
       onNavigate={setScreen}
       dark={dark}
       setDark={setDark}
