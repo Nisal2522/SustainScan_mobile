@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   Eye, EyeOff, Mail, Lock, ChevronRight, MapPin, ChevronDown,
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
   ScanLine, QrCode, Calendar, Search, ListFilter, X, Truck, CheckCircle2, ArrowRight,
+  Ship, Anchor, CircleDollarSign, Layers, Container, Paperclip, Scale, FileText,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
 import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
@@ -1660,56 +1661,477 @@ const INSPECTION_STEPS: InspectionStepConfig[] = [
   },
 ];
 
-function InspectionInfoDetailsScreen({ task, onBack }: { task: InspectionTask; onBack: () => void }) {
+type InspectionInfoSectionId =
+  | "shipment"
+  | "ape"
+  | "vessel"
+  | "declared-logs"
+  | "cargo"
+  | "attachments"
+  | "volume-variance";
+
+interface InspectionInfoSection {
+  id: InspectionInfoSectionId;
+  title: string;
+  description: string;
+  badge: string;
+  alert?: boolean;
+  icon: ReactNode;
+}
+
+function getInspectionInfoSections(task: InspectionTask): InspectionInfoSection[] {
+  const eta = task.day === "today" ? "08/02/2026" : task.day === "tomorrow" ? "09/02/2026" : "12/02/2026";
+  return [
+    {
+      id: "shipment",
+      title: "Shipment Details",
+      description: "Reference, request date, exporter, project site, permit, loading point, licence and advised volume.",
+      badge: "REF 20",
+      icon: <Ship size={20} />,
+    },
+    {
+      id: "ape",
+      title: "Exporter Approved Price Endorsement",
+      description: "Permitted volume and FOB pricing per species and group, as approved on the APE.",
+      badge: "11 ROWS",
+      icon: <CircleDollarSign size={20} />,
+    },
+    {
+      id: "vessel",
+      title: "Vessel Details",
+      description: "Vessel name, agent, contact and estimated time of arrival.",
+      badge: `ETA ${eta}`,
+      icon: <Anchor size={20} />,
+    },
+    {
+      id: "declared-logs",
+      title: "Exporter Declared Log Details",
+      description: "Serial numbers, product group, code, log size, and permit volume declared in the request.",
+      badge: `${Math.min(task.logs, 4)} LOGS`,
+      icon: <Layers size={20} />,
+    },
+    {
+      id: "cargo",
+      title: "Cargo Details",
+      description: "Buyer, destination port and buyer address for the consignment.",
+      badge: "DEST. QINGDAO",
+      icon: <Container size={20} />,
+    },
+    {
+      id: "attachments",
+      title: "Attachments",
+      description: "Supporting documents submitted with the inspection request.",
+      badge: "3 FILES",
+      icon: <Paperclip size={20} />,
+    },
+    {
+      id: "volume-variance",
+      title: "Permitted vs Declared Volume",
+      description: "Compare permitted APE volumes against exporter-declared quantities and flag variances.",
+      badge: "10 VARIANCES",
+      alert: true,
+      icon: <Scale size={20} />,
+    },
+  ];
+}
+
+function getInspectionInfoSectionFields(sectionId: InspectionInfoSectionId, task: InspectionTask): [string, string][] {
   const scheduleLabel = task.day === "today" ? `Today · ${task.time}` : task.day === "tomorrow" ? `Tomorrow · ${task.time}` : task.time;
+  switch (sectionId) {
+    case "shipment":
+      return [
+        ["Reference No.", task.shipment],
+        ["Request Date", "28 Jan 2026"],
+        ["Exporter", task.exporter],
+        ["Project Site", task.location],
+        ["Permit No.", "PNG-EXP-2026-0441"],
+        ["Loading Point", task.location],
+        ["Licence No.", "LIC-8821-B"],
+        ["Advised Volume", `${(task.logs * 1.85).toFixed(2)} m³`],
+        ["Schedule", scheduleLabel],
+        ["Status", task.status === "urgent" ? "Urgent" : "Pending"],
+      ];
+    case "ape":
+      return [
+        ["APE Reference", "APE-2026-118"],
+        ["Species Groups", "4 groups"],
+        ["Price Rows", "11 rows"],
+        ["Currency", "USD"],
+        ["Total Permitted Vol.", `${(task.logs * 2.1).toFixed(2)} m³`],
+        ["Avg. FOB", "$420.00 / m³"],
+        ["Approved On", "22 Jan 2026"],
+        ["Valid Until", "22 Jul 2026"],
+      ];
+    case "vessel":
+      return [
+        ["Vessel Name", "MV Pacific Timber"],
+        ["IMO Number", "IMO 9482017"],
+        ["Shipping Agent", "Harbour Link Agency"],
+        ["Agent Contact", "+675 720 4410"],
+        ["ETA", task.day === "today" ? "08/02/2026" : task.day === "tomorrow" ? "09/02/2026" : "12/02/2026"],
+        ["Berth", "Berth 3 · Outer Quay"],
+        ["Flag", "Panama"],
+      ];
+    case "declared-logs":
+      return [
+        ["Declared Logs", `${Math.min(task.logs, 4)} of ${task.logs}`],
+        ["Product Group", "Sawn / Round"],
+        ["Species Code", "KWILA / MERBAU"],
+        ["Avg. Log Size", "L 4.2 m · D 48 cm"],
+        ["Permit Volume", `${(task.logs * 1.85).toFixed(2)} m³`],
+        ["Serial Range", "SN-1001 → SN-1048"],
+        ["Declaration Date", "30 Jan 2026"],
+      ];
+    case "cargo":
+      return [
+        ["Buyer", "Qingdao Forest Trading Co."],
+        ["Destination Port", "Qingdao, China"],
+        ["Consignee", "QFT Import Desk"],
+        ["Buyer Address", "12 Harbour Rd, Huangdao, Qingdao"],
+        ["Incoterms", "FOB"],
+        ["Bill of Lading", "Pending issue"],
+      ];
+    case "attachments":
+      return [
+        ["Files Attached", "3 documents"],
+        ["APE Certificate", "APE-2026-118.pdf"],
+        ["Export Permit", "PNG-EXP-2026-0441.pdf"],
+        ["Packing List", "PL-SHIP-001.xlsx"],
+        ["Submitted By", task.exporter],
+        ["Submitted On", "31 Jan 2026"],
+      ];
+    case "volume-variance":
+      return [
+        ["Variances Found", "10"],
+        ["Severity", "Requires review"],
+        ["Permitted Volume", `${(task.logs * 2.1).toFixed(2)} m³`],
+        ["Declared Volume", `${(task.logs * 1.85).toFixed(2)} m³`],
+        ["Net Difference", `−${(task.logs * 0.25).toFixed(2)} m³`],
+        ["Over-declared Rows", "3"],
+        ["Under-declared Rows", "7"],
+        ["Last Checked", "01 Feb 2026"],
+      ];
+  }
+}
+
+const INFO_GLASS = { backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" } as const;
+
+function useInspectionInfoTheme(dark: boolean) {
+  return {
+    bg: dark ? "#0f172a" : "#f0f4ff",
+    textPrimary: dark ? "#ffffff" : "#0a1a4a",
+    textMuted: dark ? "rgba(255,255,255,0.65)" : "#5a6a99",
+    textFaint: dark ? "rgba(255,255,255,0.45)" : "#94a3b8",
+    cardBg: dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.62)",
+    cardBorder: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.12)",
+    cardShadow: dark ? "0 8px 28px rgba(0,0,0,0.28)" : "0 8px 28px rgba(15,47,143,0.08)",
+    iconBg: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)",
+    iconColor: dark ? "#ffffff" : "#0f2f8f",
+    badgeBg: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)",
+    badgeColor: dark ? "#ffffff" : "#0f2f8f",
+    chevronBg: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)",
+    alertBorder: "rgba(212,24,61,0.35)",
+    alertShadow: dark ? "0 8px 28px rgba(212,24,61,0.18)" : "0 8px 28px rgba(212,24,61,0.12)",
+    alertIconBg: "rgba(212,24,61,0.12)",
+  };
+}
+
+function useSwipeBack(onBack: () => void) {
+  const start = useRef<{ x: number; y: number } | null>(null);
+
+  return {
+    onTouchStart: (e: { touches: ArrayLike<{ clientX: number; clientY: number }> }) => {
+      const t = e.touches[0];
+      start.current = { x: t.clientX, y: t.clientY };
+    },
+    onTouchEnd: (e: { changedTouches: ArrayLike<{ clientX: number; clientY: number }> }) => {
+      if (!start.current) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - start.current.x;
+      const dy = Math.abs(t.clientY - start.current.y);
+      start.current = null;
+      if (dx > 72 && dy < 56) onBack();
+    },
+  };
+}
+
+function InspectionInfoSkeleton({ dark }: { dark: boolean }) {
+  const shimmer = dark ? "animate-shimmer-dark" : "animate-shimmer";
+  return (
+    <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-6 gap-5">
+      <div className={`h-36 rounded-[22px] ${shimmer}`} />
+      {[0, 1, 2, 3].map(i => (
+        <div key={i} className={`h-[118px] rounded-[22px] ${shimmer}`} style={{ opacity: 1 - i * 0.12 }} />
+      ))}
+    </div>
+  );
+}
+
+function InspectionInfoSectionDetailScreen({
+  task,
+  section,
+  dark,
+  onBack,
+}: {
+  task: InspectionTask;
+  section: InspectionInfoSection;
+  dark: boolean;
+  onBack: () => void;
+}) {
+  const fields = getInspectionInfoSectionFields(section.id, task);
+  const t = useInspectionInfoTheme(dark);
+  const swipe = useSwipeBack(onBack);
 
   return (
-    <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
-      <AppHeaderBar>
+    <div
+      className="min-h-screen w-full transition-colors duration-300 animate-fadeIn"
+      style={{ background: t.bg, fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
+    >
+      <AppHeaderBar dark={dark}>
         <div className="flex items-center gap-3">
-          <BackCardButton onClick={onBack} />
+          <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: "#0a1a4a" }}>Inspection Info</h1>
-            <p className="text-xs truncate" style={{ color: "#5a6a99" }}>{task.shipment}</p>
+            <h1 className="text-lg font-bold tracking-tight leading-snug" style={{ color: t.textPrimary }}>{section.title}</h1>
+            <p className="text-xs truncate" style={{ color: t.textMuted }}>{task.shipment}</p>
           </div>
         </div>
       </AppHeaderBar>
 
-      <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-5">
-        <div className="rounded-2xl p-5" style={{ background: GRADIENT, boxShadow: "0 4px 20px rgba(15,47,143,0.30)" }}>
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.16)" }}>
-              <ClipboardList size={18} style={{ color: "#ffffff" }} />
-            </div>
-            <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0" style={{ background: "#ffffff", color: "#0f2f8f" }}>
-              <Lock size={10} /> Read Only
-            </span>
+      <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-6 gap-5">
+        <div
+          className="rounded-[22px] p-5 flex items-start gap-4 animate-riseIn"
+          style={{
+            ...INFO_GLASS,
+            background: t.cardBg,
+            border: section.alert ? `1px solid ${t.alertBorder}` : `1px solid ${t.cardBorder}`,
+            boxShadow: section.alert ? t.alertShadow : t.cardShadow,
+            borderLeftWidth: section.alert ? 3 : 1,
+            borderLeftColor: section.alert ? "#d4183d" : undefined,
+          }}
+        >
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{
+              background: section.alert ? t.alertIconBg : t.iconBg,
+              color: section.alert ? "#d4183d" : t.iconColor,
+            }}
+          >
+            {section.icon}
           </div>
-          <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.78)" }}>
-            Full read-only record for this shipment inspection, as submitted for scheduling.
-          </p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span
+                className="inline-flex items-center h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider"
+                style={
+                  section.alert
+                    ? { background: "#d4183d", color: "#ffffff" }
+                    : { background: t.badgeBg, color: t.badgeColor }
+                }
+              >
+                {section.badge}
+              </span>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: t.textMuted }}>
+                <Lock size={10} /> Read Only
+              </span>
+            </div>
+            <p className="text-sm leading-relaxed" style={{ color: t.textMuted }}>{section.description}</p>
+          </div>
         </div>
 
-        <div className="rounded-2xl p-5" style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)", boxShadow: "0 1px 4px rgba(15,47,143,0.06)" }}>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-            {[
-              ["Reference No.", task.shipment],
-              ["Client", task.exporter],
-              ["Location", task.location],
-              ["Schedule", scheduleLabel],
-              ["Status", task.status === "urgent" ? "Urgent" : "Pending"],
-              ["Logs", `${task.logs} logs`],
-              ["Inspector", "Assigned on arrival"],
-              ["Notes", "No additional remarks"],
-            ].map(([label, val]) => (
-              <div key={label}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{label}</p>
-                <p className="text-sm font-semibold mt-0.5" style={{ color: "#0a1a4a" }}>{val}</p>
+        <div
+          className="rounded-[22px] p-6 animate-riseIn"
+          style={{
+            ...INFO_GLASS,
+            background: t.cardBg,
+            border: `1px solid ${t.cardBorder}`,
+            boxShadow: t.cardShadow,
+            ["--rise-delay" as string]: "60ms",
+          }}
+        >
+          <div className="grid grid-cols-2 gap-x-5 gap-y-5">
+            {fields.map(([label, val]) => (
+              <div key={label} className={label === "Buyer Address" || label === "Serial Range" ? "col-span-2" : undefined}>
+                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: t.textFaint }}>{label}</p>
+                <p className="text-[15px] font-semibold mt-1 break-words leading-snug" style={{ color: t.textPrimary }}>{val}</p>
               </div>
             ))}
           </div>
         </div>
+
+        {section.id === "attachments" && (
+          <div className="flex flex-col gap-3">
+            {[
+              { name: "APE-2026-118.pdf", meta: "PDF · 240 KB" },
+              { name: "PNG-EXP-2026-0441.pdf", meta: "PDF · 180 KB" },
+              { name: "PL-SHIP-001.xlsx", meta: "XLSX · 64 KB" },
+            ].map((file, i) => (
+              <div
+                key={file.name}
+                className="rounded-[20px] px-4 py-4 flex items-center gap-3.5 animate-riseIn"
+                style={{
+                  ...INFO_GLASS,
+                  background: t.cardBg,
+                  border: `1px solid ${t.cardBorder}`,
+                  boxShadow: t.cardShadow,
+                  ["--rise-delay" as string]: `${100 + i * 50}ms`,
+                }}
+              >
+                <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: t.iconBg, color: t.iconColor }}>
+                  <FileText size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-semibold truncate" style={{ color: t.textPrimary }}>{file.name}</p>
+                  <p className="text-xs mt-0.5" style={{ color: t.textMuted }}>{file.meta}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function InspectionInfoDetailsScreen({
+  task,
+  dark,
+  onBack,
+}: {
+  task: InspectionTask;
+  dark: boolean;
+  onBack: () => void;
+}) {
+  const [activeSectionId, setActiveSectionId] = useState<InspectionInfoSectionId | null>(null);
+  const [loading, setLoading] = useState(true);
+  const sections = getInspectionInfoSections(task);
+  const activeSection = sections.find(s => s.id === activeSectionId) ?? null;
+  const t = useInspectionInfoTheme(dark);
+  const swipe = useSwipeBack(activeSection ? () => setActiveSectionId(null) : onBack);
+
+  useEffect(() => {
+    setLoading(true);
+    const id = window.setTimeout(() => setLoading(false), 520);
+    return () => window.clearTimeout(id);
+  }, [task.id]);
+
+  if (activeSection) {
+    return (
+      <InspectionInfoSectionDetailScreen
+        task={task}
+        section={activeSection}
+        dark={dark}
+        onBack={() => setActiveSectionId(null)}
+      />
+    );
+  }
+
+  const alertCount = sections.filter(s => s.alert).length;
+
+  return (
+    <div
+      className="min-h-screen w-full transition-colors duration-300 animate-fadeIn"
+      style={{ background: t.bg, fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
+    >
+      <AppHeaderBar dark={dark}>
+        <div className="flex items-center gap-3">
+          <BackCardButton onClick={onBack} dark={dark} />
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>Inspection Info</h1>
+            <p className="text-sm truncate mt-0.5" style={{ color: t.textMuted }}>{task.shipment}</p>
+          </div>
+        </div>
+      </AppHeaderBar>
+
+      {loading ? (
+        <InspectionInfoSkeleton dark={dark} />
+      ) : (
+        <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-6 gap-5">
+          <div
+            className="rounded-[22px] p-6 animate-riseIn"
+            style={{ background: GRADIENT, boxShadow: "0 10px 32px rgba(15,47,143,0.32)" }}
+          >
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.16)" }}>
+                <ClipboardList size={20} style={{ color: "#ffffff" }} />
+              </div>
+              <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider flex-shrink-0" style={{ background: "#ffffff", color: "#0f2f8f" }}>
+                <Lock size={11} /> Read Only
+              </span>
+            </div>
+            <h2 className="text-xl font-bold text-white tracking-tight">Shipment record</h2>
+            <p className="text-sm leading-relaxed mt-2" style={{ color: "rgba(255,255,255,0.78)" }}>
+              Browse each information section below. All data is read-only as submitted for this inspection.
+            </p>
+            <div className="flex items-center gap-2.5 mt-5 flex-wrap">
+              <span className="inline-flex items-center h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider" style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}>
+                {sections.length} Sections
+              </span>
+              {alertCount > 0 && (
+                <span className="inline-flex items-center h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider" style={{ background: "rgba(212,24,61,0.92)", color: "#ffffff" }}>
+                  {alertCount} Alert{alertCount > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            {sections.map((section, index) => (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => setActiveSectionId(section.id)}
+                className="w-full rounded-[22px] p-5 text-left group transition-transform duration-200 hover:scale-[1.01] active:scale-[0.985] focus:outline-none animate-riseIn"
+                style={{
+                  ...INFO_GLASS,
+                  background: t.cardBg,
+                  border: section.alert ? `1px solid ${t.alertBorder}` : `1px solid ${t.cardBorder}`,
+                  boxShadow: section.alert ? t.alertShadow : t.cardShadow,
+                  borderLeftWidth: section.alert ? 3 : 1,
+                  borderLeftColor: section.alert ? "#d4183d" : undefined,
+                  ["--rise-delay" as string]: `${70 + index * 45}ms`,
+                }}
+                aria-label={`Open ${section.title}`}
+              >
+                <div className="flex items-start justify-between gap-3 mb-3.5">
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                    style={{
+                      background: section.alert ? t.alertIconBg : t.iconBg,
+                      color: section.alert ? "#d4183d" : t.iconColor,
+                    }}
+                  >
+                    {section.icon}
+                  </div>
+                  <span
+                    className="inline-flex items-center h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider flex-shrink-0 max-w-[55%] truncate"
+                    style={
+                      section.alert
+                        ? { background: "#d4183d", color: "#ffffff" }
+                        : { background: t.badgeBg, color: t.badgeColor }
+                    }
+                  >
+                    {section.badge}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-bold leading-snug" style={{ color: t.textPrimary }}>{section.title}</h3>
+                  </div>
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-150 group-hover:translate-x-0.5"
+                    style={{ background: t.chevronBg, color: t.iconColor }}
+                  >
+                    <ChevronRight size={17} />
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1750,7 +2172,7 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
           <div>
             <h2 className="text-base font-bold text-white">Inspection Info</h2>
             <p className="text-xs leading-relaxed mt-1.5" style={{ color: "rgba(255,255,255,0.78)" }}>
-              Read-only shipment data: reference number, client &amp; location details, and schedule vs status overview.
+              Shipment, APE, vessel, declared logs, cargo, attachments, and volume variance — all read-only.
             </p>
           </div>
 
@@ -2034,6 +2456,7 @@ export default function App() {
     return (
       <InspectionInfoDetailsScreen
         task={task}
+        dark={dark}
         onBack={() => setScreen("inspection-details")}
       />
     );
