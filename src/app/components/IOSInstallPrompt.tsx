@@ -86,7 +86,7 @@ export function IOSInstallPrompt() {
             style={{ background: "#000000", border: "1px solid rgba(255,255,255,0.18)" }}
             aria-hidden
           >
-            <img src="/icons/icon-192.png" alt="" className="h-full w-full object-cover" />
+            <img src="/icons/app-192-v3.png" alt="" className="h-full w-full object-cover" />
           </div>
           <div className="min-w-0 flex-1">
             <h2 id="ios-a2hs-title" className="text-sm font-semibold tracking-wide">

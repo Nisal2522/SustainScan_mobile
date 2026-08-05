@@ -27,12 +27,14 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: [
-        'icons/apple-touch-icon.png',
+        'icons/apple-touch-v3.png',
         'icons/logo-horizontal.png',
       ],
       manifest: {
-        // Android draws `name` on the system splash; keep short_name for the Home Screen label.
-        // Zero-width space avoids the big "SustainScan" splash title (not removable otherwise).
+        // Unique id helps Chrome treat this as an updated installable app
+        id: '/?source=pwa-v3',
+        // Android system splash draws `name` + 512 icon + background_color.
+        // ZWSP name + solid icon matching bg = no visible branded splash.
         name: '\u200B',
         short_name: 'SustainScan',
         description:
@@ -41,24 +43,26 @@ export default defineConfig({
         background_color: '#0a162e',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        // Cache-bust start URL so installed WebAPK re-checks the manifest
+        start_url: '/?source=pwa-v3',
         scope: '/',
         icons: [
           {
-            src: 'icons/icon-192.png',
+            src: 'icons/app-192-v3.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            // Solid #0a162e — matches background_color so Android splash is a brief color flash, not a logo screen
-            src: 'icons/icon-512.png',
+            // Solid #0a162e — same as background_color (invisible on Android splash)
+            src: 'icons/app-512-v3.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'icons/icon-maskable-512.png',
+            // White background + logo for Home Screen / adaptive icons
+            src: 'icons/app-maskable-512-v3.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
@@ -68,8 +72,21 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff2}'],
         navigateFallback: '/index.html',
-        // App includes large photo assets used on login / inventory screens
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        // Always refresh HTML/manifest so splash-related metadata isn't sticky
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) =>
+              request.mode === 'navigate' ||
+              request.destination === 'document' ||
+              (request.url && request.url.includes('manifest.webmanifest')),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'ss-navigations-v2',
+              networkTimeoutSeconds: 3,
+            },
+          },
+        ],
       },
       devOptions: {
         enabled: true,

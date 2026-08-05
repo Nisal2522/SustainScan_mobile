@@ -5,20 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!-- iOS: light/white status bar strip with dark time/battery icons -->
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="SustainScan" />
-    <!-- Android / PWA: white status bar (time, battery, signal area) -->
     <meta name="theme-color" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#ffffff" />
     <title>SustainScan</title>
     <meta name="description" content="SustainScan offers a user-friendly login interface for clients and Control Union users, facilitating easy access to sustainable solutions and resources." />
     <meta name="robots" content="noindex, nofollow" />
-    <link rel="icon" href="/icons/icon-192.png" type="image/png" />
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
-    <!-- Paint Login-like UI ASAP so Android dismisses its system splash quickly -->
+    <link rel="icon" href="/icons/app-192-v3.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-v3.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-v3.png" />
     <link rel="preload" href="/icons/logo-horizontal.png" as="image" />
     <style>
       html, body {
@@ -27,7 +24,7 @@
         background: #ffffff;
       }
       #root { height: 100%; }
-      /* Instant first paint — replaced by React Login as soon as JS mounts */
+      /* Instant Login-shaped first paint — dismisses Android system splash ASAP */
       #boot-login {
         box-sizing: border-box;
         min-height: 100%;
@@ -63,7 +60,6 @@
         text-transform: uppercase;
         color: rgba(255, 255, 255, 0.45);
       }
-      /* sr-only: guarantees instant text paint so OS splash can dismiss before images load */
       .boot-fcp {
         position: absolute;
         width: 1px;
