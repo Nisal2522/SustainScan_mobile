@@ -63,6 +63,7 @@ interface AppSession {
   userType: UserType;
   location: string;
   dark: boolean;
+  selectedInspectionId: string | null;
 }
 
 const AUTHENTICATED_SCREENS: Screen[] = [
@@ -83,11 +84,19 @@ function loadSession(): AppSession | null {
     ) {
       return null;
     }
+    let screen = data.screen as Screen;
+    const selectedInspectionId = typeof data.selectedInspectionId === "string" ? data.selectedInspectionId : null;
+    // Guard against restoring an inspection-details screen whose task no longer resolves
+    // (e.g. the referenced id was lost) — fall back to the list instead of a blank screen.
+    if (screen === "inspection-details" && !SCHEDULED_INSPECTIONS.some(t => t.id === selectedInspectionId)) {
+      screen = "schedule-inspection";
+    }
     return {
-      screen: data.screen as Screen,
+      screen,
       userType: data.userType,
       location: data.location,
       dark: data.dark,
+      selectedInspectionId: screen === "inspection-details" ? selectedInspectionId : null,
     };
   } catch {
     return null;
@@ -1675,7 +1684,7 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack }: {
         {/* Inspection Info — read only, expandable */}
         <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)", boxShadow: "0 1px 4px rgba(15,47,143,0.06)" }}>
           <div className="flex items-start justify-between gap-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#f0f4ff", border: "1px solid rgba(15,47,143,0.18)" }}>
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(15,47,143,0.08)" }}>
               <ClipboardList size={18} style={{ color: "#0f2f8f" }} />
             </div>
             <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0" style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.28)", color: "#0f2f8f" }}>
@@ -1713,40 +1722,51 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack }: {
           <button
             type="button"
             onClick={() => setInfoExpanded(v => !v)}
-            className="self-end w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 focus:outline-none transition-colors hover:brightness-105"
-            style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+            className="self-end w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 focus:outline-none transition-all duration-200 hover:brightness-110 active:scale-[0.96]"
+            style={{ background: GRADIENT, color: "#ffffff", boxShadow: "0 2px 8px rgba(15,47,143,0.30)" }}
             aria-label={infoExpanded ? "Show less" : "Show more"}
           >
             <ArrowRight size={16} style={{ transform: infoExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
           </button>
         </div>
 
-        {/* Inspection process — connected timeline */}
-        <div className="relative pb-1">
-          <div className="absolute left-6 top-6 bottom-6 w-0.5 rounded-full" style={{ background: "linear-gradient(180deg, rgba(15,47,143,0.35), rgba(15,47,143,0.08))" }} aria-hidden="true" />
-
-          <div className="flex flex-col gap-8">
-            {INSPECTION_STEPS.map((step, idx) => {
-              const status = progress[step.key];
-              const isDone = status === "completed";
-              const isActive = status === "in-progress";
-              return (
-                <div key={step.key} className="relative flex gap-4">
-                  <div
-                    className="relative z-10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{
-                      background: "#ffffff",
-                      color: isDone ? "#059669" : "#0f2f8f",
-                      border: `2px solid ${isDone ? "rgba(5,150,105,0.35)" : "rgba(15,47,143,0.18)"}`,
-                      boxShadow: isActive
-                        ? "0 0 0 4px rgba(15,47,143,0.12), 0 0 16px rgba(15,47,143,0.35)"
-                        : "0 1px 4px rgba(15,47,143,0.10)",
-                    }}
-                  >
-                    {isDone ? <CheckCircle2 size={20} /> : step.icon}
+        {/* Inspection process — connected timeline (line height auto-matches each card, no overshoot) */}
+        <div className="flex flex-col">
+          {INSPECTION_STEPS.map((step, idx) => {
+            const status = progress[step.key];
+            const isDone = status === "completed";
+            const isActive = status === "in-progress";
+            const isLast = idx === INSPECTION_STEPS.length - 1;
+            return (
+              <div key={step.key}>
+                <div className="relative flex gap-4">
+                  <div className="flex flex-col items-center flex-shrink-0" style={{ width: 48 }}>
+                    <div
+                      className="relative z-10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{
+                        background: "#ffffff",
+                        color: isDone ? "#059669" : "#0f2f8f",
+                        border: `2px solid ${isDone ? "rgba(5,150,105,0.35)" : "rgba(15,47,143,0.18)"}`,
+                        boxShadow: isActive
+                          ? "0 0 0 4px rgba(15,47,143,0.12), 0 0 16px rgba(15,47,143,0.35)"
+                          : "0 1px 4px rgba(15,47,143,0.10)",
+                      }}
+                    >
+                      {isDone ? <CheckCircle2 size={20} /> : step.icon}
+                    </div>
+                    {!isLast && (
+                      <div
+                        className="w-0.5 flex-1"
+                        style={{ background: "linear-gradient(180deg, rgba(15,47,143,0.35), rgba(15,47,143,0.15))" }}
+                        aria-hidden="true"
+                      />
+                    )}
                   </div>
 
-                  <div className="flex-1 min-w-0 flex flex-col gap-2 pt-1.5">
+                  <div
+                    className="flex-1 min-w-0 rounded-2xl p-4 flex flex-col gap-2"
+                    style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)", boxShadow: "0 1px 4px rgba(15,47,143,0.06)" }}
+                  >
                     <div className="flex items-start justify-between gap-2 flex-wrap">
                       <h3 className="text-[15px] font-bold" style={{ color: "#0a1a4a" }}>
                         {idx + 1}. {step.title}
@@ -1772,9 +1792,18 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack }: {
                     </button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+
+                {!isLast && (
+                  <div className="flex gap-4" aria-hidden="true">
+                    <div className="flex justify-center flex-shrink-0" style={{ width: 48 }}>
+                      <div className="w-0.5 h-8" style={{ background: "linear-gradient(180deg, rgba(15,47,143,0.15), rgba(15,47,143,0.35))" }} />
+                    </div>
+                    <div className="flex-1" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
       </div>
@@ -1848,7 +1877,7 @@ export default function App() {
   const [dark, setDark] = useState(restored?.dark ?? false);
   const [userType, setUserType] = useState<UserType>(restored?.userType ?? "client");
   const [registerLogPrefill, setRegisterLogPrefill] = useState<RegisterLogFormData | null>(null);
-  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(restored?.selectedInspectionId ?? null);
   const [inspectionProgressById, setInspectionProgressById] = useState<Record<string, InspectionProgress>>({});
 
   const isCU = userType === "cu";
@@ -1877,8 +1906,16 @@ export default function App() {
       clearSession();
       return;
     }
-    saveSession({ screen, userType, location, dark });
-  }, [screen, userType, location, dark]);
+    saveSession({ screen, userType, location, dark, selectedInspectionId });
+  }, [screen, userType, location, dark, selectedInspectionId]);
+
+  // Safety net: if we ever land on inspection-details without a resolvable task
+  // (e.g. a stale/lost id), bounce back to the list instead of rendering blank.
+  useEffect(() => {
+    if (screen === "inspection-details" && !SCHEDULED_INSPECTIONS.some(t => t.id === selectedInspectionId)) {
+      setScreen("schedule-inspection");
+    }
+  }, [screen, selectedInspectionId]);
 
   if (screen === "login") return (
     <LoginScreen
@@ -1929,7 +1966,15 @@ export default function App() {
   }
   if (screen === "inspection-details") {
     const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
-    if (!task) return null;
+    if (!task) {
+      return (
+        <ScheduleInspectionScreen
+          onBack={() => setScreen("home")}
+          onStartInspection={t => { setSelectedInspectionId(t.id); setScreen("inspection-details"); }}
+          getProgress={getInspectionProgress}
+        />
+      );
+    }
     return (
       <InspectionDetailsScreen
         task={task}
