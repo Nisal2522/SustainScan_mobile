@@ -5,8 +5,7 @@ import {
   ScanLine, QrCode,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
-import sustainscanLogoWhite from "../imports/logo_name_transparent-1.png";
-import sustainscanLogoDark from "../imports/logo_name_horizontal_dark.png";
+import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
 import controlUnionLogo from "../imports/CU_Logo_4_White_1.png";
 import profilePhoto from "../imports/image.png";
 import qrCode from "../imports/image-1.png";
@@ -136,8 +135,12 @@ function PageHeader({ dark, onBack, onDarkToggle, extra }: {
   const btn = { background: dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.08)", color: dark ? "#ffffff" : "#0f2f8f" };
   return (
     <div className="flex items-center justify-between">
-      <img src={sustainscanLogoDark} alt="SustainScan" className="h-9 object-contain"
-        style={{ filter: dark ? "brightness(0) invert(1)" : "none" }} />
+      <img
+        src={sustainscanLogo}
+        alt="SustainScan"
+        className="h-9 object-contain object-left"
+        style={{ filter: dark ? "brightness(0) invert(1)" : "none" }}
+      />
       <div className="flex items-center gap-2">
         {onBack && (
           <button onClick={onBack}
@@ -175,7 +178,7 @@ function LoginScreen({ onSignIn, onCUSignIn }: { onSignIn: () => void; onCUSignI
       <Background />
       <div className="relative z-10 w-full max-w-[420px] mx-4 flex flex-col min-h-screen py-10 items-center justify-between gap-6">
         <div className="flex flex-col items-center gap-3 pt-4">
-          <img src={sustainscanLogoWhite} alt="SustainScan" className="w-44 drop-shadow-2xl" style={{ filter: "brightness(0) invert(1)" }} />
+          <img src={sustainscanLogo} alt="SustainScan" className="w-44 drop-shadow-2xl" style={{ filter: "brightness(0) invert(1)" }} />
         </div>
 
         {/* overflow-hidden kept here so tab active bg clips to rounded corners */}
@@ -261,7 +264,7 @@ function CUSignInScreen({ onNext }: { onNext: (location: string) => void }) {
       <Background />
       <div className="relative z-10 w-full max-w-[420px] mx-4 flex flex-col min-h-screen py-10 items-center justify-between gap-6">
         <div className="flex flex-col items-center gap-3 pt-4">
-          <img src={sustainscanLogoWhite} alt="SustainScan" className="w-44 drop-shadow-2xl" style={{ filter: "brightness(0) invert(1)" }} />
+          <img src={sustainscanLogo} alt="SustainScan" className="w-44 drop-shadow-2xl" style={{ filter: "brightness(0) invert(1)" }} />
         </div>
 
         <div className="w-full rounded-3xl shadow-2xl"
@@ -350,7 +353,7 @@ function LocationScreen({ onNext }: { onNext: (location: string) => void }) {
       <Background />
       <div className="relative z-10 w-full max-w-[420px] mx-4 flex flex-col min-h-screen py-10 items-center justify-between gap-6">
         <div className="flex flex-col items-center gap-3 pt-4">
-          <img src={sustainscanLogoWhite} alt="SustainScan" className="w-44 drop-shadow-2xl" style={{ filter: "brightness(0) invert(1)" }} />
+          <img src={sustainscanLogo} alt="SustainScan" className="w-44 drop-shadow-2xl" style={{ filter: "brightness(0) invert(1)" }} />
         </div>
 
         {/* No overflow-hidden here so the dropdown is never clipped */}

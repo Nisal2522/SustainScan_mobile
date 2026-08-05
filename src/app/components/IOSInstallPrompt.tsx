@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PlusSquare, Share, Smartphone, X } from "lucide-react";
+import { PlusSquare, Share, X } from "lucide-react";
 
 const STORAGE_KEY = "sustainscan-ios-a2hs-dismissed";
 const DISMISS_DAYS = 14;
@@ -82,11 +82,11 @@ export function IOSInstallPrompt() {
       >
         <div className="flex items-start gap-3 px-4 pt-4 pb-3">
           <div
-            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-            style={{ background: "rgba(255,255,255,0.15)" }}
+            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+            style={{ background: "#000000", border: "1px solid rgba(255,255,255,0.18)" }}
             aria-hidden
           >
-            <Smartphone size={20} />
+            <img src="/icons/icon-192.png" alt="" className="h-full w-full object-cover" />
           </div>
           <div className="min-w-0 flex-1">
             <h2 id="ios-a2hs-title" className="text-sm font-semibold tracking-wide">
