@@ -1677,7 +1677,14 @@ interface InspectionInfoSection {
   badge: string;
   alert?: boolean;
   icon: ReactNode;
+  group: "shipment" | "cargo" | "compliance";
 }
+
+const INSPECTION_INFO_GROUPS: { id: InspectionInfoSection["group"]; label: string }[] = [
+  { id: "shipment", label: "Shipment" },
+  { id: "cargo", label: "Cargo & documents" },
+  { id: "compliance", label: "Compliance" },
+];
 
 function getInspectionInfoSections(task: InspectionTask): InspectionInfoSection[] {
   const eta = task.day === "today" ? "08/02/2026" : task.day === "tomorrow" ? "09/02/2026" : "12/02/2026";
@@ -1687,42 +1694,48 @@ function getInspectionInfoSections(task: InspectionTask): InspectionInfoSection[
       title: "Shipment Details",
       description: "Reference, request date, exporter, project site, permit, loading point, licence and advised volume.",
       badge: "REF 20",
-      icon: <Ship size={20} />,
+      icon: <Ship size={18} />,
+      group: "shipment",
     },
     {
       id: "ape",
       title: "Exporter Approved Price Endorsement",
       description: "Permitted volume and FOB pricing per species and group, as approved on the APE.",
       badge: "11 ROWS",
-      icon: <CircleDollarSign size={20} />,
+      icon: <CircleDollarSign size={18} />,
+      group: "shipment",
     },
     {
       id: "vessel",
       title: "Vessel Details",
       description: "Vessel name, agent, contact and estimated time of arrival.",
       badge: `ETA ${eta}`,
-      icon: <Anchor size={20} />,
+      icon: <Anchor size={18} />,
+      group: "shipment",
     },
     {
       id: "declared-logs",
       title: "Exporter Declared Log Details",
       description: "Serial numbers, product group, code, log size, and permit volume declared in the request.",
       badge: `${Math.min(task.logs, 4)} LOGS`,
-      icon: <Layers size={20} />,
+      icon: <Layers size={18} />,
+      group: "cargo",
     },
     {
       id: "cargo",
       title: "Cargo Details",
       description: "Buyer, destination port and buyer address for the consignment.",
       badge: "DEST. QINGDAO",
-      icon: <Container size={20} />,
+      icon: <Container size={18} />,
+      group: "cargo",
     },
     {
       id: "attachments",
       title: "Attachments",
       description: "Supporting documents submitted with the inspection request.",
       badge: "3 FILES",
-      icon: <Paperclip size={20} />,
+      icon: <Paperclip size={18} />,
+      group: "cargo",
     },
     {
       id: "volume-variance",
@@ -1730,7 +1743,8 @@ function getInspectionInfoSections(task: InspectionTask): InspectionInfoSection[
       description: "Compare permitted APE volumes against exporter-declared quantities and flag variances.",
       badge: "10 VARIANCES",
       alert: true,
-      icon: <Scale size={20} />,
+      icon: <Scale size={18} />,
+      group: "compliance",
     },
   ];
 }
@@ -1814,25 +1828,23 @@ function getInspectionInfoSectionFields(sectionId: InspectionInfoSectionId, task
   }
 }
 
-const INFO_GLASS = { backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" } as const;
-
 function useInspectionInfoTheme(dark: boolean) {
   return {
-    bg: dark ? "#0f172a" : "#f0f4ff",
+    bg: dark ? "#0f172a" : "#eef2fb",
     textPrimary: dark ? "#ffffff" : "#0a1a4a",
     textMuted: dark ? "rgba(255,255,255,0.65)" : "#5a6a99",
     textFaint: dark ? "rgba(255,255,255,0.45)" : "#94a3b8",
-    cardBg: dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.62)",
-    cardBorder: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.12)",
-    cardShadow: dark ? "0 8px 28px rgba(0,0,0,0.28)" : "0 8px 28px rgba(15,47,143,0.08)",
+    cardBg: dark ? "rgba(30, 41, 59, 0.72)" : "#ffffff",
+    cardBorder: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)",
+    cardShadow: dark ? "0 1px 0 rgba(255,255,255,0.04)" : "0 1px 2px rgba(15,47,143,0.05), 0 8px 24px rgba(15,47,143,0.06)",
+    rowDivider: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)",
     iconBg: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)",
     iconColor: dark ? "#ffffff" : "#0f2f8f",
-    badgeBg: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)",
+    badgeBg: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.07)",
     badgeColor: dark ? "#ffffff" : "#0f2f8f",
-    chevronBg: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)",
-    alertBorder: "rgba(212,24,61,0.35)",
-    alertShadow: dark ? "0 8px 28px rgba(212,24,61,0.18)" : "0 8px 28px rgba(212,24,61,0.12)",
+    chevronColor: dark ? "rgba(255,255,255,0.35)" : "#94a3b8",
     alertIconBg: "rgba(212,24,61,0.12)",
+    groupLabel: dark ? "rgba(255,255,255,0.45)" : "#6b7aa8",
   };
 }
 
@@ -1858,11 +1870,15 @@ function useSwipeBack(onBack: () => void) {
 function InspectionInfoSkeleton({ dark }: { dark: boolean }) {
   const shimmer = dark ? "animate-shimmer-dark" : "animate-shimmer";
   return (
-    <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-6 gap-5">
-      <div className={`h-36 rounded-[22px] ${shimmer}`} />
-      {[0, 1, 2, 3].map(i => (
-        <div key={i} className={`h-[118px] rounded-[22px] ${shimmer}`} style={{ opacity: 1 - i * 0.12 }} />
-      ))}
+    <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-6 gap-6">
+      <div className="flex flex-col gap-2">
+        <div className={`h-3 w-24 rounded ${shimmer}`} />
+        <div className={`h-[168px] rounded-[18px] ${shimmer}`} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <div className={`h-3 w-32 rounded ${shimmer}`} />
+        <div className={`h-[168px] rounded-[18px] ${shimmer}`} />
+      </div>
     </div>
   );
 }
@@ -1900,18 +1916,11 @@ function InspectionInfoSectionDetailScreen({
 
       <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-6 gap-5">
         <div
-          className="rounded-[22px] p-5 flex items-start gap-4 animate-riseIn"
-          style={{
-            ...INFO_GLASS,
-            background: t.cardBg,
-            border: section.alert ? `1px solid ${t.alertBorder}` : `1px solid ${t.cardBorder}`,
-            boxShadow: section.alert ? t.alertShadow : t.cardShadow,
-            borderLeftWidth: section.alert ? 3 : 1,
-            borderLeftColor: section.alert ? "#d4183d" : undefined,
-          }}
+          className="rounded-[18px] px-4 py-3.5 flex items-center gap-3 animate-riseIn"
+          style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, boxShadow: t.cardShadow }}
         >
           <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
             style={{
               background: section.alert ? t.alertIconBg : t.iconBg,
               color: section.alert ? "#d4183d" : t.iconColor,
@@ -1919,48 +1928,46 @@ function InspectionInfoSectionDetailScreen({
           >
             {section.icon}
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span
-                className="inline-flex items-center h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider"
-                style={
-                  section.alert
-                    ? { background: "#d4183d", color: "#ffffff" }
-                    : { background: t.badgeBg, color: t.badgeColor }
-                }
-              >
-                {section.badge}
-              </span>
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: t.textMuted }}>
-                <Lock size={10} /> Read Only
-              </span>
-            </div>
-            <p className="text-sm leading-relaxed" style={{ color: t.textMuted }}>{section.description}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: t.textFaint }}>Section</p>
+            <p className="text-sm font-semibold truncate mt-0.5" style={{ color: t.textPrimary }}>{section.badge}</p>
           </div>
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider flex-shrink-0" style={{ color: t.textMuted }}>
+            <Lock size={10} /> Read Only
+          </span>
         </div>
 
         <div
-          className="rounded-[22px] p-6 animate-riseIn"
+          className="rounded-[18px] overflow-hidden animate-riseIn"
           style={{
-            ...INFO_GLASS,
             background: t.cardBg,
             border: `1px solid ${t.cardBorder}`,
             boxShadow: t.cardShadow,
-            ["--rise-delay" as string]: "60ms",
+            ["--rise-delay" as string]: "50ms",
           }}
         >
-          <div className="grid grid-cols-2 gap-x-5 gap-y-5">
-            {fields.map(([label, val]) => (
-              <div key={label} className={label === "Buyer Address" || label === "Serial Range" ? "col-span-2" : undefined}>
-                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: t.textFaint }}>{label}</p>
-                <p className="text-[15px] font-semibold mt-1 break-words leading-snug" style={{ color: t.textPrimary }}>{val}</p>
-              </div>
-            ))}
-          </div>
+          {fields.map(([label, val], i) => (
+            <div
+              key={label}
+              className="px-4 py-3.5 flex items-start justify-between gap-4"
+              style={{ borderTop: i === 0 ? undefined : `1px solid ${t.rowDivider}` }}
+            >
+              <p className="text-[13px] font-medium flex-shrink-0 pt-0.5" style={{ color: t.textMuted }}>{label}</p>
+              <p className="text-[14px] font-semibold text-right break-words leading-snug" style={{ color: t.textPrimary }}>{val}</p>
+            </div>
+          ))}
         </div>
 
         {section.id === "attachments" && (
-          <div className="flex flex-col gap-3">
+          <div
+            className="rounded-[18px] overflow-hidden animate-riseIn"
+            style={{
+              background: t.cardBg,
+              border: `1px solid ${t.cardBorder}`,
+              boxShadow: t.cardShadow,
+              ["--rise-delay" as string]: "90ms",
+            }}
+          >
             {[
               { name: "APE-2026-118.pdf", meta: "PDF · 240 KB" },
               { name: "PNG-EXP-2026-0441.pdf", meta: "PDF · 180 KB" },
@@ -1968,21 +1975,15 @@ function InspectionInfoSectionDetailScreen({
             ].map((file, i) => (
               <div
                 key={file.name}
-                className="rounded-[20px] px-4 py-4 flex items-center gap-3.5 animate-riseIn"
-                style={{
-                  ...INFO_GLASS,
-                  background: t.cardBg,
-                  border: `1px solid ${t.cardBorder}`,
-                  boxShadow: t.cardShadow,
-                  ["--rise-delay" as string]: `${100 + i * 50}ms`,
-                }}
+                className="px-4 py-3.5 flex items-center gap-3"
+                style={{ borderTop: i === 0 ? undefined : `1px solid ${t.rowDivider}` }}
               >
-                <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: t.iconBg, color: t.iconColor }}>
-                  <FileText size={18} />
+                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: t.iconBg, color: t.iconColor }}>
+                  <FileText size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold truncate" style={{ color: t.textPrimary }}>{file.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color: t.textMuted }}>{file.meta}</p>
+                  <p className="text-sm font-semibold truncate" style={{ color: t.textPrimary }}>{file.name}</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: t.textMuted }}>{file.meta}</p>
                 </div>
               </div>
             ))}
@@ -2026,8 +2027,6 @@ function InspectionInfoDetailsScreen({
     );
   }
 
-  const alertCount = sections.filter(s => s.alert).length;
-
   return (
     <div
       className="min-h-screen w-full transition-colors duration-300 animate-fadeIn"
@@ -2038,7 +2037,7 @@ function InspectionInfoDetailsScreen({
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>Inspection Info</h1>
+            <h1 className="text-[22px] font-bold tracking-tight" style={{ color: t.textPrimary }}>Inspection Info</h1>
             <p className="text-sm truncate mt-0.5" style={{ color: t.textMuted }}>{task.shipment}</p>
           </div>
         </div>
@@ -2047,89 +2046,58 @@ function InspectionInfoDetailsScreen({
       {loading ? (
         <InspectionInfoSkeleton dark={dark} />
       ) : (
-        <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-6 gap-5">
-          <div
-            className="rounded-[22px] p-6 animate-riseIn"
-            style={{ background: GRADIENT, boxShadow: "0 10px 32px rgba(15,47,143,0.32)" }}
-          >
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.16)" }}>
-                <ClipboardList size={20} style={{ color: "#ffffff" }} />
-              </div>
-              <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider flex-shrink-0" style={{ background: "#ffffff", color: "#0f2f8f" }}>
-                <Lock size={11} /> Read Only
-              </span>
-            </div>
-            <h2 className="text-xl font-bold text-white tracking-tight">Shipment record</h2>
-            <p className="text-sm leading-relaxed mt-2" style={{ color: "rgba(255,255,255,0.78)" }}>
-              Browse each information section below. All data is read-only as submitted for this inspection.
-            </p>
-            <div className="flex items-center gap-2.5 mt-5 flex-wrap">
-              <span className="inline-flex items-center h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider" style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}>
-                {sections.length} Sections
-              </span>
-              {alertCount > 0 && (
-                <span className="inline-flex items-center h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider" style={{ background: "rgba(212,24,61,0.92)", color: "#ffffff" }}>
-                  {alertCount} Alert{alertCount > 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4">
-            {sections.map((section, index) => (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => setActiveSectionId(section.id)}
-                className="w-full rounded-[22px] p-5 text-left group transition-transform duration-200 hover:scale-[1.01] active:scale-[0.985] focus:outline-none animate-riseIn"
-                style={{
-                  ...INFO_GLASS,
-                  background: t.cardBg,
-                  border: section.alert ? `1px solid ${t.alertBorder}` : `1px solid ${t.cardBorder}`,
-                  boxShadow: section.alert ? t.alertShadow : t.cardShadow,
-                  borderLeftWidth: section.alert ? 3 : 1,
-                  borderLeftColor: section.alert ? "#d4183d" : undefined,
-                  ["--rise-delay" as string]: `${70 + index * 45}ms`,
-                }}
-                aria-label={`Open ${section.title}`}
-              >
-                <div className="flex items-start justify-between gap-3 mb-3.5">
-                  <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{
-                      background: section.alert ? t.alertIconBg : t.iconBg,
-                      color: section.alert ? "#d4183d" : t.iconColor,
-                    }}
-                  >
-                    {section.icon}
-                  </div>
-                  <span
-                    className="inline-flex items-center h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider flex-shrink-0 max-w-[55%] truncate"
-                    style={
-                      section.alert
-                        ? { background: "#d4183d", color: "#ffffff" }
-                        : { background: t.badgeBg, color: t.badgeColor }
-                    }
-                  >
-                    {section.badge}
-                  </span>
+        <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-6 gap-6">
+          {/* Inset grouped lists */}
+          {INSPECTION_INFO_GROUPS.map((group, gIdx) => {
+            const rows = sections.filter(s => s.group === group.id);
+            if (rows.length === 0) return null;
+            return (
+              <section key={group.id} className="flex flex-col gap-2 animate-riseIn" style={{ ["--rise-delay" as string]: `${60 + gIdx * 70}ms` }}>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] px-1" style={{ color: t.groupLabel }}>
+                  {group.label}
+                </p>
+                <div
+                  className="rounded-[18px] overflow-hidden"
+                  style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, boxShadow: t.cardShadow }}
+                >
+                  {rows.map((section, index) => (
+                    <button
+                      key={section.id}
+                      type="button"
+                      onClick={() => setActiveSectionId(section.id)}
+                      className="w-full px-3.5 py-3.5 flex items-center gap-3 text-left focus:outline-none active:opacity-70 transition-opacity"
+                      style={{ borderTop: index === 0 ? undefined : `1px solid ${t.rowDivider}` }}
+                      aria-label={`Open ${section.title}`}
+                    >
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{
+                          background: section.alert ? t.alertIconBg : t.iconBg,
+                          color: section.alert ? "#d4183d" : t.iconColor,
+                        }}
+                      >
+                        {section.icon}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-semibold leading-snug" style={{ color: t.textPrimary }}>{section.title}</p>
+                      </div>
+                      <span
+                        className="inline-flex items-center h-6 px-2 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0 max-w-[38%] truncate"
+                        style={
+                          section.alert
+                            ? { background: "#d4183d", color: "#ffffff" }
+                            : { background: t.badgeBg, color: t.badgeColor }
+                        }
+                      >
+                        {section.badge}
+                      </span>
+                      <ChevronRight size={16} style={{ color: t.chevronColor, flexShrink: 0 }} />
+                    </button>
+                  ))}
                 </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-bold leading-snug" style={{ color: t.textPrimary }}>{section.title}</h3>
-                  </div>
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-150 group-hover:translate-x-0.5"
-                    style={{ background: t.chevronBg, color: t.iconColor }}
-                  >
-                    <ChevronRight size={17} />
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
+              </section>
+            );
+          })}
         </div>
       )}
     </div>
