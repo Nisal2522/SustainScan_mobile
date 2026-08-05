@@ -2079,7 +2079,7 @@ function InspectionInfoDetailsScreen({
                         {section.icon}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[17px] font-bold leading-snug" style={{ color: t.textPrimary }}>{section.title}</p>
+                        <p className="text-[15px] font-semibold leading-snug" style={{ color: t.textPrimary }}>{section.title}</p>
                       </div>
                       <span
                         className="inline-flex items-center h-6 px-2 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0 max-w-[38%] truncate"
