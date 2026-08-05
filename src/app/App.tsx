@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   Eye, EyeOff, Mail, Lock, ChevronRight, MapPin, ChevronDown,
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
-  ScanLine, QrCode, Calendar, Search, ListFilter,
+  ScanLine, QrCode, Calendar, Search, ListFilter, X,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
 import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
@@ -184,9 +184,9 @@ const SCHEDULED_INSPECTIONS: InspectionTask[] = [
     shipment: "#SHIP-2024-003",
     exporter: "Coastal Pine Ltd",
     location: "North Docking Bay",
-    time: "Tomorrow 09:00",
+    time: "09:00–11:00",
     logs: 56,
-    day: "tomorrow",
+    day: "today",
     status: "pending",
   },
   {
@@ -194,9 +194,9 @@ const SCHEDULED_INSPECTIONS: InspectionTask[] = [
     shipment: "#SHIP-2024-004",
     exporter: "Amazonia Hardwoods",
     location: "West Logistics Hub",
-    time: "Tomorrow 11:00",
+    time: "11:00–13:00",
     logs: 21,
-    day: "tomorrow",
+    day: "today",
     status: "pending",
   },
   {
@@ -204,9 +204,9 @@ const SCHEDULED_INSPECTIONS: InspectionTask[] = [
     shipment: "#SHIP-2024-005",
     exporter: "Summit Forest Products",
     location: "Mountain Depot",
-    time: "Later",
+    time: "13:00–15:00",
     logs: 40,
-    day: "later",
+    day: "today",
     status: "pending",
   },
   {
@@ -214,10 +214,40 @@ const SCHEDULED_INSPECTIONS: InspectionTask[] = [
     shipment: "#SHIP-2024-006",
     exporter: "Eastern Pine Resale",
     location: "Eastern Rail Head",
-    time: "Today 15:00",
+    time: "15:00–17:00",
     logs: 18,
     day: "today",
     status: "urgent",
+  },
+  {
+    id: "7",
+    shipment: "#SHIP-2024-007",
+    exporter: "Pacific Timber Co",
+    location: "South Quay",
+    time: "Tomorrow 08:30",
+    logs: 27,
+    day: "tomorrow",
+    status: "pending",
+  },
+  {
+    id: "8",
+    shipment: "#SHIP-2024-008",
+    exporter: "Highland Logs Ltd",
+    location: "Inland Yard 2",
+    time: "Tomorrow 14:00",
+    logs: 35,
+    day: "tomorrow",
+    status: "urgent",
+  },
+  {
+    id: "9",
+    shipment: "#SHIP-2024-009",
+    exporter: "River Bend Exports",
+    location: "River Terminal",
+    time: "Later",
+    logs: 44,
+    day: "later",
+    status: "pending",
   },
 ];
 
@@ -1225,22 +1255,31 @@ function ScheduleInspectionScreen({
 }) {
   const [dayFilter, setDayFilter] = useState<DayFilter>("today");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [draftDay, setDraftDay] = useState<DayFilter>("today");
+  const [draftStatus, setDraftStatus] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
-  const filterRef = useRef<HTMLDivElement>(null);
 
   const filtersActive = dayFilter !== "today" || statusFilter !== "all";
 
-  useEffect(() => {
-    if (!filterOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
-        setFilterOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [filterOpen]);
+  const openFilters = () => {
+    setDraftDay(dayFilter);
+    setDraftStatus(statusFilter);
+    setFilterOpen(true);
+  };
+
+  const closeFilters = () => setFilterOpen(false);
+
+  const applyFilters = () => {
+    setDayFilter(draftDay);
+    setStatusFilter(draftStatus);
+    setFilterOpen(false);
+  };
+
+  const resetDraftFilters = () => {
+    setDraftDay("today");
+    setDraftStatus("all");
+  };
 
   const filtered = SCHEDULED_INSPECTIONS.filter(task => {
     if (task.day !== dayFilter) return false;
@@ -1275,7 +1314,7 @@ function ScheduleInspectionScreen({
 
   return (
     <div
-      className="min-h-screen w-full animate-fadeIn"
+      className="relative min-h-screen w-full animate-fadeIn"
       style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif", color: "#0a1a4a" }}
     >
       <AppHeaderBar>
@@ -1293,198 +1332,221 @@ function ScheduleInspectionScreen({
       </AppHeaderBar>
 
       <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 py-5 gap-5">
-          {/* Search + filter */}
-          <div className="relative" ref={filterRef}>
-            <div className="flex items-center gap-2">
-              <div
-                className="flex-1 flex items-center gap-3 h-12 px-3.5 rounded-xl"
-                style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)" }}
-              >
-                <Search size={18} style={{ color: "#5a6a99", flexShrink: 0 }} />
-                <input
-                  type="search"
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  placeholder="Search shipment ID or exporter"
-                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#5a6a99]/70"
-                  style={{ color: "#0a1a4a" }}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setFilterOpen(v => !v)}
-                className="relative w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-95 transition-transform"
-                style={{
-                  background: filterOpen || filtersActive ? "#93c5fd" : "rgba(15,47,143,0.08)",
-                  color: "#0f2f8f",
-                  border: `1px solid ${filterOpen || filtersActive ? "#93c5fd" : "rgba(15,47,143,0.14)"}`,
-                }}
-                aria-label="Open filters"
-                aria-expanded={filterOpen}
-              >
-                <ListFilter size={20} />
-                {filtersActive && (
-                  <span
-                    className="absolute top-2 right-2 w-2 h-2 rounded-full"
-                    style={{ background: "#d4183d" }}
-                  />
-                )}
-              </button>
-            </div>
+        {/* Search + filter */}
+        <div className="flex items-center gap-2">
+          <div
+            className="flex-1 flex items-center gap-3 h-12 px-3.5 rounded-xl"
+            style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)" }}
+          >
+            <Search size={18} style={{ color: "#5a6a99", flexShrink: 0 }} />
+            <input
+              type="search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search shipment ID or exporter"
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#5a6a99]/70"
+              style={{ color: "#0a1a4a" }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={openFilters}
+            className="relative w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-95 transition-transform"
+            style={{
+              background: filtersActive ? "#93c5fd" : "rgba(15,47,143,0.08)",
+              color: "#0f2f8f",
+              border: `1px solid ${filtersActive ? "#93c5fd" : "rgba(15,47,143,0.14)"}`,
+            }}
+            aria-label="Open filters"
+            aria-expanded={filterOpen}
+          >
+            <ListFilter size={20} />
+            {filtersActive && (
+              <span
+                className="absolute top-2 right-2 w-2 h-2 rounded-full"
+                style={{ background: "#d4183d" }}
+              />
+            )}
+          </button>
+        </div>
 
-            {filterOpen && (
-              <div
-                className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 rounded-xl p-4 flex flex-col gap-4 shadow-lg"
+        {/* Task list */}
+        <div className="flex flex-col gap-3">
+          {filtered.length === 0 ? (
+            <div
+              className="rounded-xl p-5 text-center"
+              style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)" }}
+            >
+              <p className="text-sm font-medium" style={{ color: "#0a1a4a" }}>
+                No inspections {dayFilter === "today" ? "today" : dayFilter === "tomorrow" ? "tomorrow" : "later"}
+              </p>
+              <p className="text-xs mt-1" style={{ color: "#5a6a99" }}>
+                Try another filter or clear your search.
+              </p>
+            </div>
+          ) : (
+            filtered.map(task => (
+              <article
+                key={task.id}
+                className="rounded-xl p-4 flex flex-col gap-3"
                 style={{
                   background: "#ffffff",
                   border: "1px solid rgba(15,47,143,0.14)",
-                  boxShadow: "0 8px 28px rgba(15,47,143,0.16)",
+                  boxShadow: "0 1px 3px rgba(15,47,143,0.06)",
                 }}
-                role="dialog"
-                aria-label="Filter inspections"
               >
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
-                    Filters
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold"
+                    style={
+                      task.status === "urgent"
+                        ? { background: "rgba(212,24,61,0.10)", color: "#d4183d" }
+                        : { background: "rgba(15,47,143,0.08)", color: "#5a6a99" }
+                    }
+                  >
+                    {task.status === "urgent" ? "Urgent" : "Pending"}
+                  </span>
+                  <span
+                    className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold"
+                    style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  >
+                    {task.shipment}
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <h3 className="text-[15px] font-bold leading-snug" style={{ color: "#0a1a4a" }}>
+                    {task.exporter}
+                  </h3>
+                  <p className="text-xs leading-relaxed" style={{ color: "#5a6a99" }}>
+                    {task.location} · {task.time} · {task.logs} logs
                   </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="w-full h-12 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-transform hover:brightness-110"
+                  style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
+                >
+                  Start Inspection
+                </button>
+              </article>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Filter bottom sheet */}
+      {filterOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end animate-fadeIn">
+          <button
+            type="button"
+            className="absolute inset-0 border-0 p-0 cursor-default"
+            style={{
+              background: "rgba(10,22,70,0.45)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+            }}
+            aria-label="Close filters"
+            onClick={closeFilters}
+          />
+          <div
+            className="relative z-10 w-full max-w-[480px] mx-auto rounded-t-3xl px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5"
+            style={{
+              background: "#ffffff",
+              boxShadow: "0 -8px 32px rgba(15,47,143,0.18)",
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Filter inspections"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
+              <div className="w-full flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+                  Filters
+                </p>
+                <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => {
-                      setDayFilter("today");
-                      setStatusFilter("all");
-                    }}
+                    onClick={resetDraftFilters}
                     className="text-xs font-semibold focus:outline-none"
                     style={{ color: "#0f2f8f" }}
                   >
                     Reset
                   </button>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="filter-schedule" className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
-                    Schedule
-                  </label>
-                  <div className="relative">
-                    <select
-                      id="filter-schedule"
-                      value={dayFilter}
-                      onChange={e => setDayFilter(e.target.value as DayFilter)}
-                      className="w-full h-12 appearance-none rounded-xl pl-3.5 pr-10 text-sm font-medium outline-none focus:outline-none"
-                      style={selectStyle}
-                    >
-                      {dayChips.map(opt => (
-                        <option key={opt.id} value={opt.id}>{opt.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={16}
-                      className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2"
-                      style={{ color: "#5a6a99" }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="filter-status" className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
-                    Status
-                  </label>
-                  <div className="relative">
-                    <select
-                      id="filter-status"
-                      value={statusFilter}
-                      onChange={e => setStatusFilter(e.target.value as StatusFilter)}
-                      className="w-full h-12 appearance-none rounded-xl pl-3.5 pr-10 text-sm font-medium outline-none focus:outline-none"
-                      style={selectStyle}
-                    >
-                      {statusChips.map(opt => (
-                        <option key={opt.id} value={opt.id}>{opt.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={16}
-                      className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2"
-                      style={{ color: "#5a6a99" }}
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setFilterOpen(false)}
-                  className="w-full h-11 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-transform"
-                  style={{ background: GRADIENT }}
-                >
-                  Apply filters
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Task list */}
-          <div className="flex flex-col gap-3">
-            {filtered.length === 0 ? (
-              <div
-                className="rounded-xl p-5 text-center"
-                style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)" }}
-              >
-                <p className="text-sm font-medium" style={{ color: "#0a1a4a" }}>
-                  No inspections {dayFilter === "today" ? "today" : dayFilter === "tomorrow" ? "tomorrow" : "later"}
-                </p>
-                <p className="text-xs mt-1" style={{ color: "#5a6a99" }}>
-                  Try another filter or clear your search.
-                </p>
-              </div>
-            ) : (
-              filtered.map(task => (
-                <article
-                  key={task.id}
-                  className="rounded-xl p-4 flex flex-col gap-3"
-                  style={{
-                    background: "#ffffff",
-                    border: "1px solid rgba(15,47,143,0.14)",
-                    boxShadow: "0 1px 3px rgba(15,47,143,0.06)",
-                  }}
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold"
-                      style={
-                        task.status === "urgent"
-                          ? { background: "rgba(212,24,61,0.10)", color: "#d4183d" }
-                          : { background: "rgba(15,47,143,0.08)", color: "#5a6a99" }
-                      }
-                    >
-                      {task.status === "urgent" ? "Urgent" : "Pending"}
-                    </span>
-                    <span
-                      className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold"
-                      style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
-                    >
-                      {task.shipment}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-[15px] font-bold leading-snug" style={{ color: "#0a1a4a" }}>
-                      {task.exporter}
-                    </h3>
-                    <p className="text-xs leading-relaxed" style={{ color: "#5a6a99" }}>
-                      {task.location} · {task.time} · {task.logs} logs
-                    </p>
-                  </div>
-
                   <button
                     type="button"
-                    className="w-full h-12 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-transform hover:brightness-110"
-                    style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
+                    onClick={closeFilters}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center focus:outline-none"
+                    style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                    aria-label="Close"
                   >
-                    Start Inspection
+                    <X size={16} />
                   </button>
-                </article>
-              ))
-            )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="filter-schedule" className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                Schedule
+              </label>
+              <div className="relative">
+                <select
+                  id="filter-schedule"
+                  value={draftDay}
+                  onChange={e => setDraftDay(e.target.value as DayFilter)}
+                  className="w-full h-12 appearance-none rounded-xl pl-3.5 pr-10 text-sm font-medium outline-none focus:outline-none"
+                  style={selectStyle}
+                >
+                  {dayChips.map(opt => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2"
+                  style={{ color: "#5a6a99" }}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="filter-status" className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                Status
+              </label>
+              <div className="relative">
+                <select
+                  id="filter-status"
+                  value={draftStatus}
+                  onChange={e => setDraftStatus(e.target.value as StatusFilter)}
+                  className="w-full h-12 appearance-none rounded-xl pl-3.5 pr-10 text-sm font-medium outline-none focus:outline-none"
+                  style={selectStyle}
+                >
+                  {statusChips.map(opt => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2"
+                  style={{ color: "#5a6a99" }}
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={applyFilters}
+              className="w-full h-12 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-transform"
+              style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
+            >
+              Apply filters
+            </button>
           </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
