@@ -1,22 +1,79 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="color-scheme: dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="SustainScan" />
-    <meta name="theme-color" content="#0f2f8f" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#000000" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
     <title>SustainScan</title>
     <meta name="description" content="SustainScan offers a user-friendly login interface for clients and Control Union users, facilitating easy access to sustainable solutions and resources." />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" href="/icons/icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <!-- Paint Login-like UI ASAP so Android dismisses its system splash quickly -->
+    <link rel="preload" href="/icons/logo-horizontal.png" as="image" />
     <style>
-      html, body { height: 100%; margin: 0; }
+      html, body {
+        height: 100%;
+        margin: 0;
+        background: #0a162e;
+        color-scheme: dark;
+      }
       #root { height: 100%; }
+      /* Instant first paint — replaced by React Login as soon as JS mounts */
+      #boot-login {
+        box-sizing: border-box;
+        min-height: 100%;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12vh 1.5rem 2.5rem;
+        background:
+          linear-gradient(rgba(10, 22, 70, 0.72), rgba(10, 22, 70, 0.72)),
+          #0a162e;
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      }
+      #boot-login img {
+        width: 176px;
+        max-width: 70%;
+        height: auto;
+        filter: brightness(0) invert(1);
+      }
+      #boot-login .boot-card {
+        width: 100%;
+        max-width: 420px;
+        height: 280px;
+        border-radius: 1.5rem;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+      }
+      #boot-login .boot-footer {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.45);
+      }
+      /* sr-only: guarantees instant text paint so OS splash can dismiss before images load */
+      .boot-fcp {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
       @media (display-mode: standalone) {
         html, body, #root { min-height: 100%; min-height: 100dvh; }
       }
@@ -24,7 +81,14 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot-login" aria-hidden="true">
+        <span class="boot-fcp">SustainScan</span>
+        <img src="/icons/logo-horizontal.png" alt="" width="176" height="49" />
+        <div class="boot-card"></div>
+        <span class="boot-footer">Powered by</span>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

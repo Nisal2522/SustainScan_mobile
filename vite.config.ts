@@ -35,8 +35,10 @@ export default defineConfig({
         short_name: 'SustainScan',
         description:
           'SustainScan helps Control Union and client users access sustainable timber scanning, logging, and inventory tools.',
-        theme_color: '#0f2f8f',
-        background_color: '#000000',
+        theme_color: '#000000',
+        // Match login backdrop so the brief Android system splash (unavoidable)
+        // blends into the Login screen instead of a black branded splash.
+        background_color: '#0a162e',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
