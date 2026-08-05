@@ -180,7 +180,7 @@ function LoginScreen({ onSignIn, onCUSignIn }: { onSignIn: () => void; onCUSignI
 
         {/* overflow-hidden kept here so tab active bg clips to rounded corners */}
         <div className="w-full rounded-3xl overflow-hidden shadow-2xl"
-          style={{ background: "rgba(255,255,255,0.14)", backdropFilter: "blur(24px) saturate(1.6)", WebkitBackdropFilter: "blur(24px) saturate(1.6)", border: "1px solid rgba(255,255,255,0.28)" }}>
+          style={{ background: "rgba(255,255,255,0.10)", backdropFilter: "blur(24px) saturate(1.6)", WebkitBackdropFilter: "blur(24px) saturate(1.6)", border: "1px solid rgba(255,255,255,0.28)" }}>
           <div className="flex" style={{ borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
             {(["client", "cu"] as LoginTab[]).map(tab => {
               const active = activeTab === tab;
@@ -198,14 +198,14 @@ function LoginScreen({ onSignIn, onCUSignIn }: { onSignIn: () => void; onCUSignI
               <>
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="client-email" className="text-xs font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.75)" }}>Email</label>
-                  <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.3)" }}>
+                  <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.3)" }}>
                     <Mail size={16} style={{ color: "rgba(255,255,255,0.6)" }} />
                     <input id="client-email" type="email" placeholder="you@example.com" value={clientForm.email} onChange={e => setClientForm(p => ({ ...p, email: e.target.value }))} autoComplete="email" className="flex-1 bg-transparent text-sm outline-none placeholder:text-white/40 text-white" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="client-password" className="text-xs font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.75)" }}>Password</label>
-                  <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.3)" }}>
+                  <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.3)" }}>
                     <Lock size={16} style={{ color: "rgba(255,255,255,0.6)" }} />
                     <input id="client-password" type={clientForm.showPassword ? "text" : "password"} placeholder="••••••••" value={clientForm.password} onChange={e => setClientForm(p => ({ ...p, password: e.target.value }))} autoComplete="current-password" className="flex-1 bg-transparent text-sm outline-none placeholder:text-white/40 text-white" />
                     <button type="button" onClick={() => setClientForm(p => ({ ...p, showPassword: !p.showPassword }))} className="focus:outline-none" style={{ color: "rgba(255,255,255,0.55)" }}>
@@ -265,7 +265,7 @@ function CUSignInScreen({ onNext }: { onNext: (location: string) => void }) {
         </div>
 
         <div className="w-full rounded-3xl shadow-2xl"
-          style={{ background: "rgba(255,255,255,0.14)", backdropFilter: "blur(24px) saturate(1.6)", WebkitBackdropFilter: "blur(24px) saturate(1.6)", border: "1px solid rgba(255,255,255,0.28)" }}>
+          style={{ background: "rgba(255,255,255,0.10)", backdropFilter: "blur(24px) saturate(1.6)", WebkitBackdropFilter: "blur(24px) saturate(1.6)", border: "1px solid rgba(255,255,255,0.28)" }}>
           <div className="px-7 py-8 flex flex-col gap-6">
             {/* Select Client */}
             <div className="flex flex-col gap-1.5">
@@ -273,7 +273,7 @@ function CUSignInScreen({ onNext }: { onNext: (location: string) => void }) {
               <div className="relative">
                 <button type="button" onClick={() => { setClientOpen(v => !v); setConcessionOpen(false); }}
                   className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm text-left transition-all duration-150 focus:outline-none"
-                  style={{ background: "rgba(255,255,255,0.18)", border: `1px solid ${clientOpen ? "rgba(96,165,250,0.6)" : "rgba(255,255,255,0.3)"}`, color: client ? "#fff" : "rgba(255,255,255,0.4)" }}>
+                  style={{ background: "rgba(255,255,255,0.10)", border: `1px solid ${clientOpen ? "rgba(96,165,250,0.6)" : "rgba(255,255,255,0.3)"}`, color: client ? "#fff" : "rgba(255,255,255,0.4)" }}>
                   <span className="truncate">{client || "Select a client…"}</span>
                   <ChevronDown size={16} style={{ color: "rgba(255,255,255,0.6)", transform: clientOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", flexShrink: 0 }} />
                 </button>
@@ -300,7 +300,7 @@ function CUSignInScreen({ onNext }: { onNext: (location: string) => void }) {
                   onClick={() => { if (client) { setConcessionOpen(v => !v); setClientOpen(false); } }}
                   className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm text-left transition-all duration-150 focus:outline-none"
                   style={{
-                    background: "rgba(255,255,255,0.18)",
+                    background: "rgba(255,255,255,0.10)",
                     border: `1px solid ${concessionOpen ? "rgba(96,165,250,0.6)" : "rgba(255,255,255,0.3)"}`,
                     color: concession ? "#fff" : "rgba(255,255,255,0.4)",
                     opacity: client ? 1 : 0.55,
@@ -326,7 +326,7 @@ function CUSignInScreen({ onNext }: { onNext: (location: string) => void }) {
 
             <button type="button" onClick={() => client && concession && onNext(concession)} disabled={!client || !concession}
               className="w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold shadow-lg transition-all duration-200 focus:outline-none"
-              style={{ background: (client && concession) ? GRADIENT : "rgba(255,255,255,0.12)", boxShadow: (client && concession) ? "0 4px 24px rgba(15,47,143,0.5),inset 0 1px 0 rgba(255,255,255,0.15)" : "none", color: (client && concession) ? "#fff" : "rgba(255,255,255,0.3)", cursor: (client && concession) ? "pointer" : "not-allowed" }}>
+              style={{ background: (client && concession) ? GRADIENT : "rgba(255,255,255,0.10)", boxShadow: (client && concession) ? "0 4px 24px rgba(15,47,143,0.5),inset 0 1px 0 rgba(255,255,255,0.15)" : "none", color: (client && concession) ? "#fff" : "rgba(255,255,255,0.3)", cursor: (client && concession) ? "pointer" : "not-allowed" }}>
               Next <ChevronRight size={16} />
             </button>
           </div>
@@ -355,7 +355,7 @@ function LocationScreen({ onNext }: { onNext: (location: string) => void }) {
 
         {/* No overflow-hidden here so the dropdown is never clipped */}
         <div className="w-full rounded-3xl shadow-2xl"
-          style={{ background: "rgba(255,255,255,0.14)", backdropFilter: "blur(24px) saturate(1.6)", WebkitBackdropFilter: "blur(24px) saturate(1.6)", border: "1px solid rgba(255,255,255,0.28)" }}>
+          style={{ background: "rgba(255,255,255,0.10)", backdropFilter: "blur(24px) saturate(1.6)", WebkitBackdropFilter: "blur(24px) saturate(1.6)", border: "1px solid rgba(255,255,255,0.28)" }}>
           <div className="px-7 pt-8 pb-5 rounded-t-3xl" style={{ borderBottom: "1px solid rgba(255,255,255,0.15)" }}>
             <div className="flex items-center gap-3 mb-1">
               <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "rgba(15,47,143,0.7)" }}>
@@ -373,7 +373,7 @@ function LocationScreen({ onNext }: { onNext: (location: string) => void }) {
               <div className="relative">
                 <button type="button" onClick={() => setOpen(v => !v)}
                   className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm text-left transition-all duration-150 focus:outline-none"
-                  style={{ background: "rgba(255,255,255,0.18)", border: `1px solid ${open ? "rgba(96,165,250,0.6)" : "rgba(255,255,255,0.3)"}`, color: selected ? "#fff" : "rgba(255,255,255,0.4)" }}>
+                  style={{ background: "rgba(255,255,255,0.10)", border: `1px solid ${open ? "rgba(96,165,250,0.6)" : "rgba(255,255,255,0.3)"}`, color: selected ? "#fff" : "rgba(255,255,255,0.4)" }}>
                   <span className="truncate">{selected || "Select a concession…"}</span>
                   <ChevronDown size={16} style={{ color: "rgba(255,255,255,0.6)", transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", flexShrink: 0 }} />
                 </button>
@@ -394,7 +394,7 @@ function LocationScreen({ onNext }: { onNext: (location: string) => void }) {
 
             <button type="button" onClick={() => selected && onNext(selected)} disabled={!selected}
               className="w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold shadow-lg transition-all duration-200 focus:outline-none"
-              style={{ background: selected ? GRADIENT : "rgba(255,255,255,0.12)", boxShadow: selected ? "0 4px 24px rgba(15,47,143,0.5),inset 0 1px 0 rgba(255,255,255,0.15)" : "none", color: selected ? "#fff" : "rgba(255,255,255,0.3)", cursor: selected ? "pointer" : "not-allowed" }}>
+              style={{ background: selected ? GRADIENT : "rgba(255,255,255,0.10)", boxShadow: selected ? "0 4px 24px rgba(15,47,143,0.5),inset 0 1px 0 rgba(255,255,255,0.15)" : "none", color: selected ? "#fff" : "rgba(255,255,255,0.3)", cursor: selected ? "pointer" : "not-allowed" }}>
               Next <ChevronRight size={16} />
             </button>
           </div>
@@ -426,15 +426,16 @@ function HomeScreen({ location, onLogout, onNavigate, isCU, dark, setDark }: {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const bg = dark ? "#0f172a" : "#ffffff";
-  const surface = dark ? "#1e293b" : "#f8faff";
-  const surfaceBorder = dark ? "rgba(255,255,255,0.07)" : "rgba(15,47,143,0.1)";
+  const bg = dark ? "#0f172a" : "#f0f4ff";
+  const surface = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.5)";
+  const surfaceBorder = dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.12)";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
   const textMuted = dark ? "#ffffff" : "#5a6a99";
-  const cardBg = dark ? "#1e293b" : "#ffffff";
-  const cardBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.12)";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.55)";
+  const cardBorder = dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.14)";
   const iconColor = dark ? "#ffffff" : "#0f2f8f";
-  const iconBg = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.1)";
+  const iconBg = dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.08)";
+  const subCardGlass = { backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" } as const;
   const btn = { background: dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.08)", color: iconColor };
 
   const ProfileButton = (
@@ -488,7 +489,7 @@ function HomeScreen({ location, onLogout, onNavigate, isCU, dark, setDark }: {
 
           <button onClick={() => onNavigate("scan-log")}
             className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
-            style={{ background: cardBg, border: `1px solid ${cardBorder}` }}>
+            style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
               {isCU ? <ScanLine size={26} style={{ color: iconColor }} /> : <ClipboardList size={26} style={{ color: iconColor }} />}
             </div>
@@ -503,7 +504,7 @@ function HomeScreen({ location, onLogout, onNavigate, isCU, dark, setDark }: {
 
           <button onClick={() => onNavigate("log-inventory")}
             className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
-            style={{ background: cardBg, border: `1px solid ${cardBorder}` }}>
+            style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
               <Package size={26} style={{ color: iconColor }} />
             </div>
@@ -518,7 +519,7 @@ function HomeScreen({ location, onLogout, onNavigate, isCU, dark, setDark }: {
         <div className="flex-1" />
 
         {/* ── Sync bar ── */}
-        <div className="rounded-2xl px-5 py-4 flex flex-col gap-3" style={{ background: surface, border: `1px solid ${surfaceBorder}` }}>
+        <div className="rounded-2xl px-5 py-4 flex flex-col gap-3" style={{ ...subCardGlass, background: surface, border: `1px solid ${surfaceBorder}` }}>
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: textMuted }}>Last synced</p>
             <p className="text-sm font-medium mt-0.5" style={{ color: textPrimary }}>{formatSyncTime(lastSync)}</p>
@@ -549,9 +550,10 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
 }) {
   const [registeredDialogOpen, setRegisteredDialogOpen] = useState(false);
 
-  const bg = dark ? "#0f172a" : "#ffffff";
-  const surface = dark ? "#1e293b" : "#f8faff";
-  const surfaceBorder = dark ? "rgba(255,255,255,0.07)" : "rgba(15,47,143,0.1)";
+  const bg = dark ? "#0f172a" : "#f0f4ff";
+  const surface = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.5)";
+  const surfaceBorder = dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.12)";
+  const subCardGlass = { backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" } as const;
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
   const textMuted = dark ? "#ffffff" : "#5a6a99";
 
@@ -584,7 +586,7 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
         {/* Title: boxed icon + bold h1 */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.1)" }}>
+            style={{ background: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.1)" }}>
             <ScanLine size={20} style={{ color: dark ? "#ffffff" : "#0f2f8f" }} />
           </div>
           <h1 className="text-xl font-bold tracking-tight" style={{ color: dark ? "#ffffff" : "#0a1a4a" }}>Scan Log</h1>
@@ -596,7 +598,7 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
 
         {/* QR card — the QR itself is the tap target */}
         <div className="flex flex-col items-center gap-5 rounded-2xl px-6 py-8"
-          style={{ background: surface, border: `1px solid ${surfaceBorder}` }}>
+          style={{ ...subCardGlass, background: surface, border: `1px solid ${surfaceBorder}` }}>
           <button
             onClick={handleQrTap}
             className="relative focus:outline-none group active:scale-95 transition-transform duration-150"
@@ -669,7 +671,7 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
         )}
 
         {/* Instructions */}
-        <div className="rounded-2xl px-5 py-4" style={{ background: surface, border: `1px solid ${surfaceBorder}` }}>
+        <div className="rounded-2xl px-5 py-4" style={{ ...subCardGlass, background: surface, border: `1px solid ${surfaceBorder}` }}>
           <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: textMuted }}>Instructions</p>
           {INSTRUCTIONS.map((tip, i) => (
             <div key={i} className="flex items-start gap-2 mb-2">
@@ -984,12 +986,13 @@ function InventoryRow({ item, dark }: { item: InventoryItem; dark: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
   const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
-  const rowBg = dark ? "#1e293b" : "#ffffff";
-  const rowBorder = dark ? "rgba(255,255,255,0.07)" : "rgba(15,47,143,0.1)";
-  const expandedBg = dark ? "#162032" : "#f0f5ff";
+  const rowBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.55)";
+  const rowBorder = dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.12)";
+  const expandedBg = dark ? "rgba(22, 32, 50, 0.5)" : "rgba(240, 245, 255, 0.55)";
+  const subCardGlass = { backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" } as const;
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: rowBg, border: `1px solid ${rowBorder}`, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+    <div className="rounded-2xl overflow-hidden" style={{ ...subCardGlass, background: rowBg, border: `1px solid ${rowBorder}`, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
       {/* Row header — always clickable */}
       <button className="w-full px-4 py-3.5 flex items-start justify-between gap-3 focus:outline-none"
         onClick={() => setExpanded(v => !v)}>
@@ -1049,7 +1052,7 @@ function InventoryRow({ item, dark }: { item: InventoryItem; dark: boolean }) {
 function LogInventoryScreen({ dark, onBack }: { dark: boolean; onBack: () => void; }) {
   const [tab, setTab] = useState<InventoryTab>("all");
 
-  const bg = dark ? "#0f172a" : "#ffffff";
+  const bg = dark ? "#0f172a" : "#f0f4ff";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
   const textMuted = dark ? "rgba(255,255,255,0.6)" : "#5a6a99";
 
@@ -1070,7 +1073,7 @@ function LogInventoryScreen({ dark, onBack }: { dark: boolean; onBack: () => voi
         {/* Title: boxed icon + bold h1 */}
         <div className="flex items-center gap-3 -mt-1">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.1)" }}>
+            style={{ background: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.1)" }}>
             <Package size={20} style={{ color: dark ? "#ffffff" : "#0f2f8f" }} />
           </div>
           <div>
@@ -1082,7 +1085,7 @@ function LogInventoryScreen({ dark, onBack }: { dark: boolean; onBack: () => voi
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 p-1 rounded-2xl" style={{ background: dark ? "rgba(255,255,255,0.06)" : "#e8edf9" }}>
+        <div className="flex gap-2 p-1 rounded-2xl" style={{ background: dark ? "rgba(255,255,255,0.06)" : "rgba(232, 237, 249, 0.55)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}>
           {(["all", "modified"] as InventoryTab[]).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 focus:outline-none"
