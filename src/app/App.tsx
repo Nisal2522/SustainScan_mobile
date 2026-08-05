@@ -16,7 +16,7 @@ import logEntryPhoto from "../imports/timber.png";
 
 type LoginTab = "client" | "cu";
 type UserType = "client" | "cu";
-type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details";
+type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details";
 type InventoryTab = "all" | "modified";
 type InspectionDay = "today" | "tomorrow" | "later";
 type InspectionStatus = "pending" | "urgent";
@@ -67,8 +67,10 @@ interface AppSession {
 }
 
 const AUTHENTICATED_SCREENS: Screen[] = [
-  "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection", "inspection-details",
+  "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection", "inspection-details", "inspection-info-details",
 ];
+
+const INSPECTION_TASK_SCREENS: Screen[] = ["inspection-details", "inspection-info-details"];
 
 function loadSession(): AppSession | null {
   try {
@@ -86,9 +88,9 @@ function loadSession(): AppSession | null {
     }
     let screen = data.screen as Screen;
     const selectedInspectionId = typeof data.selectedInspectionId === "string" ? data.selectedInspectionId : null;
-    // Guard against restoring an inspection-details screen whose task no longer resolves
+    // Guard against restoring a task-dependent screen whose task no longer resolves
     // (e.g. the referenced id was lost) — fall back to the list instead of a blank screen.
-    if (screen === "inspection-details" && !SCHEDULED_INSPECTIONS.some(t => t.id === selectedInspectionId)) {
+    if (INSPECTION_TASK_SCREENS.includes(screen) && !SCHEDULED_INSPECTIONS.some(t => t.id === selectedInspectionId)) {
       screen = "schedule-inspection";
     }
     return {
@@ -96,7 +98,7 @@ function loadSession(): AppSession | null {
       userType: data.userType,
       location: data.location,
       dark: data.dark,
-      selectedInspectionId: screen === "inspection-details" ? selectedInspectionId : null,
+      selectedInspectionId: INSPECTION_TASK_SCREENS.includes(screen) ? selectedInspectionId : null,
     };
   } catch {
     return null;
@@ -1658,14 +1660,67 @@ const INSPECTION_STEPS: InspectionStepConfig[] = [
   },
 ];
 
-function InspectionDetailsScreen({ task, progress, onAdvance, onBack }: {
+function InspectionInfoDetailsScreen({ task, onBack }: { task: InspectionTask; onBack: () => void }) {
+  const scheduleLabel = task.day === "today" ? `Today · ${task.time}` : task.day === "tomorrow" ? `Tomorrow · ${task.time}` : task.time;
+
+  return (
+    <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
+      <AppHeaderBar>
+        <div className="flex items-center gap-3">
+          <BackCardButton onClick={onBack} />
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: "#0a1a4a" }}>Inspection Info</h1>
+            <p className="text-xs truncate" style={{ color: "#5a6a99" }}>{task.shipment}</p>
+          </div>
+        </div>
+      </AppHeaderBar>
+
+      <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-5">
+        <div className="rounded-2xl p-5" style={{ background: GRADIENT, boxShadow: "0 4px 20px rgba(15,47,143,0.30)" }}>
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.16)" }}>
+              <ClipboardList size={18} style={{ color: "#ffffff" }} />
+            </div>
+            <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0" style={{ background: "#ffffff", color: "#0f2f8f" }}>
+              <Lock size={10} /> Read Only
+            </span>
+          </div>
+          <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.78)" }}>
+            Full read-only record for this shipment inspection, as submitted for scheduling.
+          </p>
+        </div>
+
+        <div className="rounded-2xl p-5" style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)", boxShadow: "0 1px 4px rgba(15,47,143,0.06)" }}>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+            {[
+              ["Reference No.", task.shipment],
+              ["Client", task.exporter],
+              ["Location", task.location],
+              ["Schedule", scheduleLabel],
+              ["Status", task.status === "urgent" ? "Urgent" : "Pending"],
+              ["Logs", `${task.logs} logs`],
+              ["Inspector", "Assigned on arrival"],
+              ["Notes", "No additional remarks"],
+            ].map(([label, val]) => (
+              <div key={label}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{label}</p>
+                <p className="text-sm font-semibold mt-0.5" style={{ color: "#0a1a4a" }}>{val}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFullInfo }: {
   task: InspectionTask;
   progress: InspectionProgress;
   onAdvance: (key: "preShipment" | "loading") => void;
   onBack: () => void;
+  onViewFullInfo: () => void;
 }) {
-  const [infoExpanded, setInfoExpanded] = useState(false);
-  const scheduleLabel = task.day === "today" ? `Today · ${task.time}` : task.day === "tomorrow" ? `Tomorrow · ${task.time}` : task.time;
 
   return (
     <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
@@ -1681,52 +1736,32 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack }: {
 
       <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-6">
 
-        {/* Inspection Info — read only, expandable */}
-        <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)", boxShadow: "0 1px 4px rgba(15,47,143,0.06)" }}>
+        {/* Inspection Info — read only, tap arrow to view full details */}
+        <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: GRADIENT, boxShadow: "0 4px 20px rgba(15,47,143,0.30)" }}>
           <div className="flex items-start justify-between gap-3">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(15,47,143,0.08)" }}>
-              <ClipboardList size={18} style={{ color: "#0f2f8f" }} />
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.16)" }}>
+              <ClipboardList size={18} style={{ color: "#ffffff" }} />
             </div>
-            <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0" style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.28)", color: "#0f2f8f" }}>
+            <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0" style={{ background: "#ffffff", color: "#0f2f8f" }}>
               <Lock size={10} /> Read Only
             </span>
           </div>
 
           <div>
-            <h2 className="text-base font-bold" style={{ color: "#0a1a4a" }}>Inspection Info</h2>
-            <p className="text-xs leading-relaxed mt-1.5" style={{ color: "#5a6a99" }}>
+            <h2 className="text-base font-bold text-white">Inspection Info</h2>
+            <p className="text-xs leading-relaxed mt-1.5" style={{ color: "rgba(255,255,255,0.78)" }}>
               Read-only shipment data: reference number, client &amp; location details, and schedule vs status overview.
             </p>
           </div>
 
-          {infoExpanded && (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3.5 pt-3" style={{ borderTop: "1px solid rgba(15,47,143,0.10)" }}>
-              {[
-                ["Reference No.", task.shipment],
-                ["Client", task.exporter],
-                ["Location", task.location],
-                ["Schedule", scheduleLabel],
-                ["Status", task.status === "urgent" ? "Urgent" : "Pending"],
-                ["Logs", `${task.logs} logs`],
-                ["Inspector", "Assigned on arrival"],
-                ["Notes", "No additional remarks"],
-              ].map(([label, val]) => (
-                <div key={label}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{label}</p>
-                  <p className="text-sm font-semibold mt-0.5 truncate" style={{ color: "#0a1a4a" }}>{val}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
           <button
             type="button"
-            onClick={() => setInfoExpanded(v => !v)}
-            className="self-end w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 focus:outline-none transition-all duration-200 hover:brightness-110 active:scale-[0.96]"
-            style={{ background: GRADIENT, color: "#ffffff", boxShadow: "0 2px 8px rgba(15,47,143,0.30)" }}
-            aria-label={infoExpanded ? "Show less" : "Show more"}
+            onClick={onViewFullInfo}
+            className="self-end w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 focus:outline-none transition-all duration-200 hover:brightness-105 active:scale-[0.96]"
+            style={{ background: "#ffffff", color: "#0f2f8f" }}
+            aria-label="View full inspection info"
           >
-            <ArrowRight size={16} style={{ transform: infoExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+            <ArrowRight size={16} />
           </button>
         </div>
 
@@ -1909,10 +1944,10 @@ export default function App() {
     saveSession({ screen, userType, location, dark, selectedInspectionId });
   }, [screen, userType, location, dark, selectedInspectionId]);
 
-  // Safety net: if we ever land on inspection-details without a resolvable task
+  // Safety net: if we ever land on a task-dependent screen without a resolvable task
   // (e.g. a stale/lost id), bounce back to the list instead of rendering blank.
   useEffect(() => {
-    if (screen === "inspection-details" && !SCHEDULED_INSPECTIONS.some(t => t.id === selectedInspectionId)) {
+    if (INSPECTION_TASK_SCREENS.includes(screen) && !SCHEDULED_INSPECTIONS.some(t => t.id === selectedInspectionId)) {
       setScreen("schedule-inspection");
     }
   }, [screen, selectedInspectionId]);
@@ -1981,6 +2016,25 @@ export default function App() {
         progress={getInspectionProgress(task.id)}
         onAdvance={key => advanceInspectionProgress(task.id, key)}
         onBack={() => setScreen("schedule-inspection")}
+        onViewFullInfo={() => setScreen("inspection-info-details")}
+      />
+    );
+  }
+  if (screen === "inspection-info-details") {
+    const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
+    if (!task) {
+      return (
+        <ScheduleInspectionScreen
+          onBack={() => setScreen("home")}
+          onStartInspection={t => { setSelectedInspectionId(t.id); setScreen("inspection-details"); }}
+          getProgress={getInspectionProgress}
+        />
+      );
+    }
+    return (
+      <InspectionInfoDetailsScreen
+        task={task}
+        onBack={() => setScreen("inspection-details")}
       />
     );
   }
