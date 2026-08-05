@@ -31,13 +31,13 @@ export default defineConfig({
         'icons/logo-horizontal.png',
       ],
       manifest: {
-        name: 'SustainScan',
+        // Android draws `name` on the system splash; keep short_name for the Home Screen label.
+        // Zero-width space avoids the big "SustainScan" splash title (not removable otherwise).
+        name: '\u200B',
         short_name: 'SustainScan',
         description:
           'SustainScan helps Control Union and client users access sustainable timber scanning, logging, and inventory tools.',
-        theme_color: '#000000',
-        // Match login backdrop so the brief Android system splash (unavoidable)
-        // blends into the Login screen instead of a black branded splash.
+        theme_color: '#ffffff',
         background_color: '#0a162e',
         display: 'standalone',
         orientation: 'portrait',
@@ -48,11 +48,14 @@ export default defineConfig({
             src: 'icons/icon-192.png',
             sizes: '192x192',
             type: 'image/png',
+            purpose: 'any',
           },
           {
+            // Solid #0a162e — matches background_color so Android splash is a brief color flash, not a logo screen
             src: 'icons/icon-512.png',
             sizes: '512x512',
             type: 'image/png',
+            purpose: 'any',
           },
           {
             src: 'icons/icon-maskable-512.png',

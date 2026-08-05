@@ -1,15 +1,17 @@
 <!DOCTYPE html>
-<html lang="en" style="color-scheme: dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <!-- iOS: light/white status bar strip with dark time/battery icons -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="SustainScan" />
-    <meta name="theme-color" content="#000000" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#000000" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+    <!-- Android / PWA: white status bar (time, battery, signal area) -->
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#ffffff" />
     <title>SustainScan</title>
     <meta name="description" content="SustainScan offers a user-friendly login interface for clients and Control Union users, facilitating easy access to sustainable solutions and resources." />
     <meta name="robots" content="noindex, nofollow" />
@@ -22,8 +24,7 @@
       html, body {
         height: 100%;
         margin: 0;
-        background: #0a162e;
-        color-scheme: dark;
+        background: #ffffff;
       }
       #root { height: 100%; }
       /* Instant first paint — replaced by React Login as soon as JS mounts */
