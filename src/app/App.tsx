@@ -138,7 +138,7 @@ function PageHeader({ dark, onBack, onDarkToggle, extra }: {
       <img
         src={sustainscanLogo}
         alt="SustainScan"
-        className="h-9 object-contain object-left"
+        className="h-11 object-contain object-left"
         style={{ filter: dark ? "brightness(0) invert(1)" : "none" }}
       />
       <div className="flex items-center gap-2">
