@@ -2079,7 +2079,7 @@ function InspectionInfoDetailsScreen({
                         {section.icon}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[15px] font-semibold leading-snug" style={{ color: t.textPrimary }}>{section.title}</p>
+                        <p className="text-[17px] font-bold leading-snug" style={{ color: t.textPrimary }}>{section.title}</p>
                       </div>
                       <span
                         className="inline-flex items-center h-6 px-2 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0 max-w-[38%] truncate"
@@ -2091,7 +2091,13 @@ function InspectionInfoDetailsScreen({
                       >
                         {section.badge}
                       </span>
-                      <ChevronRight size={16} style={{ color: t.chevronColor, flexShrink: 0 }} />
+                      <span
+                        className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 animate-nudgeRight"
+                        style={{ background: GRADIENT, color: "#ffffff", boxShadow: "0 2px 8px rgba(15,47,143,0.28)" }}
+                        aria-hidden
+                      >
+                        <ArrowRight size={14} />
+                      </span>
                     </button>
                   ))}
                 </div>

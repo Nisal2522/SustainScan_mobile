@@ -236,6 +236,33 @@
     background-size: 200% 100%;
     animation: shimmer 1.25s ease-in-out infinite;
   }
+
+  @keyframes nudgeRight {
+    0%,
+    70%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    80% {
+      transform: translate3d(3px, 0, 0);
+    }
+    88% {
+      transform: translate3d(0, 0, 0);
+    }
+    94% {
+      transform: translate3d(2px, 0, 0);
+    }
+  }
+
+  .animate-nudgeRight {
+    animation: nudgeRight 2.4s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-nudgeRight {
+      animation: none;
+    }
+  }
 }
 
 /* Mobile app shell: phone frame on desktop, full screen on device */
