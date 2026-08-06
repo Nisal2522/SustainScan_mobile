@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ReactNode } from "react";
+import { useState, useRef, useEffect, type ReactNode, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import {
   Eye, EyeOff, Mail, Lock, ChevronRight, MapPin, ChevronDown,
@@ -306,13 +306,37 @@ function PoweredBy() {
 // ─── Shared page header: Logo LEFT · [←][🌙][extra] RIGHT ─────────────────────
 
 function AppHeaderBar({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const readScrollTop = () => {
+      const shell = document.querySelector(".mobile-viewport") as HTMLElement | null;
+      const top = shell ? shell.scrollTop : (window.scrollY || document.documentElement.scrollTop);
+      setScrolled(top > 8);
+    };
+
+    readScrollTop();
+    const shell = document.querySelector(".mobile-viewport");
+    const target: HTMLElement | Window = shell instanceof HTMLElement ? shell : window;
+    target.addEventListener("scroll", readScrollTop, { passive: true });
+    return () => target.removeEventListener("scroll", readScrollTop);
+  }, []);
+
   return (
     <div
-      className="sticky top-0 z-40 w-full"
+      className="sticky top-0 z-40 w-full transition-[background,box-shadow,border-color] duration-300"
       style={{
-        background: dark ? "#1e293b" : "#ffffff",
-        borderBottom: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(15,47,143,0.14)",
-        boxShadow: dark ? "none" : "0 1px 4px rgba(15,47,143,0.06)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        background: dark
+          ? scrolled ? "rgba(15,23,42,0.82)" : "rgba(15,23,42,0.55)"
+          : scrolled ? "rgba(248,249,250,0.86)" : "rgba(255,255,255,0.58)",
+        borderBottom: scrolled
+          ? dark ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(15,47,143,0.10)"
+          : "1px solid transparent",
+        boxShadow: scrolled
+          ? dark ? "0 8px 24px rgba(0,0,0,0.28)" : "0 8px 24px rgba(15,47,143,0.08)"
+          : "none",
       }}
     >
       <div className="w-full max-w-[480px] mx-auto px-5 py-4">
@@ -1883,6 +1907,320 @@ function InspectionInfoSkeleton({ dark }: { dark: boolean }) {
   );
 }
 
+function MaterialSymbol({
+  name,
+  size = 22,
+  filled = false,
+  className = "",
+  style,
+}: {
+  name: string;
+  size?: number;
+  filled?: boolean;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  return (
+    <span
+      className={`material-symbols-outlined ${className}`}
+      style={{
+        fontSize: size,
+        fontVariationSettings: `'FILL' ${filled ? 1 : 0}, 'wght' 400, 'GRAD' 0, 'opsz' 24`,
+        ...style,
+      }}
+      aria-hidden
+    >
+      {name}
+    </span>
+  );
+}
+
+interface ShipmentDetailsData {
+  referenceNo: string;
+  requestDate: string;
+  status: "Active" | "Approved" | "Pending";
+  exporter: string;
+  projectSite: string;
+  loadingPoint: string;
+  permitNo: string;
+  licenceNo: string;
+  advisedVolume: string;
+  shipmentId: string;
+}
+
+function getShipmentDetailsData(task: InspectionTask): ShipmentDetailsData {
+  return {
+    referenceNo: "20",
+    requestDate: "07/15/2026",
+    status: task.status === "urgent" ? "Active" : "Approved",
+    exporter: task.exporter,
+    projectSite: "Mahaweli Forest Block A",
+    loadingPoint: "L-001",
+    permitNo: "P-001",
+    licenceNo: "L-1234",
+    advisedVolume: "10,134.000 m³",
+    shipmentId: task.shipment,
+  };
+}
+
+function ShipmentDetailsScreen({
+  task,
+  dark,
+  onBack,
+  data: dataProp,
+}: {
+  task: InspectionTask;
+  dark: boolean;
+  onBack: () => void;
+  data?: Partial<ShipmentDetailsData>;
+}) {
+  const data = { ...getShipmentDetailsData(task), ...dataProp };
+  const swipe = useSwipeBack(onBack);
+  const [copied, setCopied] = useState(false);
+
+  const bg = dark
+    ? "radial-gradient(ellipse at top, #1a2744 0%, #0f172a 55%)"
+    : "radial-gradient(ellipse at top, #e8eefc 0%, #F8F9FA 50%, #eef2fb 100%)";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.78)";
+  const glass = { backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" } as const;
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#6b7280";
+  const accent = "#0f2f8f";
+  const highlight = "#E00025";
+  const elevation = dark
+    ? "0 8px 32px rgba(0,0,0,0.4)"
+    : "0 4px 24px rgba(15,47,143,0.10), 0 1px 0 rgba(255,255,255,0.8) inset";
+  const cardBorder = dark ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(15,47,143,0.08)";
+  const heroGradient = "linear-gradient(145deg, #1a45b5 0%, #0f2f8f 48%, #0a1f6b 100%)";
+
+  const copyPermit = async () => {
+    try {
+      await navigator.clipboard.writeText(data.permitNo);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard may be unavailable */
+    }
+  };
+
+  return (
+    <div
+      className="relative min-h-screen w-full transition-colors duration-300 animate-fadeIn flex flex-col"
+      style={{ background: bg, fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
+    >
+      <AppHeaderBar dark={dark}>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-[0.96] transition-transform"
+            style={{
+              backdropFilter: "blur(18px)",
+              WebkitBackdropFilter: "blur(18px)",
+              background: cardBg,
+              color: accent,
+              border: cardBorder,
+              boxShadow: elevation,
+            }}
+            aria-label="Go back"
+          >
+            <MaterialSymbol name="arrow_back" size={22} />
+          </button>
+          <h1 className="flex-1 min-w-0 text-[18px] font-bold tracking-tight truncate" style={{ color: textPrimary }}>
+            Shipment Details
+          </h1>
+        </div>
+      </AppHeaderBar>
+
+      <div className="flex-1 w-full max-w-[480px] mx-auto flex flex-col px-4 pt-2 pb-6 gap-4 overflow-y-auto">
+        {/* Hero gradient glass card */}
+        <section
+          className="relative overflow-hidden rounded-3xl p-5 animate-riseIn"
+          style={{
+            background: heroGradient,
+            boxShadow: "0 16px 40px rgba(15,47,143,0.35), 0 0 0 1px rgba(255,255,255,0.08) inset",
+          }}
+        >
+          {/* Frosted orbs */}
+          <div
+            className="pointer-events-none absolute -top-10 -right-8 w-40 h-40 rounded-full"
+            style={{ background: "rgba(255,255,255,0.12)", filter: "blur(2px)" }}
+          />
+          <div
+            className="pointer-events-none absolute -bottom-16 -left-10 w-48 h-48 rounded-full"
+            style={{ background: "rgba(224,0,37,0.18)", filter: "blur(4px)" }}
+          />
+
+          <div className="relative z-10 flex flex-col gap-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "rgba(255,255,255,0.65)" }}>
+                  Reference No
+                </p>
+                <p className="text-[34px] font-bold tracking-tight leading-none mt-1.5 text-white">#{data.referenceNo}</p>
+                <p className="text-[12px] mt-2 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  Requested {data.requestDate}
+                </p>
+              </div>
+              <span
+                className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[11px] font-bold uppercase tracking-wider flex-shrink-0"
+                style={{
+                  background: "rgba(224,0,37,0.22)",
+                  color: "#ffffff",
+                  border: "1px solid rgba(224,0,37,0.55)",
+                  boxShadow: "0 0 18px rgba(224,0,37,0.45), inset 0 0 12px rgba(224,0,37,0.15)",
+                }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: highlight, boxShadow: "0 0 8px #E00025" }} />
+                Active
+              </span>
+            </div>
+
+            {/* Volume focal metric — frosted glass panel */}
+            <div
+              className="rounded-2xl p-4"
+              style={{
+                ...glass,
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.18)",
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}
+                >
+                  <MaterialSymbol name="straighten" size={24} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.65)" }}>
+                    Advised Volume
+                  </p>
+                  <p className="text-[26px] font-bold tracking-tight leading-snug text-white mt-0.5 break-words">
+                    {data.advisedVolume}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Exporter & Location */}
+        <section
+          className="rounded-3xl p-5 animate-riseIn"
+          style={{
+            ...glass,
+            background: cardBg,
+            border: cardBorder,
+            boxShadow: elevation,
+            ["--rise-delay" as string]: "60ms",
+          }}
+        >
+          <div className="flex items-center gap-2.5 mb-5">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: "rgba(15,47,143,0.10)", color: accent }}
+            >
+              <MaterialSymbol name="location_on" size={20} />
+            </div>
+            <h2 className="text-[13px] font-bold uppercase tracking-[0.1em]" style={{ color: accent }}>
+              Exporter &amp; Location
+            </h2>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Exporter Name</p>
+              <p className="text-[16px] font-bold mt-1.5 leading-snug break-words" style={{ color: textPrimary }}>{data.exporter}</p>
+            </div>
+            <div
+              className="h-px w-full"
+              style={{ background: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)" }}
+            />
+            <div>
+              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Site</p>
+              <p className="text-[16px] font-bold mt-1.5 leading-snug break-words" style={{ color: textPrimary }}>{data.projectSite}</p>
+            </div>
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Loading Point</p>
+              <span
+                className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-bold"
+                style={{
+                  background: dark ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.08)",
+                  color: accent,
+                  border: cardBorder,
+                }}
+              >
+                <MaterialSymbol name="local_shipping" size={16} />
+                {data.loadingPoint}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* Permit Credentials */}
+        <section
+          className="rounded-3xl p-5 animate-riseIn"
+          style={{
+            ...glass,
+            background: cardBg,
+            border: cardBorder,
+            boxShadow: elevation,
+            ["--rise-delay" as string]: "110ms",
+          }}
+        >
+          <div className="flex items-center gap-2.5 mb-5">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: "rgba(15,47,143,0.10)", color: accent }}
+            >
+              <MaterialSymbol name="verified_user" size={20} />
+            </div>
+            <h2 className="text-[13px] font-bold uppercase tracking-[0.1em]" style={{ color: accent }}>
+              Permit Credentials
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div
+              className="rounded-2xl p-3.5 flex flex-col gap-2 min-w-0"
+              style={{
+                background: dark ? "rgba(15,47,143,0.25)" : "rgba(15,47,143,0.05)",
+                border: cardBorder,
+              }}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Permit</p>
+              <div className="flex items-center gap-2">
+                <span className="text-[16px] font-bold truncate" style={{ color: textPrimary }}>{data.permitNo}</span>
+                <button
+                  type="button"
+                  onClick={copyPermit}
+                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-[0.94] transition-transform"
+                  style={{ background: dark ? "rgba(255,255,255,0.08)" : "#ffffff", color: accent, boxShadow: elevation }}
+                  aria-label="Copy permit number"
+                >
+                  <MaterialSymbol name={copied ? "check" : "content_copy"} size={15} />
+                </button>
+              </div>
+            </div>
+            <div
+              className="rounded-2xl p-3.5 flex flex-col gap-2 min-w-0"
+              style={{
+                background: dark ? "rgba(15,47,143,0.25)" : "rgba(15,47,143,0.05)",
+                border: cardBorder,
+              }}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Licence</p>
+              <span className="text-[16px] font-bold truncate" style={{ color: textPrimary }}>{data.licenceNo}</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function InspectionInfoSectionDetailScreen({
   task,
   section,
@@ -1894,6 +2232,10 @@ function InspectionInfoSectionDetailScreen({
   dark: boolean;
   onBack: () => void;
 }) {
+  if (section.id === "shipment") {
+    return <ShipmentDetailsScreen task={task} dark={dark} onBack={onBack} />;
+  }
+
   const fields = getInspectionInfoSectionFields(section.id, task);
   const t = useInspectionInfoTheme(dark);
   const swipe = useSwipeBack(onBack);
@@ -1916,7 +2258,7 @@ function InspectionInfoSectionDetailScreen({
 
       <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-6 gap-5">
         <div
-          className="rounded-[18px] px-4 py-3.5 flex items-center gap-3 animate-riseIn"
+          className="rounded-[20px] px-4 py-3.5 flex items-center gap-3 animate-riseIn"
           style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, boxShadow: t.cardShadow }}
         >
           <div
@@ -1938,7 +2280,7 @@ function InspectionInfoSectionDetailScreen({
         </div>
 
         <div
-          className="rounded-[18px] overflow-hidden animate-riseIn"
+          className="rounded-[20px] overflow-hidden animate-riseIn"
           style={{
             background: t.cardBg,
             border: `1px solid ${t.cardBorder}`,
@@ -1960,7 +2302,7 @@ function InspectionInfoSectionDetailScreen({
 
         {section.id === "attachments" && (
           <div
-            className="rounded-[18px] overflow-hidden animate-riseIn"
+            className="rounded-[20px] overflow-hidden animate-riseIn"
             style={{
               background: t.cardBg,
               border: `1px solid ${t.cardBorder}`,
