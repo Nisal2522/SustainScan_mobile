@@ -336,7 +336,13 @@ function AppHeaderBar({ children, dark = false }: { children: React.ReactNode; d
           : "none",
       }}
     >
-      <div className="w-full max-w-[480px] mx-auto px-4 sm:px-5 py-3.5 sm:py-4">
+      <div
+        className="w-full max-w-[480px] mx-auto py-3.5 sm:py-4"
+        style={{
+          paddingLeft: "max(1rem, env(safe-area-inset-left))",
+          paddingRight: "max(1rem, env(safe-area-inset-right))",
+        }}
+      >
         {children}
       </div>
     </div>
@@ -367,24 +373,24 @@ function PageHeader({ dark, onBack, onDarkToggle, extra }: {
 }) {
   const btn = { background: dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.08)", color: dark ? "#ffffff" : "#0f2f8f" };
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-3 w-full min-w-0 overflow-hidden">
       <img
         src={sustainscanLogo}
         alt="SustainScan"
-        className="h-11 object-contain object-left"
+        className="h-9 sm:h-11 w-auto max-w-[58%] object-contain object-left flex-shrink min-w-0"
         style={{ filter: dark ? "brightness(0) invert(1)" : "none" }}
       />
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
         {onBack && (
           <button onClick={onBack}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 focus:outline-none"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 focus:outline-none flex-shrink-0"
             style={btn} aria-label="Go back">
             <ArrowLeft size={17} />
           </button>
         )}
         {onDarkToggle && (
           <button onClick={onDarkToggle}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 focus:outline-none"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 focus:outline-none flex-shrink-0"
             style={btn} aria-label={dark ? "Light mode" : "Dark mode"}>
             {dark ? <Sun size={17} /> : <Moon size={17} />}
           </button>
@@ -3801,6 +3807,18 @@ function PhysicalVerificationScreen({
             </button>
           </div>
 
+          {volumeOk === "yes" && (
+            <button
+              type="button"
+              onClick={onProceed}
+              className="w-full min-h-[48px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
+              style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
+            >
+              Proceed
+              <ArrowRight size={16} />
+            </button>
+          )}
+
           {volumeOk === "no" && (
             <div
               className="rounded-2xl p-3.5 flex flex-col gap-3"
@@ -3857,22 +3875,6 @@ function PhysicalVerificationScreen({
         </div>
       </div>
       </div>
-
-      {/* Footer CTA */}
-      {volumeOk !== "no" && (
-        <div className="shrink-0 w-full max-w-[480px] mx-auto px-4 sm:px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
-          <button
-            type="button"
-            onClick={onProceed}
-            disabled={volumeOk === null}
-            className="w-full min-h-[52px] rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all disabled:opacity-50"
-            style={{ background: GRADIENT, boxShadow: "0 6px 20px rgba(15,47,143,0.35)" }}
-          >
-            Proceed
-            <ArrowRight size={16} />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
