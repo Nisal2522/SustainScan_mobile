@@ -262,6 +262,14 @@ function formatDate(d: Date) {
   return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
+function todayISODate() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 // ─── Shared: blurred background ───────────────────────────────────────────────
 
 function Background() {
@@ -3247,6 +3255,95 @@ function InspectionInfoDetailsScreen({
   );
 }
 
+function StartSubInspectionDialog({
+  stepKey,
+  date,
+  onDateChange,
+  onCancel,
+  onConfirm,
+  overlayBox,
+}: {
+  stepKey: "preShipment" | "loading";
+  date: string;
+  onDateChange: (value: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+  overlayBox: { top: number; left: number; width: number; height: number };
+}) {
+  const title = stepKey === "preShipment"
+    ? "Start Pre-Shipment Inspection"
+    : "Start Loading Inspection";
+
+  return createPortal(
+    <div
+      className="z-50 flex items-center justify-center px-5"
+      style={{
+        position: "fixed",
+        top: overlayBox.top,
+        left: overlayBox.left,
+        width: overlayBox.width,
+        height: overlayBox.height,
+      }}
+    >
+      <button
+        type="button"
+        className="absolute inset-0 border-0 p-0 cursor-default"
+        style={{
+          background: "rgba(10,22,70,0.45)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+        }}
+        aria-label="Close"
+        onClick={onCancel}
+      />
+      <div
+        className="relative z-10 w-full max-w-sm rounded-2xl p-5 flex flex-col gap-5 shadow-2xl animate-riseIn"
+        style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)" }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="start-inspection-title"
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 id="start-inspection-title" className="text-base font-bold leading-snug" style={{ color: "#0a1a4a" }}>
+          {title}
+        </h2>
+
+        <FormField label="Date" required>
+          <input
+            type="date"
+            className={inputCls}
+            style={inputStyle}
+            value={date}
+            onChange={e => onDateChange(e.target.value)}
+            required
+          />
+        </FormField>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-gray-50 focus:outline-none active:scale-[0.98]"
+            style={{ background: "#f0f4ff", color: "#0f2f8f", border: "1px solid #dce4f5" }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={!date}
+            className="flex-1 h-12 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: GRADIENT, boxShadow: "0 4px 16px rgba(15,47,143,0.35)" }}
+          >
+            Start
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFullInfo }: {
   task: InspectionTask;
   progress: InspectionProgress;
@@ -3255,9 +3352,54 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
   onViewFullInfo: () => void;
 }) {
   const preShipmentDone = progress.preShipment === "completed";
+  const [startDialogKey, setStartDialogKey] = useState<"preShipment" | "loading" | null>(null);
+  const [startDate, setStartDate] = useState(todayISODate);
+  const [overlayBox, setOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+
+  const syncOverlayBox = () => {
+    const device = document.querySelector(".mobile-device");
+    if (device) {
+      const r = device.getBoundingClientRect();
+      setOverlayBox({ top: r.top, left: r.left, width: r.width, height: r.height });
+    } else {
+      setOverlayBox({ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight });
+    }
+  };
+
+  useEffect(() => {
+    if (!startDialogKey) return;
+    syncOverlayBox();
+    const vp = document.querySelector(".mobile-viewport");
+    window.addEventListener("resize", syncOverlayBox);
+    window.addEventListener("scroll", syncOverlayBox, true);
+    vp?.addEventListener("scroll", syncOverlayBox);
+    return () => {
+      window.removeEventListener("resize", syncOverlayBox);
+      window.removeEventListener("scroll", syncOverlayBox, true);
+      vp?.removeEventListener("scroll", syncOverlayBox);
+    };
+  }, [startDialogKey]);
+
+  const openStartDialog = (key: "preShipment" | "loading") => {
+    setStartDate(todayISODate());
+    syncOverlayBox();
+    setStartDialogKey(key);
+  };
+
+  const handleStepAction = (key: "preShipment" | "loading", isActive: boolean, isDisabled: boolean) => {
+    if (isDisabled) return;
+    if (isActive) onAdvance(key);
+    else openStartDialog(key);
+  };
+
+  const confirmStart = () => {
+    if (!startDialogKey || !startDate) return;
+    onAdvance(startDialogKey);
+    setStartDialogKey(null);
+  };
 
   return (
-    <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
+    <div className="relative min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
       <AppHeaderBar>
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} />
@@ -3361,7 +3503,7 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
 
                     <button
                       type="button"
-                      onClick={() => onAdvance(step.key)}
+                      onClick={() => handleStepAction(step.key, isActive, isDisabled)}
                       disabled={isDisabled}
                       className="w-full h-12 mt-1 rounded-xl text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all duration-200 hover:brightness-110 disabled:active:scale-100 disabled:hover:brightness-100 disabled:cursor-not-allowed"
                       style={{
@@ -3396,6 +3538,17 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
         </div>
 
       </div>
+
+      {startDialogKey && overlayBox && (
+        <StartSubInspectionDialog
+          stepKey={startDialogKey}
+          date={startDate}
+          onDateChange={setStartDate}
+          onCancel={() => setStartDialogKey(null)}
+          onConfirm={confirmStart}
+          overlayBox={overlayBox}
+        />
+      )}
     </div>
   );
 }
