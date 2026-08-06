@@ -2033,10 +2033,10 @@ function ShipmentDetailsScreen({
         </div>
       </AppHeaderBar>
 
-      <div className="flex-1 w-full max-w-[480px] mx-auto flex flex-col px-4 pt-2 pb-6 gap-4 overflow-y-auto">
+      <div className="flex-1 w-full max-w-[480px] mx-auto flex flex-col px-4 pt-2 pb-5 gap-3 overflow-y-auto">
         {/* Hero gradient glass card */}
         <section
-          className="relative overflow-hidden rounded-3xl p-5 animate-riseIn"
+          className="relative overflow-hidden rounded-3xl p-4 animate-riseIn"
           style={{
             background: heroGradient,
             boxShadow: "0 16px 40px rgba(15,47,143,0.35), 0 0 0 1px rgba(255,255,255,0.08) inset",
@@ -2052,19 +2052,19 @@ function ShipmentDetailsScreen({
             style={{ background: "rgba(224,0,37,0.18)", filter: "blur(4px)" }}
           />
 
-          <div className="relative z-10 flex flex-col gap-5">
+          <div className="relative z-10 flex flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "rgba(255,255,255,0.65)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.65)" }}>
                   Reference No
                 </p>
-                <p className="text-[34px] font-bold tracking-tight leading-none mt-1.5 text-white">#{data.referenceNo}</p>
-                <p className="text-[12px] mt-2 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
+                <p className="text-[28px] font-bold tracking-tight leading-none mt-1 text-white">#{data.referenceNo}</p>
+                <p className="text-[12px] mt-1 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
                   Requested {data.requestDate}
                 </p>
               </div>
               <span
-                className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[11px] font-bold uppercase tracking-wider flex-shrink-0"
+                className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
                 style={{
                   background: "rgba(224,0,37,0.22)",
                   color: "#ffffff",
@@ -2079,7 +2079,7 @@ function ShipmentDetailsScreen({
 
             {/* Volume focal metric — frosted glass panel */}
             <div
-              className="rounded-2xl p-4"
+              className="rounded-2xl px-3 py-2.5"
               style={{
                 ...glass,
                 background: "rgba(255,255,255,0.12)",
@@ -2088,16 +2088,16 @@ function ShipmentDetailsScreen({
             >
               <div className="flex items-center gap-3">
                 <div
-                  className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}
                 >
-                  <MaterialSymbol name="straighten" size={24} />
+                  <MaterialSymbol name="straighten" size={22} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.65)" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.65)" }}>
                     Advised Volume
                   </p>
-                  <p className="text-[26px] font-bold tracking-tight leading-snug text-white mt-0.5 break-words">
+                  <p className="text-[22px] font-bold tracking-tight leading-snug text-white mt-0.5 break-words">
                     {data.advisedVolume}
                   </p>
                 </div>
@@ -2108,7 +2108,7 @@ function ShipmentDetailsScreen({
 
         {/* Exporter & Location */}
         <section
-          className="rounded-3xl p-5 animate-riseIn"
+          className="rounded-3xl p-4 animate-riseIn"
           style={{
             ...glass,
             background: cardBg,
@@ -2117,42 +2117,42 @@ function ShipmentDetailsScreen({
             ["--rise-delay" as string]: "60ms",
           }}
         >
-          <div className="flex items-center gap-2.5 mb-5">
+          <div className="flex items-center gap-2 mb-3">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
               style={{ background: "rgba(15,47,143,0.10)", color: accent }}
             >
-              <MaterialSymbol name="location_on" size={20} />
+              <MaterialSymbol name="location_on" size={18} />
             </div>
-            <h2 className="text-[13px] font-bold uppercase tracking-[0.1em]" style={{ color: accent }}>
+            <h2 className="text-[12px] font-bold uppercase tracking-[0.08em]" style={{ color: accent }}>
               Exporter &amp; Location
             </h2>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2.5">
             <div>
-              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Exporter Name</p>
-              <p className="text-[16px] font-bold mt-1.5 leading-snug break-words" style={{ color: textPrimary }}>{data.exporter}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Exporter Name</p>
+              <p className="text-[15px] font-bold mt-0.5 leading-snug break-words" style={{ color: textPrimary }}>{data.exporter}</p>
             </div>
             <div
               className="h-px w-full"
               style={{ background: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)" }}
             />
             <div>
-              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Site</p>
-              <p className="text-[16px] font-bold mt-1.5 leading-snug break-words" style={{ color: textPrimary }}>{data.projectSite}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Site</p>
+              <p className="text-[15px] font-bold mt-0.5 leading-snug break-words" style={{ color: textPrimary }}>{data.projectSite}</p>
             </div>
-            <div className="flex items-center justify-between gap-3 pt-1">
-              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Loading Point</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Loading Point</p>
               <span
-                className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-bold"
+                className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-bold"
                 style={{
                   background: dark ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.08)",
                   color: accent,
                   border: cardBorder,
                 }}
               >
-                <MaterialSymbol name="local_shipping" size={16} />
+                <MaterialSymbol name="local_shipping" size={15} />
                 {data.loadingPoint}
               </span>
             </div>
@@ -2161,7 +2161,7 @@ function ShipmentDetailsScreen({
 
         {/* Permit Credentials */}
         <section
-          className="rounded-3xl p-5 animate-riseIn"
+          className="rounded-3xl p-4 animate-riseIn"
           style={{
             ...glass,
             background: cardBg,
@@ -2170,49 +2170,49 @@ function ShipmentDetailsScreen({
             ["--rise-delay" as string]: "110ms",
           }}
         >
-          <div className="flex items-center gap-2.5 mb-5">
+          <div className="flex items-center gap-2 mb-3">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
               style={{ background: "rgba(15,47,143,0.10)", color: accent }}
             >
-              <MaterialSymbol name="verified_user" size={20} />
+              <MaterialSymbol name="verified_user" size={18} />
             </div>
-            <h2 className="text-[13px] font-bold uppercase tracking-[0.1em]" style={{ color: accent }}>
+            <h2 className="text-[12px] font-bold uppercase tracking-[0.08em]" style={{ color: accent }}>
               Permit Credentials
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div
-              className="rounded-2xl p-3.5 flex flex-col gap-2 min-w-0"
+              className="rounded-2xl px-3 py-2.5 flex flex-col gap-1 min-w-0"
               style={{
                 background: dark ? "rgba(15,47,143,0.25)" : "rgba(15,47,143,0.05)",
                 border: cardBorder,
               }}
             >
-              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Permit</p>
-              <div className="flex items-center gap-2">
-                <span className="text-[16px] font-bold truncate" style={{ color: textPrimary }}>{data.permitNo}</span>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Permit</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[15px] font-bold truncate" style={{ color: textPrimary }}>{data.permitNo}</span>
                 <button
                   type="button"
                   onClick={copyPermit}
-                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-[0.94] transition-transform"
+                  className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-[0.94] transition-transform"
                   style={{ background: dark ? "rgba(255,255,255,0.08)" : "#ffffff", color: accent, boxShadow: elevation }}
                   aria-label="Copy permit number"
                 >
-                  <MaterialSymbol name={copied ? "check" : "content_copy"} size={15} />
+                  <MaterialSymbol name={copied ? "check" : "content_copy"} size={14} />
                 </button>
               </div>
             </div>
             <div
-              className="rounded-2xl p-3.5 flex flex-col gap-2 min-w-0"
+              className="rounded-2xl px-3 py-2.5 flex flex-col gap-1 min-w-0"
               style={{
                 background: dark ? "rgba(15,47,143,0.25)" : "rgba(15,47,143,0.05)",
                 border: cardBorder,
               }}
             >
-              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Licence</p>
-              <span className="text-[16px] font-bold truncate" style={{ color: textPrimary }}>{data.licenceNo}</span>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Licence</p>
+              <span className="text-[15px] font-bold truncate" style={{ color: textPrimary }}>{data.licenceNo}</span>
             </div>
           </div>
         </section>
