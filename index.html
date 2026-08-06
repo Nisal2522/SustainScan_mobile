@@ -22,8 +22,13 @@
         height: 100%;
         margin: 0;
         background: #ffffff;
+        overflow-x: hidden;
+        -webkit-text-size-adjust: 100%;
       }
       #root { height: 100%; }
+      @supports (height: 100dvh) {
+        html, body, #root { min-height: 100dvh; }
+      }
       /* Instant Login-shaped first paint — dismisses Android system splash ASAP */
       #boot-login {
         box-sizing: border-box;

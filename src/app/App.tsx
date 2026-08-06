@@ -5,7 +5,7 @@ import {
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
   ScanLine, QrCode, Calendar, Search, ListFilter, X, Truck, CheckCircle2, ArrowRight,
   Ship, Anchor, CircleDollarSign, Layers, Container, Paperclip, Scale, FileText,
-  Clock, AlertTriangle,
+  Clock,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
 import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
@@ -21,8 +21,8 @@ type UserType = "client" | "cu";
 type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details" | "physical-verification";
 type InventoryTab = "all" | "modified";
 type InspectionDay = "today" | "tomorrow" | "later";
-type InspectionStatus = "pending" | "urgent";
-type DayFilter = InspectionDay;
+type InspectionStatus = "pending" | "inprogress" | "complete";
+type DayFilter = "today" | "upcoming";
 type StatusFilter = "all" | InspectionStatus;
 type SubInspectionStatus = "not-started" | "in-progress" | "completed";
 
@@ -115,6 +115,13 @@ function clearSession() {
   localStorage.removeItem(SESSION_KEY);
 }
 
+function resolveExporterForConcession(concession: string): string {
+  const match = CU_CLIENT_DIRECTORY.find(c =>
+    (c.concessions as readonly string[]).includes(concession),
+  );
+  return match?.name ?? CU_CLIENT_DIRECTORY[0].name;
+}
+
 const CONCESSIONS = ["Concession Unit A", "Concession Unit B"];
 
 const CU_CLIENT_DIRECTORY = [
@@ -183,70 +190,70 @@ const LAST_SYNC = new Date(Date.now() - 1000 * 60 * 47);
 const SCHEDULED_INSPECTIONS: InspectionTask[] = [
   {
     id: "1",
-    shipment: "#SHIP-2024-001",
+    shipment: "#INP-2024-001",
     exporter: "GreenWood Timber Exports Ltd",
     location: "Port Terminal A",
-    time: "14:00–16:00",
+    time: "06–08 Aug",
     logs: 48,
     day: "today",
-    status: "urgent",
+    status: "inprogress",
   },
   {
     id: "2",
-    shipment: "#SHIP-2024-002",
+    shipment: "#INP-2024-002",
     exporter: "Nordic Wood Exports",
     location: "Central Yard 4",
-    time: "16:30–18:00",
+    time: "06–07 Aug",
     logs: 32,
     day: "today",
     status: "pending",
   },
   {
     id: "3",
-    shipment: "#SHIP-2024-003",
+    shipment: "#INP-2024-003",
     exporter: "Coastal Pine Ltd",
     location: "North Docking Bay",
-    time: "09:00–11:00",
+    time: "06–09 Aug",
     logs: 56,
     day: "today",
     status: "pending",
   },
   {
     id: "4",
-    shipment: "#SHIP-2024-004",
+    shipment: "#INP-2024-004",
     exporter: "Amazonia Hardwoods",
     location: "West Logistics Hub",
-    time: "11:00–13:00",
+    time: "06–08 Aug",
     logs: 21,
     day: "today",
-    status: "pending",
+    status: "complete",
   },
   {
     id: "7",
-    shipment: "#SHIP-2024-007",
+    shipment: "#INP-2024-007",
     exporter: "Pacific Timber Co",
     location: "South Quay",
-    time: "Tomorrow 08:30",
+    time: "07–09 Aug",
     logs: 27,
     day: "tomorrow",
     status: "pending",
   },
   {
     id: "8",
-    shipment: "#SHIP-2024-008",
+    shipment: "#INP-2024-008",
     exporter: "Highland Logs Ltd",
     location: "Inland Yard 2",
-    time: "Tomorrow 14:00",
+    time: "07–10 Aug",
     logs: 35,
     day: "tomorrow",
-    status: "urgent",
+    status: "inprogress",
   },
   {
     id: "9",
-    shipment: "#SHIP-2024-009",
+    shipment: "#INP-2024-009",
     exporter: "River Bend Exports",
     location: "River Terminal",
-    time: "Later",
+    time: "10–12 Aug",
     logs: 44,
     day: "later",
     status: "pending",
@@ -317,6 +324,7 @@ function AppHeaderBar({ children, dark = false }: { children: React.ReactNode; d
       style={{
         backdropFilter: "blur(18px)",
         WebkitBackdropFilter: "blur(18px)",
+        paddingTop: "env(safe-area-inset-top)",
         background: dark
           ? scrolled ? "rgba(15,23,42,0.82)" : "rgba(15,23,42,0.55)"
           : scrolled ? "rgba(248,249,250,0.86)" : "rgba(255,255,255,0.58)",
@@ -328,7 +336,7 @@ function AppHeaderBar({ children, dark = false }: { children: React.ReactNode; d
           : "none",
       }}
     >
-      <div className="w-full max-w-[480px] mx-auto px-5 py-4">
+      <div className="w-full max-w-[480px] mx-auto px-4 sm:px-5 py-3.5 sm:py-4">
         {children}
       </div>
     </div>
@@ -401,7 +409,7 @@ function LoginScreen({ onSignIn, onCUSignIn }: { onSignIn: () => void; onCUSignI
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden animate-fadeIn" style={{ fontFamily: "'Inter', sans-serif" }}>
       <Background />
-      <div className="relative z-10 w-full max-w-[420px] mx-4 flex flex-col min-h-screen py-10 items-center justify-between gap-6">
+      <div className="relative z-10 w-full max-w-[420px] mx-auto px-4 sm:mx-4 flex flex-col min-h-screen py-8 sm:py-10 items-center justify-between gap-6">
         <div className="flex flex-col items-center gap-3 pt-4">
           <img src={sustainscanLogo} alt="SustainScan" className="w-44 drop-shadow-2xl" style={{ filter: "brightness(0) invert(1)" }} />
         </div>
@@ -487,7 +495,7 @@ function CUSignInScreen({ onNext }: { onNext: (location: string) => void }) {
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden animate-fadeIn" style={{ fontFamily: "'Inter', sans-serif" }}>
       <Background />
-      <div className="relative z-10 w-full max-w-[420px] mx-4 flex flex-col min-h-screen py-10 items-center justify-between gap-6">
+      <div className="relative z-10 w-full max-w-[420px] mx-auto px-4 sm:mx-4 flex flex-col min-h-screen py-8 sm:py-10 items-center justify-between gap-6">
         <div className="flex flex-col items-center gap-3 pt-4">
           <img src={sustainscanLogo} alt="SustainScan" className="w-44 drop-shadow-2xl" style={{ filter: "brightness(0) invert(1)" }} />
         </div>
@@ -576,7 +584,7 @@ function LocationScreen({ onNext }: { onNext: (location: string) => void }) {
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden animate-fadeIn" style={{ fontFamily: "'Inter', sans-serif" }}>
       <Background />
-      <div className="relative z-10 w-full max-w-[420px] mx-4 flex flex-col min-h-screen py-10 items-center justify-between gap-6">
+      <div className="relative z-10 w-full max-w-[420px] mx-auto px-4 sm:mx-4 flex flex-col min-h-screen py-8 sm:py-10 items-center justify-between gap-6">
         <div className="flex flex-col items-center gap-3 pt-4">
           <img src={sustainscanLogo} alt="SustainScan" className="w-44 drop-shadow-2xl" style={{ filter: "brightness(0) invert(1)" }} />
         </div>
@@ -1280,16 +1288,53 @@ function InventoryRow({ item, dark }: { item: InventoryItem; dark: boolean }) {
   );
 }
 
+const INSPECTION_STATUS_META: Record<InspectionStatus, { label: string; bg: string; color: string; rail: string; border: string; iconBg: string }> = {
+  pending: {
+    label: "Pending",
+    bg: "rgba(15,47,143,0.07)",
+    color: "#5a6a99",
+    rail: GRADIENT,
+    border: "rgba(15,47,143,0.10)",
+    iconBg: "rgba(15,47,143,0.06)",
+  },
+  inprogress: {
+    label: "In Progress",
+    bg: "rgba(217,119,6,0.12)",
+    color: "#b45309",
+    rail: "linear-gradient(180deg,#f59e0b 0%,#d97706 100%)",
+    border: "rgba(217,119,6,0.22)",
+    iconBg: "rgba(217,119,6,0.10)",
+  },
+  complete: {
+    label: "Complete",
+    bg: "rgba(5,150,105,0.12)",
+    color: "#047857",
+    rail: "linear-gradient(180deg,#10b981 0%,#059669 100%)",
+    border: "rgba(5,150,105,0.22)",
+    iconBg: "rgba(5,150,105,0.10)",
+  },
+};
+
+function resolveInspectionStatus(task: InspectionTask, progress: InspectionProgress): InspectionStatus {
+  if (progress.preShipment === "completed" && progress.loading === "completed") return "complete";
+  if (progress.preShipment !== "not-started" || progress.loading !== "not-started") return "inprogress";
+  return task.status;
+}
+
 // ─── Schedule Inspection Screen ───────────────────────────────────────────────
 
 function ScheduleInspectionScreen({
   onBack,
   onStartInspection,
   getProgress,
+  exporter,
+  concession,
 }: {
   onBack: () => void;
   onStartInspection: (task: InspectionTask) => void;
   getProgress: (taskId: string) => InspectionProgress;
+  exporter: string;
+  concession: string;
 }) {
   const [dayFilter, setDayFilter] = useState<DayFilter>("today");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -1346,14 +1391,18 @@ function ScheduleInspectionScreen({
     setDraftStatus("all");
   };
 
+  const matchesDayFilter = (task: InspectionTask) =>
+    dayFilter === "today" ? task.day === "today" : task.day === "tomorrow" || task.day === "later";
+
   const filtered = SCHEDULED_INSPECTIONS.filter(task => {
-    if (task.day !== dayFilter) return false;
-    if (statusFilter !== "all" && task.status !== statusFilter) return false;
+    const status = resolveInspectionStatus(task, getProgress(task.id));
+    if (!matchesDayFilter(task)) return false;
+    if (statusFilter !== "all" && status !== statusFilter) return false;
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       return (
         task.shipment.toLowerCase().includes(q) ||
-        task.exporter.toLowerCase().includes(q)
+        task.location.toLowerCase().includes(q)
       );
     }
     return true;
@@ -1361,29 +1410,27 @@ function ScheduleInspectionScreen({
 
   const dayChips: { id: DayFilter; label: string }[] = [
     { id: "today", label: "Today" },
-    { id: "tomorrow", label: "Tomorrow" },
-    { id: "later", label: "Later" },
+    { id: "upcoming", label: "Upcoming" },
   ];
 
   const statusChips: { id: StatusFilter; label: string }[] = [
     { id: "all", label: "All" },
     { id: "pending", label: "Pending" },
-    { id: "urgent", label: "Urgent" },
+    { id: "inprogress", label: "In Progress" },
+    { id: "complete", label: "Complete" },
   ];
 
-  const dayLabel = dayFilter === "today" ? "today" : dayFilter === "tomorrow" ? "tomorrow" : "later";
-  const urgentCount = filtered.filter(t => t.status === "urgent").length;
+  const dayLabel = dayFilter === "today" ? "today" : "upcoming";
   const dayTotals = {
     today: SCHEDULED_INSPECTIONS.filter(t => t.day === "today").length,
-    tomorrow: SCHEDULED_INSPECTIONS.filter(t => t.day === "tomorrow").length,
-    later: SCHEDULED_INSPECTIONS.filter(t => t.day === "later").length,
+    upcoming: SCHEDULED_INSPECTIONS.filter(t => t.day === "tomorrow" || t.day === "later").length,
   };
 
-  const ctaLabel = (taskId: string) => {
-    const p = getProgress(taskId);
-    const allDone = p.preShipment === "completed" && p.loading === "completed";
-    const anyStarted = p.preShipment !== "not-started" || p.loading !== "not-started";
-    return allDone ? "View Inspection" : anyStarted ? "Continue Inspection" : "Start Inspection";
+  const ctaLabel = (task: InspectionTask) => {
+    const status = resolveInspectionStatus(task, getProgress(task.id));
+    if (status === "complete") return "View Inspection";
+    if (status === "inprogress") return "Continue Inspection";
+    return "Start Inspection";
   };
 
   return (
@@ -1407,13 +1454,14 @@ function ScheduleInspectionScreen({
         aria-hidden="true"
       />
 
-      {/* Frozen header — title, search, filters, day tabs, summary */}
+      {/* Sticky chrome: 1 Header → 2 Assignment → 3 Search → 4 Tabs → 5 Summary */}
       <div
         className="relative z-40 shrink-0 w-full"
         style={{
           background: "linear-gradient(165deg, #dce6fb 0%, #eef2ff 32%, #f5f7ff 68%, #f0f4ff 100%)",
         }}
       >
+        {/* 1. Top Screen Header */}
         <AppHeaderBar>
           <div className="flex items-center gap-3">
             <BackCardButton onClick={onBack} />
@@ -1428,145 +1476,173 @@ function ScheduleInspectionScreen({
           </div>
         </AppHeaderBar>
 
-        <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 pb-4 gap-4">
-          {/* Search + filter */}
-          <div className="flex items-center gap-2.5 animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }}>
+        <div className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-4 pb-3 gap-3.5">
+          {/* 2. Assignment Context Card */}
           <div
-            className="flex-1 min-w-0 flex items-center gap-3 h-12 px-3.5 rounded-2xl transition-[box-shadow,border-color,background] duration-200"
+            className="relative overflow-hidden rounded-2xl p-3.5 sm:p-4 animate-riseIn"
             style={{
-              background: searchFocused ? "#ffffff" : "rgba(255,255,255,0.82)",
-              border: `1.5px solid ${searchFocused ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.12)"}`,
-              boxShadow: searchFocused
-                ? "0 0 0 4px rgba(15,47,143,0.10), 0 8px 24px rgba(15,47,143,0.08)"
-                : "0 2px 10px rgba(15,47,143,0.05)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
+              ["--rise-delay" as string]: "20ms",
+              background: GRADIENT,
+              boxShadow: "0 10px 28px rgba(15,47,143,0.28)",
             }}
           >
-            <Search size={17} style={{ color: searchFocused ? "#0f2f8f" : "#5a6a99", flexShrink: 0 }} />
-            <input
-              type="search"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              placeholder="Search shipment ID or exporter"
-              className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-[#5a6a99]/70"
-              style={{ color: "#0a1a4a" }}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 55%)" }}
+              aria-hidden="true"
             />
-            {query && (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 focus:outline-none"
-                style={{ background: "rgba(15,47,143,0.10)", color: "#5a6a99" }}
-                aria-label="Clear search"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={openFilters}
-            className="relative w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-95 transition-all duration-200"
-            style={{
-              background: filtersActive ? GRADIENT : "rgba(255,255,255,0.88)",
-              color: filtersActive ? "#ffffff" : "#0f2f8f",
-              border: `1.5px solid ${filtersActive ? "transparent" : "rgba(15,47,143,0.12)"}`,
-              boxShadow: filtersActive
-                ? "0 6px 18px rgba(15,47,143,0.28)"
-                : "0 2px 10px rgba(15,47,143,0.05)",
-            }}
-            aria-label="Open filters"
-            aria-expanded={filterOpen}
-          >
-            <ListFilter size={19} />
-            {filtersActive && (
-              <span
-                className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white"
-                style={{ background: "#d4183d" }}
-              />
-            )}
-          </button>
-        </div>
 
-        {/* Day segment control */}
-        <div
-          className="flex p-1 rounded-2xl animate-riseIn"
-          style={{
-            ["--rise-delay" as string]: "90ms",
-            background: "rgba(255,255,255,0.72)",
-            border: "1px solid rgba(15,47,143,0.10)",
-            boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
-          }}
-          role="tablist"
-          aria-label="Schedule day"
-        >
-          {dayChips.map(chip => {
-            const active = dayFilter === chip.id;
-            return (
-              <button
-                key={chip.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setDayFilter(chip.id)}
-                className="flex-1 relative h-10 rounded-xl text-[13px] font-semibold focus:outline-none transition-all duration-200 active:scale-[0.98]"
+            <div className="relative z-10 flex flex-col gap-3.5">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.18)" }}
+                >
+                  <ClipboardList size={17} style={{ color: "#ffffff" }} />
+                </div>
+                <h2 className="text-[15px] font-bold text-white tracking-tight">Assignment</h2>
+              </div>
+
+              <div
+                className="rounded-xl px-3 py-3 grid grid-cols-2 gap-2.5 sm:gap-3"
                 style={{
-                  background: active ? GRADIENT : "transparent",
-                  color: active ? "#ffffff" : "#5a6a99",
-                  boxShadow: active ? "0 4px 14px rgba(15,47,143,0.28)" : "none",
+                  background: "rgba(255,255,255,0.10)",
+                  border: "1px solid rgba(255,255,255,0.14)",
                 }}
               >
-                <span className="inline-flex items-center justify-center gap-1.5">
-                  {chip.label}
-                  <span
-                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums"
-                    style={{
-                      background: active ? "rgba(255,255,255,0.22)" : "rgba(15,47,143,0.08)",
-                      color: active ? "#ffffff" : "#0f2f8f",
-                    }}
-                  >
-                    {dayTotals[chip.id]}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.58)" }}>
+                    Exporter
+                  </p>
+                  <p className="text-[12px] sm:text-[13px] font-semibold text-white mt-1 leading-snug break-words">{exporter}</p>
+                </div>
+                <div className="min-w-0 pl-2.5 sm:pl-3" style={{ borderLeft: "1px solid rgba(255,255,255,0.16)" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.58)" }}>
+                    Concession
+                  </p>
+                  <p className="text-[12px] sm:text-[13px] font-semibold text-white mt-1 leading-snug break-words">{concession}</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-        {/* Results summary */}
-        <div
-          className="flex items-center justify-between px-0.5 animate-riseIn"
-          style={{ ["--rise-delay" as string]: "130ms" }}
-        >
-          <p className="text-xs font-medium" style={{ color: "#5a6a99" }}>
-            {filtered.length === 0
-              ? `No inspections ${dayLabel}`
-              : `${filtered.length} inspection${filtered.length === 1 ? "" : "s"} ${dayLabel}`}
-          </p>
-          {urgentCount > 0 && (
-            <span
-              className="inline-flex items-center gap-1 h-6 px-2 rounded-full text-[11px] font-semibold"
-              style={{ background: "rgba(212,24,61,0.10)", color: "#d4183d" }}
+          {/* 3. Search & Filter Controls */}
+          <div className="flex items-center gap-2.5 animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }}>
+            <div
+              className="flex-1 min-w-0 flex items-center gap-3 h-12 px-3.5 rounded-2xl transition-[box-shadow,border-color,background] duration-200"
+              style={{
+                background: searchFocused ? "#ffffff" : "rgba(255,255,255,0.88)",
+                border: `1.5px solid ${searchFocused ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.12)"}`,
+                boxShadow: searchFocused
+                  ? "0 0 0 4px rgba(15,47,143,0.10), 0 8px 24px rgba(15,47,143,0.08)"
+                  : "0 2px 10px rgba(15,47,143,0.05)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+              }}
             >
-              <AlertTriangle size={11} strokeWidth={2.5} />
-              {urgentCount} urgent
-            </span>
-          )}
-        </div>
+              <Search size={17} style={{ color: searchFocused ? "#0f2f8f" : "#5a6a99", flexShrink: 0 }} />
+              <input
+                type="search"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                placeholder="Search inspection ID or location"
+                className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-[#5a6a99]/70"
+                style={{ color: "#0a1a4a" }}
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 focus:outline-none"
+                  style={{ background: "rgba(15,47,143,0.10)", color: "#5a6a99" }}
+                  aria-label="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={openFilters}
+              className="relative w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-95 transition-all duration-200"
+              style={{
+                background: filtersActive ? GRADIENT : "rgba(255,255,255,0.88)",
+                color: filtersActive ? "#ffffff" : "#0f2f8f",
+                border: `1.5px solid ${filtersActive ? "transparent" : "rgba(15,47,143,0.12)"}`,
+                boxShadow: filtersActive
+                  ? "0 6px 18px rgba(15,47,143,0.28)"
+                  : "0 2px 10px rgba(15,47,143,0.05)",
+              }}
+              aria-label="Open filters"
+              aria-expanded={filterOpen}
+            >
+              <ListFilter size={19} />
+              {filtersActive && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white"
+                  style={{ background: "#d4183d" }}
+                />
+              )}
+            </button>
+          </div>
+
+          {/* 4. Time Tabs */}
+          <div
+            className="flex p-1 rounded-2xl animate-riseIn"
+            style={{
+              ["--rise-delay" as string]: "90ms",
+              background: "rgba(255,255,255,0.72)",
+              border: "1px solid rgba(15,47,143,0.10)",
+              boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)",
+            }}
+            role="tablist"
+            aria-label="Schedule day"
+          >
+            {dayChips.map(chip => {
+              const active = dayFilter === chip.id;
+              return (
+                <button
+                  key={chip.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setDayFilter(chip.id)}
+                  className="flex-1 relative h-10 rounded-xl text-[13px] font-semibold focus:outline-none transition-all duration-200 active:scale-[0.98]"
+                  style={{
+                    background: active ? GRADIENT : "transparent",
+                    color: active ? "#ffffff" : "#5a6a99",
+                    boxShadow: active ? "0 4px 14px rgba(15,47,143,0.28)" : "none",
+                  }}
+                >
+                  <span className="inline-flex items-center justify-center gap-1.5">
+                    {chip.label}
+                    <span
+                      className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums"
+                      style={{
+                        background: active ? "rgba(255,255,255,0.22)" : "rgba(15,47,143,0.08)",
+                        color: active ? "#ffffff" : "#0f2f8f",
+                      }}
+                    >
+                      {dayTotals[chip.id]}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Scrollable task list only */}
+      {/* 6. Inspection Cards Scroll List */}
       <div
         className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 pb-24 gap-3.5">
+        <div className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-1 pb-[max(6rem,env(safe-area-inset-bottom))] gap-3.5">
           {filtered.length === 0 ? (
             <div
               className="rounded-2xl p-8 text-center flex flex-col items-center gap-3 animate-riseIn"
@@ -1594,7 +1670,8 @@ function ScheduleInspectionScreen({
             </div>
           ) : (
             filtered.map((task, index) => {
-              const isUrgent = task.status === "urgent";
+              const status = resolveInspectionStatus(task, getProgress(task.id));
+              const meta = INSPECTION_STATUS_META[status];
               return (
                 <article
                   key={task.id}
@@ -1602,16 +1679,14 @@ function ScheduleInspectionScreen({
                   style={{
                     ["--rise-delay" as string]: `${160 + index * 55}ms`,
                     background: "#ffffff",
-                    border: `1px solid ${isUrgent ? "rgba(212,24,61,0.18)" : "rgba(15,47,143,0.10)"}`,
-                    boxShadow: isUrgent
-                      ? "0 10px 28px rgba(212,24,61,0.08), 0 2px 8px rgba(15,47,143,0.04)"
-                      : "0 8px 24px rgba(15,47,143,0.07), 0 1px 3px rgba(15,47,143,0.04)",
+                    border: `1px solid ${meta.border}`,
+                    boxShadow: "0 8px 24px rgba(15,47,143,0.07), 0 1px 3px rgba(15,47,143,0.04)",
                   }}
                 >
                   {/* Accent rail */}
                   <div
                     className="absolute left-0 top-0 bottom-0 w-[3px]"
-                    style={{ background: isUrgent ? "#d4183d" : GRADIENT }}
+                    style={{ background: meta.rail }}
                     aria-hidden="true"
                   />
 
@@ -1620,27 +1695,18 @@ function ScheduleInspectionScreen({
                       <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                         <span
                           className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-semibold"
-                          style={
-                            isUrgent
-                              ? { background: "rgba(212,24,61,0.10)", color: "#d4183d" }
-                              : { background: "rgba(15,47,143,0.07)", color: "#5a6a99" }
-                          }
+                          style={{ background: meta.bg, color: meta.color }}
                         >
-                          {isUrgent && <AlertTriangle size={10} strokeWidth={2.5} />}
-                          {isUrgent ? "Urgent" : "Pending"}
-                        </span>
-                        <span
-                          className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold tracking-wide"
-                          style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
-                        >
-                          {task.shipment}
+                          {status === "complete" && <CheckCircle2 size={10} strokeWidth={2.5} />}
+                          {status === "inprogress" && <Clock size={10} strokeWidth={2.5} />}
+                          {meta.label}
                         </span>
                       </div>
                       <div
                         className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                         style={{
-                          background: isUrgent ? "rgba(212,24,61,0.08)" : "rgba(15,47,143,0.06)",
-                          color: isUrgent ? "#d4183d" : "#0f2f8f",
+                          background: meta.iconBg,
+                          color: meta.color,
                         }}
                       >
                         <Ship size={16} />
@@ -1648,37 +1714,37 @@ function ScheduleInspectionScreen({
                     </div>
 
                     <div className="flex flex-col gap-0.5">
-                      <h3 className="text-[15px] font-bold leading-snug tracking-tight" style={{ color: "#0a1a4a" }}>
-                        {task.exporter}
+                      <h3 className="text-[15px] font-bold leading-snug tracking-tight tabular-nums" style={{ color: "#0a1a4a" }}>
+                        {task.shipment}
                       </h3>
                     </div>
 
                     {/* Iconized meta row */}
                     <div
-                      className="grid grid-cols-3 gap-2 rounded-xl p-2.5"
+                      className="grid grid-cols-3 gap-1.5 sm:gap-2 rounded-xl p-2 sm:p-2.5"
                       style={{ background: "rgba(240,244,255,0.9)", border: "1px solid rgba(15,47,143,0.06)" }}
                     >
                       <div className="flex flex-col gap-1 min-w-0">
                         <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
-                          <MapPin size={10} /> Location
+                          <MapPin size={10} className="flex-shrink-0" /> Location
                         </span>
-                        <span className="text-[11px] font-semibold truncate" style={{ color: "#0a1a4a" }}>
+                        <span className="text-[10px] sm:text-[11px] font-semibold break-words leading-snug" style={{ color: "#0a1a4a" }}>
                           {task.location}
                         </span>
                       </div>
-                      <div className="flex flex-col gap-1 min-w-0 border-x px-2" style={{ borderColor: "rgba(15,47,143,0.08)" }}>
+                      <div className="flex flex-col gap-1 min-w-0 border-x px-1.5 sm:px-2" style={{ borderColor: "rgba(15,47,143,0.08)" }}>
                         <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
-                          <Clock size={10} /> Window
+                          <Calendar size={10} className="flex-shrink-0" /> Window
                         </span>
-                        <span className="text-[11px] font-semibold truncate" style={{ color: "#0a1a4a" }}>
+                        <span className="text-[10px] sm:text-[11px] font-semibold break-words leading-snug" style={{ color: "#0a1a4a" }}>
                           {task.time}
                         </span>
                       </div>
                       <div className="flex flex-col gap-1 min-w-0">
                         <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
-                          <Layers size={10} /> Volume
+                          <Layers size={10} className="flex-shrink-0" /> Volume
                         </span>
-                        <span className="text-[11px] font-semibold truncate" style={{ color: "#0a1a4a" }}>
+                        <span className="text-[10px] sm:text-[11px] font-semibold break-words leading-snug" style={{ color: "#0a1a4a" }}>
                           {task.logs} logs
                         </span>
                       </div>
@@ -1690,7 +1756,7 @@ function ScheduleInspectionScreen({
                       className="group w-full h-12 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-all duration-200 hover:brightness-110 flex items-center justify-center gap-2"
                       style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.28)" }}
                     >
-                      {ctaLabel(task.id)}
+                      {ctaLabel(task)}
                       <ArrowRight
                         size={16}
                         className="transition-transform duration-200 group-hover:translate-x-0.5 animate-nudgeRight"
@@ -1972,7 +2038,7 @@ function getInspectionInfoSections(task: InspectionTask): InspectionInfoSection[
 }
 
 function getInspectionInfoSectionFields(sectionId: InspectionInfoSectionId, task: InspectionTask): [string, string][] {
-  const scheduleLabel = task.day === "today" ? `Today · ${task.time}` : task.day === "tomorrow" ? `Tomorrow · ${task.time}` : task.time;
+  const scheduleLabel = task.time;
   switch (sectionId) {
     case "shipment":
       return [
@@ -1985,7 +2051,7 @@ function getInspectionInfoSectionFields(sectionId: InspectionInfoSectionId, task
         ["Licence No.", "LIC-8821-B"],
         ["Advised Volume", `${(task.logs * 1.85).toFixed(2)} m³`],
         ["Schedule", scheduleLabel],
-        ["Status", task.status === "urgent" ? "Urgent" : "Pending"],
+        ["Status", INSPECTION_STATUS_META[task.status].label],
       ];
     case "ape":
       return [
@@ -2150,7 +2216,7 @@ function getShipmentDetailsData(task: InspectionTask): ShipmentDetailsData {
   return {
     referenceNo: "20",
     requestDate: "07/15/2026",
-    status: task.status === "urgent" ? "Active" : "Approved",
+    status: task.status === "complete" ? "Approved" : task.status === "inprogress" ? "Active" : "Pending",
     exporter: task.exporter,
     projectSite: "Mahaweli Forest Block A",
     loadingPoint: "L-001",
@@ -2184,7 +2250,6 @@ function ShipmentDetailsScreen({
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
   const textMuted = dark ? "rgba(255,255,255,0.55)" : "#6b7280";
   const accent = "#0f2f8f";
-  const highlight = "#E00025";
   const elevation = dark
     ? "0 8px 32px rgba(0,0,0,0.4)"
     : "0 4px 24px rgba(15,47,143,0.10), 0 1px 0 rgba(255,255,255,0.8) inset";
@@ -2251,28 +2316,14 @@ function ShipmentDetailsScreen({
           />
 
           <div className="relative z-10 flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.65)" }}>
-                  Reference No
-                </p>
-                <p className="text-[28px] font-bold tracking-tight leading-none mt-1 text-white">#{data.referenceNo}</p>
-                <p className="text-[12px] mt-1 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
-                  Requested {data.requestDate}
-                </p>
-              </div>
-              <span
-                className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
-                style={{
-                  background: "rgba(224,0,37,0.22)",
-                  color: "#ffffff",
-                  border: "1px solid rgba(224,0,37,0.55)",
-                  boxShadow: "0 0 18px rgba(224,0,37,0.45), inset 0 0 12px rgba(224,0,37,0.15)",
-                }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: highlight, boxShadow: "0 0 8px #E00025" }} />
-                Active
-              </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.65)" }}>
+                Reference No
+              </p>
+              <p className="text-[28px] font-bold tracking-tight leading-none mt-1 text-white">#{data.referenceNo}</p>
+              <p className="text-[12px] mt-1 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
+                Requested {data.requestDate}
+              </p>
             </div>
 
             {/* Volume focal metric — frosted glass panel */}
@@ -2394,7 +2445,7 @@ function ShipmentDetailsScreen({
                 border: cardBorder,
               }}
             >
-              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Permit</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Permit Number</p>
               <div className="flex items-center gap-1.5">
                 <span className="text-[15px] font-bold truncate" style={{ color: textPrimary }}>{data.permitNo}</span>
                 <button
@@ -2415,7 +2466,7 @@ function ShipmentDetailsScreen({
                 border: cardBorder,
               }}
             >
-              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Licence</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Licence Number</p>
               <span className="text-[15px] font-bold truncate" style={{ color: textPrimary }}>{data.licenceNo}</span>
             </div>
           </div>
@@ -2770,8 +2821,7 @@ function CargoDetailsScreen({
             </h2>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Port of Discharge</p>
+          <div className="flex items-center">
             <span
               className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-bold"
               style={{
@@ -2961,19 +3011,6 @@ function RequestAttachmentsScreen({
               ? { background: "rgba(224,0,37,0.18)", color: "#f87171" }
               : { background: "#fef2f2", color: "#dc2626" };
 
-          const categoryTone =
-            file.category === "APE"
-              ? dark
-                ? { background: "rgba(147,51,234,0.22)", color: "#d8b4fe" }
-                : { background: "#faf5ff", color: "#7e22ce" }
-              : file.category === "MANIFEST"
-                ? dark
-                  ? { background: "rgba(16,185,129,0.18)", color: "#6ee7b7" }
-                  : { background: "#ecfdf5", color: "#047857" }
-                : dark
-                  ? { background: "rgba(59,130,246,0.22)", color: "#93c5fd" }
-                  : { background: "#eff6ff", color: "#1d4ed8" };
-
           return (
             <button
               key={file.fileName}
@@ -3007,12 +3044,6 @@ function RequestAttachmentsScreen({
                   </p>
 
                   <div className={`flex items-center gap-2 mt-1.5 flex-wrap text-xs ${dark ? "" : "text-slate-500"}`} style={dark ? { color: textMuted } : undefined}>
-                    <span
-                      className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
-                      style={categoryTone}
-                    >
-                      {file.category}
-                    </span>
                     <span
                       className="inline-flex items-center h-5 px-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
                       style={{
@@ -3351,6 +3382,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
   onViewFullInfo: () => void;
   onStartSession: (key: "preShipment" | "loading") => void;
 }) {
+  const info = getShipmentDetailsData(task);
   const preShipmentDone = progress.preShipment === "completed";
   const [startDialogKey, setStartDialogKey] = useState<"preShipment" | "loading" | null>(null);
   const [startDate, setStartDate] = useState(todayISODate);
@@ -3410,36 +3442,68 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
         </div>
       </AppHeaderBar>
 
-      <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-4">
+      <div className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 py-5 gap-4">
 
-        {/* Inspection Info — read only, tap arrow to view full details */}
-        <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: GRADIENT, boxShadow: "0 4px 20px rgba(15,47,143,0.30)" }}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.16)" }}>
-              <ClipboardList size={18} style={{ color: "#ffffff" }} />
+        {/* Inspection Info — read only, tap to view full details */}
+        <button
+          type="button"
+          onClick={onViewFullInfo}
+          className="relative overflow-hidden w-full rounded-2xl p-3.5 sm:p-4 text-left focus:outline-none transition-all duration-200 active:scale-[0.99]"
+          style={{ background: GRADIENT, boxShadow: "0 10px 28px rgba(15,47,143,0.28)" }}
+          aria-label="View full inspection info"
+        >
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 55%)" }}
+            aria-hidden="true"
+          />
+
+          <div className="relative z-10 flex flex-col gap-3.5">
+            <div className="flex items-start gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.18)" }}
+              >
+                <ClipboardList size={17} style={{ color: "#ffffff" }} />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <h2 className="text-[15px] font-bold text-white tracking-tight">Inspection Info</h2>
+                <p className="text-[13px] font-medium mt-1 leading-snug truncate" style={{ color: "rgba(255,255,255,0.78)" }}>
+                  {task.exporter}
+                </p>
+              </div>
+
+              <span
+                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ background: "#ffffff", color: "#0f2f8f" }}
+              >
+                <ArrowRight size={15} />
+              </span>
             </div>
-            <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0" style={{ background: "#ffffff", color: "#0f2f8f" }}>
-              <Lock size={10} /> Read Only
-            </span>
-          </div>
 
-          <div>
-            <h2 className="text-base font-bold text-white">Inspection Info</h2>
-            <p className="text-sm italic leading-relaxed mt-1.5" style={{ color: "rgba(255,255,255,0.78)" }}>
-              {task.exporter}
-            </p>
+            <div
+              className="rounded-xl px-3.5 py-3 grid grid-cols-2 gap-3"
+              style={{
+                background: "rgba(255,255,255,0.10)",
+                border: "1px solid rgba(255,255,255,0.14)",
+              }}
+            >
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.58)" }}>
+                  Request No.
+                </p>
+                <p className="text-[15px] font-bold text-white mt-1 tabular-nums tracking-tight">#{info.referenceNo}</p>
+              </div>
+              <div className="min-w-0 pl-2.5 sm:pl-3" style={{ borderLeft: "1px solid rgba(255,255,255,0.16)" }}>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.58)" }}>
+                  Concession
+                </p>
+                <p className="text-[12px] sm:text-[13px] font-semibold text-white mt-1 leading-snug break-words">{info.projectSite}</p>
+              </div>
+            </div>
           </div>
-
-          <button
-            type="button"
-            onClick={onViewFullInfo}
-            className="self-end w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 focus:outline-none transition-all duration-200 hover:brightness-105 active:scale-[0.96]"
-            style={{ background: "#ffffff", color: "#0f2f8f" }}
-            aria-label="View full inspection info"
-          >
-            <ArrowRight size={16} />
-          </button>
-        </div>
+        </button>
 
         <p
           className="mb-2 text-xs font-bold uppercase tracking-wider"
@@ -3554,7 +3618,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
   );
 }
 
-// ─── Physical Verification (Step 1 of 3) ───────────────────────────────────────
+// ─── Physical Verification (Step 1 of 2) ───────────────────────────────────────
 
 function PhysicalVerificationScreen({
   task,
@@ -3576,24 +3640,25 @@ function PhysicalVerificationScreen({
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col animate-fadeIn"
+      className="h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn"
       style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
     >
       <AppHeaderBar>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <BackCardButton onClick={onBack} />
           <div className="min-w-0">
-            <h1 className="text-[18px] font-bold tracking-tight" style={{ color: "#0a1a4a" }}>
+            <h1 className="text-[17px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
               Physical Verification
             </h1>
           </div>
         </div>
       </AppHeaderBar>
 
-      <div className="flex-1 w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+      <div className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 py-4 sm:py-5 gap-4">
         {/* Progress — blue card */}
         <div
-          className="relative overflow-hidden rounded-2xl px-4 py-4 flex flex-col gap-3"
+          className="relative overflow-hidden rounded-2xl px-3.5 sm:px-4 py-4 flex flex-col gap-3"
           style={{ background: GRADIENT, boxShadow: "0 10px 26px rgba(15,47,143,0.30)" }}
         >
           <div
@@ -3602,15 +3667,15 @@ function PhysicalVerificationScreen({
             aria-hidden="true"
           />
 
-          <div className="relative z-10 flex items-center justify-between">
+          <div className="relative z-10 flex items-center justify-between gap-2">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.78)" }}>
               Current Step
             </p>
             <span
-              className="text-[11px] font-semibold rounded-full px-2.5 py-1"
+              className="text-[11px] font-semibold rounded-full px-2.5 py-1 flex-shrink-0"
               style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}
             >
-              1 / 3
+              1 / 2
             </span>
           </div>
 
@@ -3619,7 +3684,7 @@ function PhysicalVerificationScreen({
           </p>
 
           <div className="relative z-10 flex gap-2">
-            {[0, 1, 2].map(i => (
+            {[0, 1].map(i => (
               <div
                 key={i}
                 className="h-2 flex-1 rounded-full transition-all duration-300"
@@ -3631,34 +3696,33 @@ function PhysicalVerificationScreen({
             ))}
           </div>
 
-          <div className="relative z-10 flex items-center justify-between text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.72)" }}>
-            <span>Physical</span>
-            <span>Documents</span>
-            <span>Finalize</span>
+          <div className="relative z-10 grid grid-cols-2 gap-2 text-[9px] sm:text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.72)" }}>
+            <span className="truncate">Physical verification</span>
+            <span className="truncate text-right">Sample verification</span>
           </div>
         </div>
 
         {/* Declared volume card */}
         <div
-          className="rounded-2xl p-4 flex flex-col gap-4"
+          className="rounded-2xl p-3.5 sm:p-4 flex flex-col gap-4"
           style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.08)", boxShadow: "0 2px 12px rgba(15,47,143,0.06)" }}
         >
           <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
             Declared Volume
           </p>
-          <div className="flex items-end gap-3">
+          <div className="flex items-end gap-2 sm:gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-[28px] font-bold leading-none tabular-nums" style={{ color: "#0a1a4a" }}>
+              <p className="text-[22px] sm:text-[28px] font-bold leading-none tabular-nums break-all" style={{ color: "#0a1a4a" }}>
                 {formatVol(declaredM3)}
               </p>
-              <p className="text-xs mt-1.5" style={{ color: "#5a6a99" }}>m³ declared</p>
+              <p className="text-[11px] sm:text-xs mt-1.5" style={{ color: "#5a6a99" }}>m³ declared</p>
             </div>
-            <ArrowRight size={18} className="mb-5 flex-shrink-0" style={{ color: "#94a3b8" }} />
+            <ArrowRight size={18} className="mb-4 sm:mb-5 flex-shrink-0" style={{ color: "#94a3b8" }} />
             <div className="flex-1 min-w-0 text-right">
-              <p className="text-[28px] font-bold leading-none tabular-nums" style={{ color: "#059669" }}>
+              <p className="text-[22px] sm:text-[28px] font-bold leading-none tabular-nums break-all" style={{ color: "#059669" }}>
                 {formatVol(thresholdM3)}
               </p>
-              <p className="text-xs mt-1.5" style={{ color: "#5a6a99" }}>m³ threshold (95%)</p>
+              <p className="text-[11px] sm:text-xs mt-1.5" style={{ color: "#5a6a99" }}>m³ threshold (95%)</p>
             </div>
           </div>
           <div
@@ -3792,10 +3856,11 @@ function PhysicalVerificationScreen({
           )}
         </div>
       </div>
+      </div>
 
       {/* Footer CTA */}
       {volumeOk !== "no" && (
-        <div className="shrink-0 w-full max-w-[480px] mx-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
+        <div className="shrink-0 w-full max-w-[480px] mx-auto px-4 sm:px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
           <button
             type="button"
             onClick={onProceed}
@@ -3956,25 +4021,24 @@ export default function App() {
     />
   );
   if (screen === "log-inventory") return <LogInventoryScreen dark={dark} onBack={() => setScreen("home")} />;
+
+  const scheduleExporter = resolveExporterForConcession(location);
+  const scheduleConcession = location || CU_CLIENT_DIRECTORY[0].concessions[0];
+  const scheduleScreenProps = {
+    onBack: () => setScreen("home" as Screen),
+    onStartInspection: (task: InspectionTask) => { setSelectedInspectionId(task.id); setScreen("inspection-details"); },
+    getProgress: getInspectionProgress,
+    exporter: scheduleExporter,
+    concession: scheduleConcession,
+  };
+
   if (screen === "schedule-inspection") {
-    return (
-      <ScheduleInspectionScreen
-        onBack={() => setScreen("home")}
-        onStartInspection={task => { setSelectedInspectionId(task.id); setScreen("inspection-details"); }}
-        getProgress={getInspectionProgress}
-      />
-    );
+    return <ScheduleInspectionScreen {...scheduleScreenProps} />;
   }
   if (screen === "inspection-details") {
     const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
     if (!task) {
-      return (
-        <ScheduleInspectionScreen
-          onBack={() => setScreen("home")}
-          onStartInspection={t => { setSelectedInspectionId(t.id); setScreen("inspection-details"); }}
-          getProgress={getInspectionProgress}
-        />
-      );
+      return <ScheduleInspectionScreen {...scheduleScreenProps} />;
     }
     return (
       <InspectionDetailsScreen
@@ -3993,13 +4057,7 @@ export default function App() {
   if (screen === "physical-verification") {
     const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
     if (!task) {
-      return (
-        <ScheduleInspectionScreen
-          onBack={() => setScreen("home")}
-          onStartInspection={t => { setSelectedInspectionId(t.id); setScreen("inspection-details"); }}
-          getProgress={getInspectionProgress}
-        />
-      );
+      return <ScheduleInspectionScreen {...scheduleScreenProps} />;
     }
     return (
       <PhysicalVerificationScreen
@@ -4012,13 +4070,7 @@ export default function App() {
   if (screen === "inspection-info-details") {
     const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
     if (!task) {
-      return (
-        <ScheduleInspectionScreen
-          onBack={() => setScreen("home")}
-          onStartInspection={t => { setSelectedInspectionId(t.id); setScreen("inspection-details"); }}
-          getProgress={getInspectionProgress}
-        />
-      );
+      return <ScheduleInspectionScreen {...scheduleScreenProps} />;
     }
     return (
       <InspectionInfoDetailsScreen
