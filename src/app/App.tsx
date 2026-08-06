@@ -1380,7 +1380,7 @@ function ScheduleInspectionScreen({
 
   return (
     <div
-      className="relative min-h-screen w-full overflow-hidden animate-fadeIn"
+      className="relative h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn"
       style={{
         background: "linear-gradient(165deg, #dce6fb 0%, #eef2ff 32%, #f5f7ff 68%, #f0f4ff 100%)",
         fontFamily: "'Inter', sans-serif",
@@ -1399,23 +1399,30 @@ function ScheduleInspectionScreen({
         aria-hidden="true"
       />
 
-      <AppHeaderBar>
-        <div className="flex items-center gap-3">
-          <BackCardButton onClick={onBack} />
-          <div className="min-w-0">
-            <h1 className="text-[18px] font-bold tracking-tight" style={{ color: "#0a1a4a" }}>
-              Schedule Inspection
-            </h1>
-            <p className="text-xs" style={{ color: "#5a6a99" }}>
-              Your assigned log grading tasks
-            </p>
+      {/* Frozen header — title, search, filters, day tabs, summary */}
+      <div
+        className="relative z-40 shrink-0 w-full"
+        style={{
+          background: "linear-gradient(165deg, #dce6fb 0%, #eef2ff 32%, #f5f7ff 68%, #f0f4ff 100%)",
+        }}
+      >
+        <AppHeaderBar>
+          <div className="flex items-center gap-3">
+            <BackCardButton onClick={onBack} />
+            <div className="min-w-0">
+              <h1 className="text-[18px] font-bold tracking-tight" style={{ color: "#0a1a4a" }}>
+                Schedule Inspection
+              </h1>
+              <p className="text-xs" style={{ color: "#5a6a99" }}>
+                Your assigned log grading tasks
+              </p>
+            </div>
           </div>
-        </div>
-      </AppHeaderBar>
+        </AppHeaderBar>
 
-      <div className="relative w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-4">
-        {/* Search + filter */}
-        <div className="flex items-center gap-2.5 animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }}>
+        <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 pb-4 gap-4">
+          {/* Search + filter */}
+          <div className="flex items-center gap-2.5 animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }}>
           <div
             className="flex-1 min-w-0 flex items-center gap-3 h-12 px-3.5 rounded-2xl transition-[box-shadow,border-color,background] duration-200"
             style={{
@@ -1543,9 +1550,15 @@ function ScheduleInspectionScreen({
             </span>
           )}
         </div>
+        </div>
+      </div>
 
-        {/* Task list */}
-        <div className="flex flex-col gap-3.5 pb-4">
+      {/* Scrollable task list only */}
+      <div
+        className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 pb-24 gap-3.5">
           {filtered.length === 0 ? (
             <div
               className="rounded-2xl p-8 text-center flex flex-col items-center gap-3 animate-riseIn"
@@ -3254,7 +3267,7 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
         </div>
       </AppHeaderBar>
 
-      <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-6">
+      <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-4">
 
         {/* Inspection Info — read only, tap arrow to view full details */}
         <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: GRADIENT, boxShadow: "0 4px 20px rgba(15,47,143,0.30)" }}>
@@ -3269,8 +3282,8 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
 
           <div>
             <h2 className="text-base font-bold text-white">Inspection Info</h2>
-            <p className="text-xs leading-relaxed mt-1.5" style={{ color: "rgba(255,255,255,0.78)" }}>
-              Shipment, APE, vessel, declared logs, cargo, attachments, and volume variance — all read-only.
+            <p className="text-sm italic leading-relaxed mt-1.5" style={{ color: "rgba(255,255,255,0.78)" }}>
+              {task.exporter}
             </p>
           </div>
 
@@ -3286,7 +3299,7 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
         </div>
 
         <p
-          className="mt-6 mb-3 text-xs font-bold uppercase tracking-wider"
+          className="mb-2 text-xs font-bold uppercase tracking-wider"
           style={{ color: "#5a6a99" }}
         >
           Inspection Type
