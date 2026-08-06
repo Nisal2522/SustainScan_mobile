@@ -5,6 +5,7 @@ import {
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
   ScanLine, QrCode, Calendar, Search, ListFilter, X, Truck, CheckCircle2, ArrowRight,
   Ship, Anchor, CircleDollarSign, Layers, Container, Paperclip, Scale, FileText,
+  Clock, AlertTriangle,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
 import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
@@ -219,26 +220,6 @@ const SCHEDULED_INSPECTIONS: InspectionTask[] = [
     logs: 21,
     day: "today",
     status: "pending",
-  },
-  {
-    id: "5",
-    shipment: "#SHIP-2024-005",
-    exporter: "Summit Forest Products",
-    location: "Mountain Depot",
-    time: "13:00–15:00",
-    logs: 40,
-    day: "today",
-    status: "pending",
-  },
-  {
-    id: "6",
-    shipment: "#SHIP-2024-006",
-    exporter: "Eastern Pine Resale",
-    location: "Eastern Rail Head",
-    time: "15:00–17:00",
-    logs: 18,
-    day: "today",
-    status: "urgent",
   },
   {
     id: "7",
@@ -1307,6 +1288,7 @@ function ScheduleInspectionScreen({
   const [draftDay, setDraftDay] = useState<DayFilter>("today");
   const [draftStatus, setDraftStatus] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [overlayBox, setOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
 
@@ -1381,17 +1363,42 @@ function ScheduleInspectionScreen({
     { id: "urgent", label: "Urgent" },
   ];
 
-  const selectStyle = {
-    background: "#ffffff",
-    border: "1px solid rgba(15,47,143,0.14)",
-    color: "#0a1a4a",
-  } as const;
+  const dayLabel = dayFilter === "today" ? "today" : dayFilter === "tomorrow" ? "tomorrow" : "later";
+  const urgentCount = filtered.filter(t => t.status === "urgent").length;
+  const dayTotals = {
+    today: SCHEDULED_INSPECTIONS.filter(t => t.day === "today").length,
+    tomorrow: SCHEDULED_INSPECTIONS.filter(t => t.day === "tomorrow").length,
+    later: SCHEDULED_INSPECTIONS.filter(t => t.day === "later").length,
+  };
+
+  const ctaLabel = (taskId: string) => {
+    const p = getProgress(taskId);
+    const allDone = p.preShipment === "completed" && p.loading === "completed";
+    const anyStarted = p.preShipment !== "not-started" || p.loading !== "not-started";
+    return allDone ? "View Inspection" : anyStarted ? "Continue Inspection" : "Start Inspection";
+  };
 
   return (
     <div
-      className="min-h-screen w-full animate-fadeIn"
-      style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif", color: "#0a1a4a" }}
+      className="relative min-h-screen w-full overflow-hidden animate-fadeIn"
+      style={{
+        background: "linear-gradient(165deg, #dce6fb 0%, #eef2ff 32%, #f5f7ff 68%, #f0f4ff 100%)",
+        fontFamily: "'Inter', sans-serif",
+        color: "#0a1a4a",
+      }}
     >
+      {/* Soft atmospheric washes */}
+      <div
+        className="pointer-events-none absolute -top-24 -right-16 w-72 h-72 rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(26,69,181,0.18) 0%, transparent 70%)" }}
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute top-[42%] -left-20 w-64 h-64 rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(15,47,143,0.10) 0%, transparent 72%)" }}
+        aria-hidden="true"
+      />
+
       <AppHeaderBar>
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} />
@@ -1406,113 +1413,272 @@ function ScheduleInspectionScreen({
         </div>
       </AppHeaderBar>
 
-      <div className="w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-5">
+      <div className="relative w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-4">
         {/* Search + filter */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }}>
           <div
-            className="flex-1 min-w-0 flex items-center gap-3 h-12 px-3.5 rounded-xl"
-            style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)" }}
+            className="flex-1 min-w-0 flex items-center gap-3 h-12 px-3.5 rounded-2xl transition-[box-shadow,border-color,background] duration-200"
+            style={{
+              background: searchFocused ? "#ffffff" : "rgba(255,255,255,0.82)",
+              border: `1.5px solid ${searchFocused ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.12)"}`,
+              boxShadow: searchFocused
+                ? "0 0 0 4px rgba(15,47,143,0.10), 0 8px 24px rgba(15,47,143,0.08)"
+                : "0 2px 10px rgba(15,47,143,0.05)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
           >
-            <Search size={18} style={{ color: "#5a6a99", flexShrink: 0 }} />
+            <Search size={17} style={{ color: searchFocused ? "#0f2f8f" : "#5a6a99", flexShrink: 0 }} />
             <input
               type="search"
               value={query}
               onChange={e => setQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               placeholder="Search shipment ID or exporter"
               className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-[#5a6a99]/70"
               style={{ color: "#0a1a4a" }}
             />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 focus:outline-none"
+                style={{ background: "rgba(15,47,143,0.10)", color: "#5a6a99" }}
+                aria-label="Clear search"
+              >
+                <X size={12} />
+              </button>
+            )}
           </div>
           <button
             type="button"
             onClick={openFilters}
-            className="relative w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-95 transition-transform"
+            className="relative w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-95 transition-all duration-200"
             style={{
-              background: filtersActive ? "#93c5fd" : "rgba(15,47,143,0.08)",
-              color: "#0f2f8f",
-              border: `1px solid ${filtersActive ? "#93c5fd" : "rgba(15,47,143,0.14)"}`,
+              background: filtersActive ? GRADIENT : "rgba(255,255,255,0.88)",
+              color: filtersActive ? "#ffffff" : "#0f2f8f",
+              border: `1.5px solid ${filtersActive ? "transparent" : "rgba(15,47,143,0.12)"}`,
+              boxShadow: filtersActive
+                ? "0 6px 18px rgba(15,47,143,0.28)"
+                : "0 2px 10px rgba(15,47,143,0.05)",
             }}
             aria-label="Open filters"
             aria-expanded={filterOpen}
           >
-            <ListFilter size={20} />
+            <ListFilter size={19} />
             {filtersActive && (
               <span
-                className="absolute top-2 right-2 w-2 h-2 rounded-full"
+                className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white"
                 style={{ background: "#d4183d" }}
               />
             )}
           </button>
         </div>
 
-        {/* Task list */}
-        <div className="flex flex-col gap-3 pb-2">
-          {filtered.length === 0 ? (
-            <div
-              className="rounded-xl p-5 text-center"
-              style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)" }}
-            >
-              <p className="text-sm font-medium" style={{ color: "#0a1a4a" }}>
-                No inspections {dayFilter === "today" ? "today" : dayFilter === "tomorrow" ? "tomorrow" : "later"}
-              </p>
-              <p className="text-xs mt-1" style={{ color: "#5a6a99" }}>
-                Try another filter or clear your search.
-              </p>
-            </div>
-          ) : (
-            filtered.map(task => (
-              <article
-                key={task.id}
-                className="rounded-xl p-4 flex flex-col gap-3"
+        {/* Day segment control */}
+        <div
+          className="flex p-1 rounded-2xl animate-riseIn"
+          style={{
+            ["--rise-delay" as string]: "90ms",
+            background: "rgba(255,255,255,0.72)",
+            border: "1px solid rgba(15,47,143,0.10)",
+            boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+          }}
+          role="tablist"
+          aria-label="Schedule day"
+        >
+          {dayChips.map(chip => {
+            const active = dayFilter === chip.id;
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setDayFilter(chip.id)}
+                className="flex-1 relative h-10 rounded-xl text-[13px] font-semibold focus:outline-none transition-all duration-200 active:scale-[0.98]"
                 style={{
-                  background: "#ffffff",
-                  border: "1px solid rgba(15,47,143,0.14)",
-                  boxShadow: "0 1px 3px rgba(15,47,143,0.06)",
+                  background: active ? GRADIENT : "transparent",
+                  color: active ? "#ffffff" : "#5a6a99",
+                  boxShadow: active ? "0 4px 14px rgba(15,47,143,0.28)" : "none",
                 }}
               >
-                <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center justify-center gap-1.5">
+                  {chip.label}
                   <span
-                    className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold"
-                    style={
-                      task.status === "urgent"
-                        ? { background: "rgba(212,24,61,0.10)", color: "#d4183d" }
-                        : { background: "rgba(15,47,143,0.08)", color: "#5a6a99" }
-                    }
+                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums"
+                    style={{
+                      background: active ? "rgba(255,255,255,0.22)" : "rgba(15,47,143,0.08)",
+                      color: active ? "#ffffff" : "#0f2f8f",
+                    }}
                   >
-                    {task.status === "urgent" ? "Urgent" : "Pending"}
+                    {dayTotals[chip.id]}
                   </span>
-                  <span
-                    className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold"
-                    style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
-                  >
-                    {task.shipment}
-                  </span>
-                </div>
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-                <div className="flex flex-col gap-1">
-                  <h3 className="text-[15px] font-bold leading-snug" style={{ color: "#0a1a4a" }}>
-                    {task.exporter}
-                  </h3>
-                  <p className="text-xs leading-relaxed" style={{ color: "#5a6a99" }}>
-                    {task.location} · {task.time} · {task.logs} logs
-                  </p>
-                </div>
+        {/* Results summary */}
+        <div
+          className="flex items-center justify-between px-0.5 animate-riseIn"
+          style={{ ["--rise-delay" as string]: "130ms" }}
+        >
+          <p className="text-xs font-medium" style={{ color: "#5a6a99" }}>
+            {filtered.length === 0
+              ? `No inspections ${dayLabel}`
+              : `${filtered.length} inspection${filtered.length === 1 ? "" : "s"} ${dayLabel}`}
+          </p>
+          {urgentCount > 0 && (
+            <span
+              className="inline-flex items-center gap-1 h-6 px-2 rounded-full text-[11px] font-semibold"
+              style={{ background: "rgba(212,24,61,0.10)", color: "#d4183d" }}
+            >
+              <AlertTriangle size={11} strokeWidth={2.5} />
+              {urgentCount} urgent
+            </span>
+          )}
+        </div>
 
-                <button
-                  type="button"
-                  onClick={() => onStartInspection(task)}
-                  className="w-full h-12 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-transform hover:brightness-110"
-                  style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
+        {/* Task list */}
+        <div className="flex flex-col gap-3.5 pb-4">
+          {filtered.length === 0 ? (
+            <div
+              className="rounded-2xl p-8 text-center flex flex-col items-center gap-3 animate-riseIn"
+              style={{
+                ["--rise-delay" as string]: "160ms",
+                background: "rgba(255,255,255,0.88)",
+                border: "1px dashed rgba(15,47,143,0.22)",
+                boxShadow: "0 4px 20px rgba(15,47,143,0.05)",
+              }}
+            >
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+              >
+                <ClipboardList size={26} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "#0a1a4a" }}>
+                  Nothing scheduled {dayLabel}
+                </p>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: "#5a6a99" }}>
+                  Try another day, adjust filters, or clear your search.
+                </p>
+              </div>
+            </div>
+          ) : (
+            filtered.map((task, index) => {
+              const isUrgent = task.status === "urgent";
+              return (
+                <article
+                  key={task.id}
+                  className="relative overflow-hidden rounded-2xl flex flex-col animate-riseIn"
+                  style={{
+                    ["--rise-delay" as string]: `${160 + index * 55}ms`,
+                    background: "#ffffff",
+                    border: `1px solid ${isUrgent ? "rgba(212,24,61,0.18)" : "rgba(15,47,143,0.10)"}`,
+                    boxShadow: isUrgent
+                      ? "0 10px 28px rgba(212,24,61,0.08), 0 2px 8px rgba(15,47,143,0.04)"
+                      : "0 8px 24px rgba(15,47,143,0.07), 0 1px 3px rgba(15,47,143,0.04)",
+                  }}
                 >
-                  {(() => {
-                    const p = getProgress(task.id);
-                    const allDone = p.preShipment === "completed" && p.loading === "completed";
-                    const anyStarted = p.preShipment !== "not-started" || p.loading !== "not-started";
-                    return allDone ? "View Inspection" : anyStarted ? "Continue Inspection" : "Start Inspection";
-                  })()}
-                </button>
-              </article>
-            ))
+                  {/* Accent rail */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-[3px]"
+                    style={{ background: isUrgent ? "#d4183d" : GRADIENT }}
+                    aria-hidden="true"
+                  />
+
+                  <div className="pl-4 pr-4 pt-4 pb-3.5 flex flex-col gap-3.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                        <span
+                          className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-semibold"
+                          style={
+                            isUrgent
+                              ? { background: "rgba(212,24,61,0.10)", color: "#d4183d" }
+                              : { background: "rgba(15,47,143,0.07)", color: "#5a6a99" }
+                          }
+                        >
+                          {isUrgent && <AlertTriangle size={10} strokeWidth={2.5} />}
+                          {isUrgent ? "Urgent" : "Pending"}
+                        </span>
+                        <span
+                          className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold tracking-wide"
+                          style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                        >
+                          {task.shipment}
+                        </span>
+                      </div>
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{
+                          background: isUrgent ? "rgba(212,24,61,0.08)" : "rgba(15,47,143,0.06)",
+                          color: isUrgent ? "#d4183d" : "#0f2f8f",
+                        }}
+                      >
+                        <Ship size={16} />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5">
+                      <h3 className="text-[15px] font-bold leading-snug tracking-tight" style={{ color: "#0a1a4a" }}>
+                        {task.exporter}
+                      </h3>
+                    </div>
+
+                    {/* Iconized meta row */}
+                    <div
+                      className="grid grid-cols-3 gap-2 rounded-xl p-2.5"
+                      style={{ background: "rgba(240,244,255,0.9)", border: "1px solid rgba(15,47,143,0.06)" }}
+                    >
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                          <MapPin size={10} /> Location
+                        </span>
+                        <span className="text-[11px] font-semibold truncate" style={{ color: "#0a1a4a" }}>
+                          {task.location}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1 min-w-0 border-x px-2" style={{ borderColor: "rgba(15,47,143,0.08)" }}>
+                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                          <Clock size={10} /> Window
+                        </span>
+                        <span className="text-[11px] font-semibold truncate" style={{ color: "#0a1a4a" }}>
+                          {task.time}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                          <Layers size={10} /> Volume
+                        </span>
+                        <span className="text-[11px] font-semibold truncate" style={{ color: "#0a1a4a" }}>
+                          {task.logs} logs
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onStartInspection(task)}
+                      className="group w-full h-12 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-all duration-200 hover:brightness-110 flex items-center justify-center gap-2"
+                      style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.28)" }}
+                    >
+                      {ctaLabel(task.id)}
+                      <ArrowRight
+                        size={16}
+                        className="transition-transform duration-200 group-hover:translate-x-0.5 animate-nudgeRight"
+                      />
+                    </button>
+                  </div>
+                </article>
+              );
+            })
           )}
         </div>
       </div>
@@ -1540,10 +1706,10 @@ function ScheduleInspectionScreen({
             onClick={closeFilters}
           />
           <div
-            className="relative z-10 w-full rounded-t-3xl px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5"
+            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-riseIn"
             style={{
-              background: "#ffffff",
-              boxShadow: "0 -8px 32px rgba(15,47,143,0.18)",
+              background: "linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%)",
+              boxShadow: "0 -12px 40px rgba(15,47,143,0.18)",
             }}
             role="dialog"
             aria-modal="true"
@@ -1567,7 +1733,7 @@ function ScheduleInspectionScreen({
                   <button
                     type="button"
                     onClick={closeFilters}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center focus:outline-none"
+                    className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
                     style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
                     aria-label="Close"
                   >
@@ -1577,7 +1743,7 @@ function ScheduleInspectionScreen({
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               <label htmlFor="filter-schedule" className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
                 Schedule
               </label>
@@ -1586,8 +1752,13 @@ function ScheduleInspectionScreen({
                   id="filter-schedule"
                   value={draftDay}
                   onChange={e => setDraftDay(e.target.value as DayFilter)}
-                  className="w-full h-12 appearance-none rounded-xl pl-3.5 pr-10 text-sm font-medium outline-none focus:outline-none"
-                  style={selectStyle}
+                  className="w-full h-12 appearance-none rounded-2xl pl-4 pr-10 text-sm font-semibold outline-none focus:outline-none transition-[box-shadow,border-color] duration-200"
+                  style={{
+                    background: "#ffffff",
+                    border: "1.5px solid rgba(15,47,143,0.14)",
+                    color: "#0a1a4a",
+                    boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+                  }}
                 >
                   {dayChips.map(opt => (
                     <option key={opt.id} value={opt.id}>{opt.label}</option>
@@ -1595,13 +1766,13 @@ function ScheduleInspectionScreen({
                 </select>
                 <ChevronDown
                   size={16}
-                  className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2"
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2"
                   style={{ color: "#5a6a99" }}
                 />
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               <label htmlFor="filter-status" className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
                 Status
               </label>
@@ -1610,8 +1781,13 @@ function ScheduleInspectionScreen({
                   id="filter-status"
                   value={draftStatus}
                   onChange={e => setDraftStatus(e.target.value as StatusFilter)}
-                  className="w-full h-12 appearance-none rounded-xl pl-3.5 pr-10 text-sm font-medium outline-none focus:outline-none"
-                  style={selectStyle}
+                  className="w-full h-12 appearance-none rounded-2xl pl-4 pr-10 text-sm font-semibold outline-none focus:outline-none transition-[box-shadow,border-color] duration-200"
+                  style={{
+                    background: "#ffffff",
+                    border: "1.5px solid rgba(15,47,143,0.14)",
+                    color: "#0a1a4a",
+                    boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+                  }}
                 >
                   {statusChips.map(opt => (
                     <option key={opt.id} value={opt.id}>{opt.label}</option>
@@ -1619,7 +1795,7 @@ function ScheduleInspectionScreen({
                 </select>
                 <ChevronDown
                   size={16}
-                  className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2"
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2"
                   style={{ color: "#5a6a99" }}
                 />
               </div>
@@ -1628,10 +1804,11 @@ function ScheduleInspectionScreen({
             <button
               type="button"
               onClick={applyFilters}
-              className="w-full h-12 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-transform"
-              style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
+              className="w-full h-12 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+              style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.28)" }}
             >
               Apply filters
+              <CheckCircle2 size={16} />
             </button>
           </div>
         </div>,
