@@ -2311,25 +2311,28 @@ function VesselDetailsScreen({
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.65)" }}>
                   Vessel Name
                 </p>
-                <p className="text-[22px] font-bold tracking-tight leading-snug mt-1 text-white break-words">{vesselName}</p>
+                {/* Exact match to Shipment "#20" typography */}
+                <p className="text-[28px] font-bold tracking-tight leading-none mt-1 text-white">{vesselName}</p>
                 <p className="text-[12px] mt-1 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
                   Vessel ETA as declared in the inspection request.
                 </p>
               </div>
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              {/* Vessel logo — ACTIVE badge positioning (h-7 / rounded-full / flex-shrink-0) */}
+              <span
+                className="inline-flex items-center justify-center gap-1.5 h-7 px-3 rounded-full flex-shrink-0"
                 style={{
                   background: "linear-gradient(145deg, rgba(255,255,255,0.30), rgba(255,255,255,0.10))",
                   color: "#ffffff",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.40), 0 4px 12px rgba(0,0,0,0.22)",
-                  border: "1px solid rgba(255,255,255,0.22)",
+                  border: "1px solid rgba(255,255,255,0.28)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35), 0 4px 12px rgba(0,0,0,0.18)",
                 }}
+                aria-hidden
               >
-                <MaterialSymbol name="sailing" size={22} />
-              </div>
+                <MaterialSymbol name="sailing" size={16} />
+              </span>
             </div>
 
-            {/* ETA — Advised Volume inner glass box style */}
+            {/* ETA — exact Advised Volume metric hierarchy */}
             <div
               className="rounded-2xl px-3 py-2.5"
               style={{
@@ -2364,7 +2367,7 @@ function VesselDetailsScreen({
           </div>
         </section>
 
-        {/* Agent & Contact — same card padding/gaps as Exporter & Location */}
+        {/* Agent & Contact — exact Exporter & Location card classes */}
         <section
           className="rounded-3xl p-4 animate-riseIn"
           style={{
@@ -2589,6 +2592,264 @@ function CargoDetailsScreen({
   );
 }
 
+function RequestAttachmentsScreen({
+  dark,
+  onBack,
+}: {
+  dark: boolean;
+  onBack: () => void;
+}) {
+  const swipe = useSwipeBack(onBack);
+  const files = [
+    {
+      fileName: "Export_Permit_P-001.pdf",
+      category: "PERMIT",
+      uploaded: "07/15/2026",
+      size: "412 KB",
+    },
+    {
+      fileName: "Price_Endorsement_APE-2026-0417.pdf",
+      category: "APE",
+      uploaded: "07/15/2026",
+      size: "268 KB",
+    },
+    {
+      fileName: "Log_Manifest_SHP-992831-TX.xlsx",
+      category: "MANIFEST",
+      uploaded: "07/16/2026",
+      size: "96 KB",
+    },
+  ];
+
+  const parseAttachment = (fileName: string) => {
+    const dot = fileName.lastIndexOf(".");
+    const ext = (dot >= 0 ? fileName.slice(dot + 1) : "").toUpperCase();
+    const base = (dot >= 0 ? fileName.slice(0, dot) : fileName).replace(/_/g, " ");
+    const isSpreadsheet = ext === "XLSX" || ext === "XLS" || ext === "CSV";
+    return {
+      title: base,
+      ext: ext || "FILE",
+      isSpreadsheet,
+      icon: isSpreadsheet ? "table_chart" : "picture_as_pdf",
+    };
+  };
+
+  const bg = dark
+    ? "radial-gradient(ellipse at top, #1a2744 0%, #0f172a 55%)"
+    : "radial-gradient(ellipse at top, #e8eefc 0%, #F8F9FA 50%, #eef2fb 100%)";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.78)";
+  const glass = { backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" } as const;
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#64748b";
+  const accent = "#0f2f8f";
+  const elevation = dark
+    ? "0 8px 32px rgba(0,0,0,0.4)"
+    : "0 4px 24px rgba(15,47,143,0.10), 0 1px 0 rgba(255,255,255,0.8) inset";
+  const cardBorder = dark ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(15,47,143,0.08)";
+  const heroGradient = "linear-gradient(145deg, #1a45b5 0%, #0f2f8f 48%, #0a1f6b 100%)";
+
+  return (
+    <div
+      className="relative min-h-screen w-full transition-colors duration-300 animate-fadeIn flex flex-col"
+      style={{ background: bg, fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
+    >
+      <AppHeaderBar dark={dark}>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-[0.96] transition-transform"
+            style={{
+              backdropFilter: "blur(18px)",
+              WebkitBackdropFilter: "blur(18px)",
+              background: cardBg,
+              color: accent,
+              border: cardBorder,
+              boxShadow: elevation,
+            }}
+            aria-label="Go back"
+          >
+            <MaterialSymbol name="arrow_back" size={22} />
+          </button>
+          <h1 className="flex-1 min-w-0 text-[18px] font-bold tracking-tight truncate" style={{ color: textPrimary }}>
+            Request Attachments
+          </h1>
+        </div>
+      </AppHeaderBar>
+
+      <div className="flex-1 w-full max-w-[480px] mx-auto flex flex-col px-4 pt-2 pb-5 gap-3 overflow-y-auto">
+        {/* Summary hero — Shipment Details style */}
+        <section
+          className="relative overflow-hidden rounded-3xl p-4 animate-riseIn"
+          style={{
+            background: heroGradient,
+            boxShadow: "0 16px 40px rgba(15,47,143,0.35), 0 0 0 1px rgba(255,255,255,0.08) inset",
+          }}
+        >
+          <div
+            className="pointer-events-none absolute -top-10 -right-8 w-40 h-40 rounded-full"
+            style={{ background: "rgba(255,255,255,0.12)", filter: "blur(2px)" }}
+          />
+          <div
+            className="pointer-events-none absolute -bottom-16 -left-10 w-48 h-48 rounded-full"
+            style={{ background: "rgba(224,0,37,0.18)", filter: "blur(4px)" }}
+          />
+
+          <div className="relative z-10 flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.65)" }}>
+                  Request Attachments
+                </p>
+                <p className="text-[22px] font-bold tracking-tight leading-snug mt-1 text-white">Documents</p>
+                <p className="text-[12px] mt-1 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  Submitted by the exporter with this request. View only.
+                </p>
+              </div>
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: "linear-gradient(145deg, rgba(255,255,255,0.30), rgba(255,255,255,0.10))",
+                  color: "#ffffff",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.40), 0 4px 12px rgba(0,0,0,0.22)",
+                  border: "1px solid rgba(255,255,255,0.22)",
+                }}
+              >
+                <MaterialSymbol name="attach_file" size={22} />
+              </div>
+            </div>
+
+            <div
+              className="rounded-2xl px-3 py-2.5"
+              style={{
+                ...glass,
+                background: "linear-gradient(180deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.08) 100%)",
+                border: "1px solid rgba(255,255,255,0.28)",
+                boxShadow: "0 10px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -1px 0 rgba(0,0,0,0.12)",
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: "linear-gradient(145deg, rgba(255,255,255,0.30), rgba(255,255,255,0.10))",
+                    color: "#ffffff",
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.40), 0 4px 12px rgba(0,0,0,0.22)",
+                    border: "1px solid rgba(255,255,255,0.22)",
+                  }}
+                >
+                  <MaterialSymbol name="folder_open" size={22} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.65)" }}>
+                    Files Attached
+                  </p>
+                  <p className="text-[22px] font-bold tracking-tight leading-snug text-white mt-0.5">{files.length}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Document list — usability-focused cards */}
+        {files.map((file, i) => {
+          const parsed = parseAttachment(file.fileName);
+          const iconTone = parsed.isSpreadsheet
+            ? dark
+              ? { background: "rgba(16,185,129,0.18)", color: "#34d399" }
+              : { background: "#ecfdf5", color: "#059669" }
+            : dark
+              ? { background: "rgba(224,0,37,0.18)", color: "#f87171" }
+              : { background: "#fef2f2", color: "#dc2626" };
+
+          const categoryTone =
+            file.category === "APE"
+              ? dark
+                ? { background: "rgba(147,51,234,0.22)", color: "#d8b4fe" }
+                : { background: "#faf5ff", color: "#7e22ce" }
+              : file.category === "MANIFEST"
+                ? dark
+                  ? { background: "rgba(16,185,129,0.18)", color: "#6ee7b7" }
+                  : { background: "#ecfdf5", color: "#047857" }
+                : dark
+                  ? { background: "rgba(59,130,246,0.22)", color: "#93c5fd" }
+                  : { background: "#eff6ff", color: "#1d4ed8" };
+
+          return (
+            <button
+              key={file.fileName}
+              type="button"
+              className="w-full text-left rounded-3xl p-4 animate-riseIn focus:outline-none active:scale-[0.99] transition-transform"
+              style={{
+                ...glass,
+                background: cardBg,
+                border: cardBorder,
+                boxShadow: elevation,
+                ["--rise-delay" as string]: `${60 + i * 50}ms`,
+              }}
+              aria-label={`View ${parsed.title}`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={iconTone}
+                >
+                  <MaterialSymbol name={parsed.icon} size={22} />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  {/* Title gets full row width — badge moved below to avoid awkward wraps */}
+                  <p
+                    className="text-[15px] font-bold leading-snug truncate"
+                    style={{ color: textPrimary }}
+                    title={parsed.title}
+                  >
+                    {parsed.title}
+                  </p>
+
+                  <div className={`flex items-center gap-2 mt-1.5 flex-wrap text-xs ${dark ? "" : "text-slate-500"}`} style={dark ? { color: textMuted } : undefined}>
+                    <span
+                      className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
+                      style={categoryTone}
+                    >
+                      {file.category}
+                    </span>
+                    <span
+                      className="inline-flex items-center h-5 px-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
+                      style={{
+                        background: dark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.06)",
+                        color: dark ? "rgba(255,255,255,0.7)" : "#64748b",
+                      }}
+                    >
+                      .{parsed.ext}
+                    </span>
+                    <span className="min-w-0 truncate">
+                      Uploaded {file.uploaded} <span aria-hidden>•</span> {file.size}
+                    </span>
+                  </div>
+                </div>
+
+                <span
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 self-center"
+                  style={{
+                    background: dark ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.08)",
+                    color: accent,
+                    border: cardBorder,
+                  }}
+                  aria-hidden
+                >
+                  <MaterialSymbol name="visibility" size={20} />
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function InspectionInfoSectionDetailScreen({
   task,
   section,
@@ -2608,6 +2869,9 @@ function InspectionInfoSectionDetailScreen({
   }
   if (section.id === "cargo") {
     return <CargoDetailsScreen dark={dark} onBack={onBack} />;
+  }
+  if (section.id === "attachments") {
+    return <RequestAttachmentsScreen dark={dark} onBack={onBack} />;
   }
 
   const fields = getInspectionInfoSectionFields(section.id, task);
@@ -2673,38 +2937,6 @@ function InspectionInfoSectionDetailScreen({
             </div>
           ))}
         </div>
-
-        {section.id === "attachments" && (
-          <div
-            className="rounded-[20px] overflow-hidden animate-riseIn"
-            style={{
-              background: t.cardBg,
-              border: `1px solid ${t.cardBorder}`,
-              boxShadow: t.cardShadow,
-              ["--rise-delay" as string]: "90ms",
-            }}
-          >
-            {[
-              { name: "APE-2026-118.pdf", meta: "PDF · 240 KB" },
-              { name: "PNG-EXP-2026-0441.pdf", meta: "PDF · 180 KB" },
-              { name: "PL-SHIP-001.xlsx", meta: "XLSX · 64 KB" },
-            ].map((file, i) => (
-              <div
-                key={file.name}
-                className="px-4 py-3.5 flex items-center gap-3"
-                style={{ borderTop: i === 0 ? undefined : `1px solid ${t.rowDivider}` }}
-              >
-                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: t.iconBg, color: t.iconColor }}>
-                  <FileText size={16} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold truncate" style={{ color: t.textPrimary }}>{file.name}</p>
-                  <p className="text-[11px] mt-0.5" style={{ color: t.textMuted }}>{file.meta}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
