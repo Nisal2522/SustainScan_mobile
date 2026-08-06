@@ -832,7 +832,7 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: dark ? "#ffffff" : "#0a1a4a" }}>
+            <h1 className="text-[18px] font-bold tracking-tight" style={{ color: dark ? "#ffffff" : "#0a1a4a" }}>
               Scan Log
             </h1>
             <p className="text-xs" style={{ color: textMuted }}>
@@ -1032,7 +1032,7 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} />
           <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: "#0a1a4a" }}>
+            <h1 className="text-[18px] font-bold tracking-tight" style={{ color: "#0a1a4a" }}>
               {screenTitle}
             </h1>
             <p className="text-xs" style={{ color: "#5a6a99" }}>
@@ -1396,7 +1396,7 @@ function ScheduleInspectionScreen({
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} />
           <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: "#0a1a4a" }}>
+            <h1 className="text-[18px] font-bold tracking-tight" style={{ color: "#0a1a4a" }}>
               Schedule Inspection
             </h1>
             <p className="text-xs" style={{ color: "#5a6a99" }}>
@@ -2221,6 +2221,90 @@ function ShipmentDetailsScreen({
   );
 }
 
+function VesselDetailsScreen({
+  task,
+  dark,
+  onBack,
+}: {
+  task: InspectionTask;
+  dark: boolean;
+  onBack: () => void;
+}) {
+  const swipe = useSwipeBack(onBack);
+  const eta = task.day === "today" ? "08/02/2026" : task.day === "tomorrow" ? "09/02/2026" : "12/02/2026";
+
+  const bg = dark ? "#0f172a" : "#F8FAFC";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.9)" : "#ffffff";
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#6b7280";
+  const accent = "#0f2f8f";
+  const elevation = dark
+    ? "0 2px 12px rgba(0,0,0,0.28)"
+    : "0 1px 3px rgba(15,47,143,0.06), 0 4px 16px rgba(15,47,143,0.05)";
+  const cardBorder = dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(15,47,143,0.08)";
+  const rowDivider = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)";
+
+  const vesselRows = [
+    { label: "Vessel Name", value: "MV Pacific Cedar" },
+    { label: "Vessel Agent", value: "Oceanic Shipping Agencies" },
+    { label: "Vessel Contact", value: "+675 321 4478" },
+  ];
+
+  return (
+    <div
+      className="min-h-screen w-full transition-colors duration-300 animate-fadeIn"
+      style={{ background: bg, fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
+    >
+      <AppHeaderBar dark={dark}>
+        <div className="flex items-center gap-3">
+          <BackCardButton onClick={onBack} dark={dark} />
+          <h1 className="text-[18px] font-bold tracking-tight" style={{ color: textPrimary }}>Vessel Details</h1>
+        </div>
+      </AppHeaderBar>
+
+      <div className="w-full max-w-[480px] mx-auto flex flex-col px-4 py-4 gap-3">
+        {/* Vessel card */}
+        <section
+          className="rounded-2xl overflow-hidden shadow-sm animate-riseIn"
+          style={{ background: cardBg, border: cardBorder, boxShadow: elevation }}
+        >
+          <div className="px-4 pt-3.5 pb-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: accent }}>Vessel</p>
+          </div>
+          {vesselRows.map((row, i) => (
+            <div
+              key={row.label}
+              className="px-4 py-3 flex items-start justify-between gap-4"
+              style={{ borderTop: i === 0 ? `1px solid ${rowDivider}` : `1px solid ${rowDivider}` }}
+            >
+              <p className="text-[13px] font-medium flex-shrink-0" style={{ color: textMuted }}>{row.label}</p>
+              <p className="text-[14px] font-bold text-right leading-snug break-words" style={{ color: textPrimary }}>{row.value}</p>
+            </div>
+          ))}
+        </section>
+
+        {/* Estimated Arrival highlight card */}
+        <section
+          className="rounded-2xl p-4 shadow-sm animate-riseIn"
+          style={{
+            background: dark ? "rgba(15,47,143,0.28)" : "rgba(15,47,143,0.06)",
+            border: dark ? "1px solid rgba(15,47,143,0.45)" : "1px solid rgba(15,47,143,0.18)",
+            boxShadow: elevation,
+            ["--rise-delay" as string]: "50ms",
+          }}
+        >
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: accent }}>Estimated Arrival</p>
+          <p className="text-[28px] font-bold tracking-tight leading-none mt-2" style={{ color: textPrimary }}>{eta}</p>
+          <p className="text-[13px] mt-2 leading-snug" style={{ color: textMuted }}>
+            Vessel ETA as declared in the inspection request.
+          </p>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function InspectionInfoSectionDetailScreen({
   task,
   section,
@@ -2234,6 +2318,9 @@ function InspectionInfoSectionDetailScreen({
 }) {
   if (section.id === "shipment") {
     return <ShipmentDetailsScreen task={task} dark={dark} onBack={onBack} />;
+  }
+  if (section.id === "vessel") {
+    return <VesselDetailsScreen task={task} dark={dark} onBack={onBack} />;
   }
 
   const fields = getInspectionInfoSectionFields(section.id, task);
@@ -2250,7 +2337,7 @@ function InspectionInfoSectionDetailScreen({
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
-            <h1 className="text-lg font-bold tracking-tight leading-snug" style={{ color: t.textPrimary }}>{section.title}</h1>
+            <h1 className="text-[18px] font-bold tracking-tight leading-snug" style={{ color: t.textPrimary }}>{section.title}</h1>
             <p className="text-xs truncate" style={{ color: t.textMuted }}>{task.shipment}</p>
           </div>
         </div>
@@ -2379,7 +2466,7 @@ function InspectionInfoDetailsScreen({
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
-            <h1 className="text-[22px] font-bold tracking-tight" style={{ color: t.textPrimary }}>Inspection Info</h1>
+            <h1 className="text-[18px] font-bold tracking-tight" style={{ color: t.textPrimary }}>Inspection Info</h1>
           </div>
         </div>
       </AppHeaderBar>
@@ -2465,7 +2552,7 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} />
           <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>{task.shipment}</h1>
+            <h1 className="text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>{task.shipment}</h1>
           </div>
         </div>
       </AppHeaderBar>
@@ -2599,7 +2686,7 @@ function LogInventoryScreen({ dark, onBack }: { dark: boolean; onBack: () => voi
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: textPrimary }}>Log Inventory</h1>
+            <h1 className="text-[18px] font-bold tracking-tight" style={{ color: textPrimary }}>Log Inventory</h1>
             <p className="text-xs" style={{ color: textMuted }}>
               {INVENTORY_ITEMS.length} records · {INVENTORY_ITEMS.filter(i => i.modified).length} modified
             </p>
