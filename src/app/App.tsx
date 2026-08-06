@@ -18,7 +18,7 @@ import logEntryPhoto from "../imports/timber.png";
 
 type LoginTab = "client" | "cu";
 type UserType = "client" | "cu";
-type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details";
+type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details" | "physical-verification";
 type InventoryTab = "all" | "modified";
 type InspectionDay = "today" | "tomorrow" | "later";
 type InspectionStatus = "pending" | "urgent";
@@ -69,10 +69,10 @@ interface AppSession {
 }
 
 const AUTHENTICATED_SCREENS: Screen[] = [
-  "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection", "inspection-details", "inspection-info-details",
+  "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection", "inspection-details", "inspection-info-details", "physical-verification",
 ];
 
-const INSPECTION_TASK_SCREENS: Screen[] = ["inspection-details", "inspection-info-details"];
+const INSPECTION_TASK_SCREENS: Screen[] = ["inspection-details", "inspection-info-details", "physical-verification"];
 
 function loadSession(): AppSession | null {
   try {
@@ -3344,12 +3344,12 @@ function StartSubInspectionDialog({
   );
 }
 
-function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFullInfo }: {
+function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onStartSession }: {
   task: InspectionTask;
   progress: InspectionProgress;
-  onAdvance: (key: "preShipment" | "loading") => void;
   onBack: () => void;
   onViewFullInfo: () => void;
+  onStartSession: (key: "preShipment" | "loading") => void;
 }) {
   const preShipmentDone = progress.preShipment === "completed";
   const [startDialogKey, setStartDialogKey] = useState<"preShipment" | "loading" | null>(null);
@@ -3388,14 +3388,15 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
 
   const handleStepAction = (key: "preShipment" | "loading", isActive: boolean, isDisabled: boolean) => {
     if (isDisabled) return;
-    if (isActive) onAdvance(key);
+    if (isActive) onStartSession(key);
     else openStartDialog(key);
   };
 
   const confirmStart = () => {
     if (!startDialogKey || !startDate) return;
-    onAdvance(startDialogKey);
+    const key = startDialogKey;
     setStartDialogKey(null);
+    onStartSession(key);
   };
 
   return (
@@ -3548,6 +3549,264 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
           onConfirm={confirmStart}
           overlayBox={overlayBox}
         />
+      )}
+    </div>
+  );
+}
+
+// ─── Physical Verification (Step 1 of 3) ───────────────────────────────────────
+
+function PhysicalVerificationScreen({
+  task,
+  onBack,
+  onProceed,
+}: {
+  task: InspectionTask;
+  onBack: () => void;
+  onProceed: () => void;
+}) {
+  const [volumeOk, setVolumeOk] = useState<"yes" | "no" | null>(null);
+  const [nonConformanceReason, setNonConformanceReason] = useState("");
+  const [photoAdded, setPhotoAdded] = useState(false);
+
+  const declaredM3 = task.logs * 21.875;
+  const thresholdM3 = declaredM3 * 0.95;
+  const formatVol = (n: number) =>
+    n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  return (
+    <div
+      className="min-h-screen w-full flex flex-col animate-fadeIn"
+      style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
+    >
+      <AppHeaderBar>
+        <div className="flex items-center gap-3">
+          <BackCardButton onClick={onBack} />
+          <div className="min-w-0">
+            <h1 className="text-[18px] font-bold tracking-tight" style={{ color: "#0a1a4a" }}>
+              Physical Verification
+            </h1>
+          </div>
+        </div>
+      </AppHeaderBar>
+
+      <div className="flex-1 w-full max-w-[480px] mx-auto flex flex-col px-5 py-5 gap-4">
+        {/* Progress — blue card */}
+        <div
+          className="relative overflow-hidden rounded-2xl px-4 py-4 flex flex-col gap-3"
+          style={{ background: GRADIENT, boxShadow: "0 10px 26px rgba(15,47,143,0.30)" }}
+        >
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.00) 58%)" }}
+            aria-hidden="true"
+          />
+
+          <div className="relative z-10 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.78)" }}>
+              Current Step
+            </p>
+            <span
+              className="text-[11px] font-semibold rounded-full px-2.5 py-1"
+              style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}
+            >
+              1 / 3
+            </span>
+          </div>
+
+          <p className="relative z-10 text-[14px] font-bold leading-snug" style={{ color: "#ffffff" }}>
+            Physical verification
+          </p>
+
+          <div className="relative z-10 flex gap-2">
+            {[0, 1, 2].map(i => (
+              <div
+                key={i}
+                className="h-2 flex-1 rounded-full transition-all duration-300"
+                style={{
+                  background: i === 0 ? "#ffffff" : "rgba(255,255,255,0.28)",
+                  boxShadow: i === 0 ? "0 2px 10px rgba(255,255,255,0.38)" : "none",
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="relative z-10 flex items-center justify-between text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.72)" }}>
+            <span>Physical</span>
+            <span>Documents</span>
+            <span>Finalize</span>
+          </div>
+        </div>
+
+        {/* Declared volume card */}
+        <div
+          className="rounded-2xl p-4 flex flex-col gap-4"
+          style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.08)", boxShadow: "0 2px 12px rgba(15,47,143,0.06)" }}
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+            Declared Volume
+          </p>
+          <div className="flex items-end gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[28px] font-bold leading-none tabular-nums" style={{ color: "#0a1a4a" }}>
+                {formatVol(declaredM3)}
+              </p>
+              <p className="text-xs mt-1.5" style={{ color: "#5a6a99" }}>m³ declared</p>
+            </div>
+            <ArrowRight size={18} className="mb-5 flex-shrink-0" style={{ color: "#94a3b8" }} />
+            <div className="flex-1 min-w-0 text-right">
+              <p className="text-[28px] font-bold leading-none tabular-nums" style={{ color: "#059669" }}>
+                {formatVol(thresholdM3)}
+              </p>
+              <p className="text-xs mt-1.5" style={{ color: "#5a6a99" }}>m³ threshold (95%)</p>
+            </div>
+          </div>
+          <div
+            className="flex items-center gap-2.5 rounded-xl px-3 py-2.5"
+            style={{ background: "#f3f5f9" }}
+          >
+            <MapPin size={14} className="flex-shrink-0" style={{ color: "#d4183d" }} />
+            <p className="text-xs font-medium leading-snug" style={{ color: "#0a1a4a" }}>
+              {task.location} — {task.exporter}
+            </p>
+          </div>
+        </div>
+
+        {/* Confirmation card */}
+        <div
+          className="rounded-2xl p-4 flex flex-col gap-4"
+          style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.08)", boxShadow: "0 2px 12px rgba(15,47,143,0.06)" }}
+        >
+          <div>
+            <h2 className="text-[15px] font-bold leading-snug" style={{ color: "#0a1a4a" }}>
+              Is ≥ 95% of declared volume physically present?
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3" role="group" aria-label="Volume confirmation">
+            <button
+              type="button"
+              onClick={() => setVolumeOk(prev => (prev === "yes" ? null : "yes"))}
+              className="rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none"
+              style={{
+                background: volumeOk === "yes" ? "rgba(22,163,74,0.10)" : "#f8fafc",
+                borderColor: volumeOk === "yes" ? "rgba(22,163,74,0.55)" : "rgba(15,47,143,0.14)",
+                boxShadow: volumeOk === "yes" ? "0 6px 16px rgba(22,163,74,0.20)" : "none",
+              }}
+              aria-pressed={volumeOk === "yes"}
+            >
+              <span
+                className="h-5 w-5 rounded-md border flex items-center justify-center text-[12px] font-black leading-none transition-all duration-200"
+                style={{
+                  background: volumeOk === "yes" ? "#16a34a" : "#ffffff",
+                  borderColor: volumeOk === "yes" ? "#16a34a" : "rgba(15,47,143,0.25)",
+                  color: "#ffffff",
+                }}
+              >
+                {volumeOk === "yes" ? "✓" : ""}
+              </span>
+              <span className="text-sm font-bold" style={{ color: volumeOk === "yes" ? "#166534" : "#0f2f8f" }}>
+                Yes
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setVolumeOk(prev => (prev === "no" ? null : "no"))}
+              className="rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none"
+              style={{
+                background: volumeOk === "no" ? "rgba(212,24,61,0.08)" : "#f8fafc",
+                borderColor: volumeOk === "no" ? "rgba(212,24,61,0.45)" : "rgba(15,47,143,0.14)",
+                boxShadow: volumeOk === "no" ? "0 6px 16px rgba(212,24,61,0.16)" : "none",
+              }}
+              aria-pressed={volumeOk === "no"}
+            >
+              <span
+                className="h-5 w-5 rounded-md border flex items-center justify-center text-[12px] font-black leading-none transition-all duration-200"
+                style={{
+                  background: volumeOk === "no" ? "#d4183d" : "#ffffff",
+                  borderColor: volumeOk === "no" ? "#d4183d" : "rgba(15,47,143,0.25)",
+                  color: "#ffffff",
+                }}
+              >
+                {volumeOk === "no" ? "✓" : ""}
+              </span>
+              <span className="text-sm font-bold" style={{ color: volumeOk === "no" ? "#9f1239" : "#0f2f8f" }}>
+                No
+              </span>
+            </button>
+          </div>
+
+          {volumeOk === "no" && (
+            <div
+              className="rounded-2xl p-3.5 flex flex-col gap-3"
+              style={{ background: "#fff6f8", border: "1px solid rgba(212,24,61,0.20)" }}
+            >
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#9f1239" }}>
+                  NON-CONFORMANCE REASON
+                </p>
+                <textarea
+                  value={nonConformanceReason}
+                  onChange={e => setNonConformanceReason(e.target.value)}
+                  rows={3}
+                  placeholder="Enter reason for non-conformance"
+                  className="w-full mt-2 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none"
+                  style={{ background: "#ffffff", border: "1px solid rgba(212,24,61,0.25)", color: "#0a1a4a" }}
+                />
+              </div>
+
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#9f1239" }}>
+                  ADD PHOTO
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPhotoAdded(v => !v)}
+                  className="w-full rounded-xl px-3.5 py-3 flex items-center justify-between focus:outline-none transition-all duration-200"
+                  style={{
+                    background: photoAdded ? "rgba(22,163,74,0.10)" : "#ffffff",
+                    border: photoAdded ? "1px solid rgba(22,163,74,0.45)" : "1px solid rgba(212,24,61,0.25)",
+                  }}
+                >
+                  <span className="text-sm font-semibold" style={{ color: photoAdded ? "#166534" : "#9f1239" }}>
+                    {photoAdded ? "Photo added" : "Tap to add photo"}
+                  </span>
+                  <span
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{ background: photoAdded ? "rgba(22,163,74,0.16)" : "rgba(212,24,61,0.10)" }}
+                  >
+                    <ScanLine size={16} style={{ color: photoAdded ? "#16a34a" : "#d4183d" }} />
+                  </span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="w-full min-h-[44px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
+                style={{ background: "#d4183d", boxShadow: "0 6px 16px rgba(212,24,61,0.30)" }}
+              >
+                Submit Non-Conformance
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer CTA */}
+      {volumeOk !== "no" && (
+        <div className="shrink-0 w-full max-w-[480px] mx-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
+          <button
+            type="button"
+            onClick={onProceed}
+            disabled={volumeOk === null}
+            className="w-full min-h-[52px] rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all disabled:opacity-50"
+            style={{ background: GRADIENT, boxShadow: "0 6px 20px rgba(15,47,143,0.35)" }}
+          >
+            Proceed
+            <ArrowRight size={16} />
+          </button>
+        </div>
       )}
     </div>
   );
@@ -3721,9 +3980,32 @@ export default function App() {
       <InspectionDetailsScreen
         task={task}
         progress={getInspectionProgress(task.id)}
-        onAdvance={key => advanceInspectionProgress(task.id, key)}
         onBack={() => setScreen("schedule-inspection")}
         onViewFullInfo={() => setScreen("inspection-info-details")}
+        onStartSession={key => {
+          const current = getInspectionProgress(task.id)[key];
+          if (current === "not-started") advanceInspectionProgress(task.id, key);
+          setScreen("physical-verification");
+        }}
+      />
+    );
+  }
+  if (screen === "physical-verification") {
+    const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
+    if (!task) {
+      return (
+        <ScheduleInspectionScreen
+          onBack={() => setScreen("home")}
+          onStartInspection={t => { setSelectedInspectionId(t.id); setScreen("inspection-details"); }}
+          getProgress={getInspectionProgress}
+        />
+      );
+    }
+    return (
+      <PhysicalVerificationScreen
+        task={task}
+        onBack={() => setScreen("inspection-details")}
+        onProceed={() => setScreen("inspection-details")}
       />
     );
   }
