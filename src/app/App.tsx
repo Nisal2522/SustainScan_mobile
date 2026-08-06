@@ -2232,73 +2232,164 @@ function VesselDetailsScreen({
 }) {
   const swipe = useSwipeBack(onBack);
   const eta = task.day === "today" ? "08/02/2026" : task.day === "tomorrow" ? "09/02/2026" : "12/02/2026";
+  const vesselName = "MV Pacific Cedar";
+  const vesselAgent = "Oceanic Shipping Agencies";
+  const vesselContact = "+675 321 4478";
 
-  const bg = dark ? "#0f172a" : "#F8FAFC";
-  const cardBg = dark ? "rgba(30, 41, 59, 0.9)" : "#ffffff";
+  const bg = dark
+    ? "radial-gradient(ellipse at top, #1a2744 0%, #0f172a 55%)"
+    : "radial-gradient(ellipse at top, #e8eefc 0%, #F8F9FA 50%, #eef2fb 100%)";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.78)";
+  const glass = { backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" } as const;
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
   const textMuted = dark ? "rgba(255,255,255,0.55)" : "#6b7280";
   const accent = "#0f2f8f";
   const elevation = dark
-    ? "0 2px 12px rgba(0,0,0,0.28)"
-    : "0 1px 3px rgba(15,47,143,0.06), 0 4px 16px rgba(15,47,143,0.05)";
-  const cardBorder = dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(15,47,143,0.08)";
-  const rowDivider = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)";
-
-  const vesselRows = [
-    { label: "Vessel Name", value: "MV Pacific Cedar" },
-    { label: "Vessel Agent", value: "Oceanic Shipping Agencies" },
-    { label: "Vessel Contact", value: "+675 321 4478" },
-  ];
+    ? "0 8px 32px rgba(0,0,0,0.4)"
+    : "0 4px 24px rgba(15,47,143,0.10), 0 1px 0 rgba(255,255,255,0.8) inset";
+  const cardBorder = dark ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(15,47,143,0.08)";
+  const heroGradient = "linear-gradient(145deg, #1a45b5 0%, #0f2f8f 48%, #0a1f6b 100%)";
 
   return (
     <div
-      className="min-h-screen w-full transition-colors duration-300 animate-fadeIn"
+      className="relative min-h-screen w-full transition-colors duration-300 animate-fadeIn flex flex-col"
       style={{ background: bg, fontFamily: "'Inter', sans-serif" }}
       {...swipe}
     >
       <AppHeaderBar dark={dark}>
         <div className="flex items-center gap-3">
-          <BackCardButton onClick={onBack} dark={dark} />
-          <h1 className="text-[18px] font-bold tracking-tight" style={{ color: textPrimary }}>Vessel Details</h1>
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-[0.96] transition-transform"
+            style={{
+              backdropFilter: "blur(18px)",
+              WebkitBackdropFilter: "blur(18px)",
+              background: cardBg,
+              color: accent,
+              border: cardBorder,
+              boxShadow: elevation,
+            }}
+            aria-label="Go back"
+          >
+            <MaterialSymbol name="arrow_back" size={22} />
+          </button>
+          <h1 className="flex-1 min-w-0 text-[18px] font-bold tracking-tight truncate" style={{ color: textPrimary }}>
+            Vessel Details
+          </h1>
         </div>
       </AppHeaderBar>
 
-      <div className="w-full max-w-[480px] mx-auto flex flex-col px-4 py-4 gap-3">
-        {/* Vessel card */}
+      <div className="flex-1 w-full max-w-[480px] mx-auto flex flex-col px-4 pt-2 pb-5 gap-3 overflow-y-auto">
+        {/* Hero — same padding/gaps as Shipment Details */}
         <section
-          className="rounded-2xl overflow-hidden shadow-sm animate-riseIn"
-          style={{ background: cardBg, border: cardBorder, boxShadow: elevation }}
-        >
-          <div className="px-4 pt-3.5 pb-2">
-            <p className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: accent }}>Vessel</p>
-          </div>
-          {vesselRows.map((row, i) => (
-            <div
-              key={row.label}
-              className="px-4 py-3 flex items-start justify-between gap-4"
-              style={{ borderTop: i === 0 ? `1px solid ${rowDivider}` : `1px solid ${rowDivider}` }}
-            >
-              <p className="text-[13px] font-medium flex-shrink-0" style={{ color: textMuted }}>{row.label}</p>
-              <p className="text-[14px] font-bold text-right leading-snug break-words" style={{ color: textPrimary }}>{row.value}</p>
-            </div>
-          ))}
-        </section>
-
-        {/* Estimated Arrival highlight card */}
-        <section
-          className="rounded-2xl p-4 shadow-sm animate-riseIn"
+          className="relative overflow-hidden rounded-3xl p-4 animate-riseIn"
           style={{
-            background: dark ? "rgba(15,47,143,0.28)" : "rgba(15,47,143,0.06)",
-            border: dark ? "1px solid rgba(15,47,143,0.45)" : "1px solid rgba(15,47,143,0.18)",
-            boxShadow: elevation,
-            ["--rise-delay" as string]: "50ms",
+            background: heroGradient,
+            boxShadow: "0 16px 40px rgba(15,47,143,0.35), 0 0 0 1px rgba(255,255,255,0.08) inset",
           }}
         >
-          <p className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: accent }}>Estimated Arrival</p>
-          <p className="text-[28px] font-bold tracking-tight leading-none mt-2" style={{ color: textPrimary }}>{eta}</p>
-          <p className="text-[13px] mt-2 leading-snug" style={{ color: textMuted }}>
-            Vessel ETA as declared in the inspection request.
-          </p>
+          <div
+            className="pointer-events-none absolute -top-10 -right-8 w-40 h-40 rounded-full"
+            style={{ background: "rgba(255,255,255,0.12)", filter: "blur(2px)" }}
+          />
+          <div
+            className="pointer-events-none absolute -bottom-16 -left-10 w-48 h-48 rounded-full"
+            style={{ background: "rgba(26,69,181,0.35)", filter: "blur(4px)" }}
+          />
+
+          <div className="relative z-10 flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.65)" }}>
+                  Vessel Name
+                </p>
+                <p className="text-[28px] font-bold tracking-tight leading-none mt-1 text-white break-words">{vesselName}</p>
+                <p className="text-[12px] mt-1 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  Vessel ETA as declared in the inspection request.
+                </p>
+              </div>
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}
+              >
+                <MaterialSymbol name="sailing" size={22} />
+              </div>
+            </div>
+
+            <div
+              className="rounded-2xl px-3 py-2.5"
+              style={{
+                ...glass,
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.18)",
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}
+                >
+                  <MaterialSymbol name="event" size={22} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.65)" }}>
+                    Estimated Arrival
+                  </p>
+                  <p className="text-[22px] font-bold tracking-tight leading-snug text-white mt-0.5">{eta}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Agent & Contact — same card padding/gaps as Exporter & Location */}
+        <section
+          className="rounded-3xl p-4 animate-riseIn"
+          style={{
+            ...glass,
+            background: cardBg,
+            border: cardBorder,
+            boxShadow: elevation,
+            ["--rise-delay" as string]: "60ms",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "rgba(15,47,143,0.10)", color: accent }}
+            >
+              <MaterialSymbol name="support_agent" size={18} />
+            </div>
+            <h2 className="text-[12px] font-bold uppercase tracking-[0.08em]" style={{ color: accent }}>
+              Agent &amp; Contact
+            </h2>
+          </div>
+
+          <div className="flex flex-col gap-2.5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Vessel Agent</p>
+              <p className="text-[15px] font-bold mt-0.5 leading-snug break-words" style={{ color: textPrimary }}>{vesselAgent}</p>
+            </div>
+            <div
+              className="h-px w-full"
+              style={{ background: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)" }}
+            />
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Vessel Contact</p>
+              <span
+                className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-bold"
+                style={{
+                  background: dark ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.08)",
+                  color: accent,
+                  border: cardBorder,
+                }}
+              >
+                <MaterialSymbol name="call" size={15} />
+                {vesselContact}
+              </span>
+            </div>
+          </div>
         </section>
       </div>
     </div>
