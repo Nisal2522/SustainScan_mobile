@@ -2380,7 +2380,6 @@ function InspectionInfoDetailsScreen({
           <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
             <h1 className="text-[22px] font-bold tracking-tight" style={{ color: t.textPrimary }}>Inspection Info</h1>
-            <p className="text-sm truncate mt-0.5" style={{ color: t.textMuted }}>{task.shipment}</p>
           </div>
         </div>
       </AppHeaderBar>
@@ -2467,7 +2466,6 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
           <BackCardButton onClick={onBack} />
           <div className="min-w-0">
             <h1 className="text-xl font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>{task.shipment}</h1>
-            <p className="text-xs truncate" style={{ color: "#5a6a99" }}>{task.exporter}</p>
           </div>
         </div>
       </AppHeaderBar>
