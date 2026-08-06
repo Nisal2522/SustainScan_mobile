@@ -5,7 +5,7 @@ import {
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
   ScanLine, QrCode, Calendar, Search, ListFilter, X, Truck, CheckCircle2, ArrowRight,
   Ship, Anchor, CircleDollarSign, Layers, Container, Paperclip, Scale, FileText,
-  Clock,
+  Clock, AlertTriangle, Plus, Camera, Upload,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
 import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
@@ -1475,9 +1475,6 @@ function ScheduleInspectionScreen({
               <h1 className="text-[18px] font-bold tracking-tight" style={{ color: "#0a1a4a" }}>
                 Schedule Inspection
               </h1>
-              <p className="text-xs" style={{ color: "#5a6a99" }}>
-                Your assigned log grading tasks
-              </p>
             </div>
           </div>
         </AppHeaderBar>
@@ -2846,6 +2843,144 @@ function CargoDetailsScreen({
   );
 }
 
+type AttachmentFile = {
+  fileName: string;
+  category: string;
+  uploaded: string;
+  size: string;
+};
+
+const ATTACHMENT_FILES: AttachmentFile[] = [
+  {
+    fileName: "Export_Permit_P-001.pdf",
+    category: "PERMIT",
+    uploaded: "07/15/2026",
+    size: "412 KB",
+  },
+  {
+    fileName: "Price_Endorsement_APE-2026-0417.pdf",
+    category: "APE",
+    uploaded: "07/15/2026",
+    size: "268 KB",
+  },
+  {
+    fileName: "Log_Manifest_SHP-992831-TX.png",
+    category: "MANIFEST",
+    uploaded: "07/16/2026",
+    size: "96 KB",
+  },
+];
+
+function parseAttachment(fileName: string) {
+  const dot = fileName.lastIndexOf(".");
+  const ext = (dot >= 0 ? fileName.slice(dot + 1) : "").toUpperCase();
+  const base = (dot >= 0 ? fileName.slice(0, dot) : fileName).replace(/_/g, " ");
+  const kind: "spreadsheet" | "image" | "document" =
+    ext === "XLSX" || ext === "XLS" || ext === "CSV"
+      ? "spreadsheet"
+      : ext === "PNG" || ext === "JPG" || ext === "JPEG" || ext === "WEBP"
+        ? "image"
+        : "document";
+  return {
+    title: base,
+    ext: ext || "FILE",
+    kind,
+    icon: kind === "spreadsheet" ? "table_chart" : kind === "image" ? "image" : "picture_as_pdf",
+  };
+}
+
+function AttachmentFileCard({
+  file,
+  dark = false,
+  index = 0,
+}: {
+  file: AttachmentFile;
+  dark?: boolean;
+  index?: number;
+}) {
+  const parsed = parseAttachment(file.fileName);
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#64748b";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.78)";
+  const cardBorder = dark ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(15,47,143,0.08)";
+  const elevation = dark
+    ? "0 8px 32px rgba(0,0,0,0.4)"
+    : "0 4px 24px rgba(15,47,143,0.10), 0 1px 0 rgba(255,255,255,0.8) inset";
+  const accent = "#0f2f8f";
+  const iconTone =
+    parsed.kind === "spreadsheet"
+      ? dark
+        ? { background: "rgba(16,185,129,0.18)", color: "#34d399" }
+        : { background: "#ecfdf5", color: "#059669" }
+      : parsed.kind === "image"
+        ? dark
+          ? { background: "rgba(59,130,246,0.18)", color: "#60a5fa" }
+          : { background: "#eff6ff", color: "#2563eb" }
+        : dark
+          ? { background: "rgba(224,0,37,0.18)", color: "#f87171" }
+          : { background: "#fef2f2", color: "#dc2626" };
+
+  return (
+    <button
+      type="button"
+      className="w-full text-left rounded-3xl p-4 animate-riseIn focus:outline-none active:scale-[0.99] transition-transform"
+      style={{
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        background: cardBg,
+        border: cardBorder,
+        boxShadow: elevation,
+        ["--rise-delay" as string]: `${60 + index * 50}ms`,
+      }}
+      aria-label={`View ${parsed.title}`}
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={iconTone}>
+          <MaterialSymbol name={parsed.icon} size={22} />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          {/* Title gets full row width — badge moved below to avoid awkward wraps */}
+          <p
+            className="text-[15px] font-bold leading-snug truncate"
+            style={{ color: textPrimary }}
+            title={parsed.title}
+          >
+            {parsed.title}
+          </p>
+
+          <div className={`flex items-center gap-2 mt-1.5 flex-wrap text-xs ${dark ? "" : "text-slate-500"}`} style={dark ? { color: textMuted } : undefined}>
+            <span
+              className="inline-flex items-center h-5 px-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
+              style={{
+                background: dark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.06)",
+                color: dark ? "rgba(255,255,255,0.7)" : "#64748b",
+              }}
+            >
+              .{parsed.ext}
+            </span>
+            <span className="min-w-0 truncate">
+              Uploaded {file.uploaded} <span aria-hidden>•</span> {file.size}
+            </span>
+          </div>
+        </div>
+
+        <span
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 self-center"
+          style={{
+            background: dark ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.08)",
+            color: accent,
+            border: cardBorder,
+          }}
+          aria-hidden
+        >
+          <MaterialSymbol name="visibility" size={20} />
+        </span>
+      </div>
+    </button>
+  );
+}
+
 function RequestAttachmentsScreen({
   dark,
   onBack,
@@ -2854,39 +2989,7 @@ function RequestAttachmentsScreen({
   onBack: () => void;
 }) {
   const swipe = useSwipeBack(onBack);
-  const files = [
-    {
-      fileName: "Export_Permit_P-001.pdf",
-      category: "PERMIT",
-      uploaded: "07/15/2026",
-      size: "412 KB",
-    },
-    {
-      fileName: "Price_Endorsement_APE-2026-0417.pdf",
-      category: "APE",
-      uploaded: "07/15/2026",
-      size: "268 KB",
-    },
-    {
-      fileName: "Log_Manifest_SHP-992831-TX.xlsx",
-      category: "MANIFEST",
-      uploaded: "07/16/2026",
-      size: "96 KB",
-    },
-  ];
-
-  const parseAttachment = (fileName: string) => {
-    const dot = fileName.lastIndexOf(".");
-    const ext = (dot >= 0 ? fileName.slice(dot + 1) : "").toUpperCase();
-    const base = (dot >= 0 ? fileName.slice(0, dot) : fileName).replace(/_/g, " ");
-    const isSpreadsheet = ext === "XLSX" || ext === "XLS" || ext === "CSV";
-    return {
-      title: base,
-      ext: ext || "FILE",
-      isSpreadsheet,
-      icon: isSpreadsheet ? "table_chart" : "picture_as_pdf",
-    };
-  };
+  const files = ATTACHMENT_FILES;
 
   const bg = dark
     ? "radial-gradient(ellipse at top, #1a2744 0%, #0f172a 55%)"
@@ -3007,79 +3110,9 @@ function RequestAttachmentsScreen({
         </section>
 
         {/* Document list — usability-focused cards */}
-        {files.map((file, i) => {
-          const parsed = parseAttachment(file.fileName);
-          const iconTone = parsed.isSpreadsheet
-            ? dark
-              ? { background: "rgba(16,185,129,0.18)", color: "#34d399" }
-              : { background: "#ecfdf5", color: "#059669" }
-            : dark
-              ? { background: "rgba(224,0,37,0.18)", color: "#f87171" }
-              : { background: "#fef2f2", color: "#dc2626" };
-
-          return (
-            <button
-              key={file.fileName}
-              type="button"
-              className="w-full text-left rounded-3xl p-4 animate-riseIn focus:outline-none active:scale-[0.99] transition-transform"
-              style={{
-                ...glass,
-                background: cardBg,
-                border: cardBorder,
-                boxShadow: elevation,
-                ["--rise-delay" as string]: `${60 + i * 50}ms`,
-              }}
-              aria-label={`View ${parsed.title}`}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={iconTone}
-                >
-                  <MaterialSymbol name={parsed.icon} size={22} />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  {/* Title gets full row width — badge moved below to avoid awkward wraps */}
-                  <p
-                    className="text-[15px] font-bold leading-snug truncate"
-                    style={{ color: textPrimary }}
-                    title={parsed.title}
-                  >
-                    {parsed.title}
-                  </p>
-
-                  <div className={`flex items-center gap-2 mt-1.5 flex-wrap text-xs ${dark ? "" : "text-slate-500"}`} style={dark ? { color: textMuted } : undefined}>
-                    <span
-                      className="inline-flex items-center h-5 px-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
-                      style={{
-                        background: dark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.06)",
-                        color: dark ? "rgba(255,255,255,0.7)" : "#64748b",
-                      }}
-                    >
-                      .{parsed.ext}
-                    </span>
-                    <span className="min-w-0 truncate">
-                      Uploaded {file.uploaded} <span aria-hidden>•</span> {file.size}
-                    </span>
-                  </div>
-                </div>
-
-                <span
-                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 self-center"
-                  style={{
-                    background: dark ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.08)",
-                    color: accent,
-                    border: cardBorder,
-                  }}
-                  aria-hidden
-                >
-                  <MaterialSymbol name="visibility" size={20} />
-                </span>
-              </div>
-            </button>
-          );
-        })}
+        {files.map((file, i) => (
+          <AttachmentFileCard key={file.fileName} file={file} dark={dark} index={i} />
+        ))}
       </div>
     </div>
   );
@@ -3292,6 +3325,156 @@ function InspectionInfoDetailsScreen({
   );
 }
 
+function formatDisplayDate(iso: string) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${m}/${d}/${y}`;
+}
+
+function parseISODateLocal(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+function toISODateLocal(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function CompactBlueDatePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (iso: string) => void;
+}) {
+  const selected = value ? parseISODateLocal(value) : new Date();
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState(() => new Date(selected.getFullYear(), selected.getMonth(), 1));
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  useEffect(() => {
+    if (open && value) {
+      const d = parseISODateLocal(value);
+      setView(new Date(d.getFullYear(), d.getMonth(), 1));
+    }
+  }, [open, value]);
+
+  const year = view.getFullYear();
+  const month = view.getMonth();
+  const firstDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthLabel = view.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const selectedIso = value;
+
+  const cells: (number | null)[] = [
+    ...Array.from({ length: firstDow }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  return (
+    <div className="relative" ref={rootRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full h-12 rounded-xl px-4 text-sm text-left flex items-center justify-between focus:outline-none transition-all"
+        style={{
+          ...inputStyle,
+          border: open ? "1.5px solid rgba(15,47,143,0.45)" : "1px solid #dce4f5",
+          boxShadow: open ? "0 0 0 3px rgba(15,47,143,0.10)" : "none",
+        }}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        <span style={{ color: value ? "#0a1a4a" : "#94a3b8" }}>
+          {value ? formatDisplayDate(value) : "Select date"}
+        </span>
+        <Calendar size={16} style={{ color: "#5a6a99", flexShrink: 0 }} />
+      </button>
+
+      {open && (
+        <div
+          className="mt-2 rounded-2xl p-3 animate-riseIn"
+          style={{
+            background: "#f8faff",
+            border: "1px solid rgba(15,47,143,0.12)",
+          }}
+          role="dialog"
+          aria-label="Choose date"
+        >
+          <div className="flex items-center justify-between mb-2.5 px-0.5">
+            <button
+              type="button"
+              onClick={() => setView(new Date(year, month - 1, 1))}
+              className="w-8 h-8 rounded-lg flex items-center justify-center focus:outline-none"
+              style={{ background: "rgba(15,47,143,0.06)", color: "#0f2f8f" }}
+              aria-label="Previous month"
+            >
+              <ArrowLeft size={15} />
+            </button>
+            <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>{monthLabel}</p>
+            <button
+              type="button"
+              onClick={() => setView(new Date(year, month + 1, 1))}
+              className="w-8 h-8 rounded-lg flex items-center justify-center focus:outline-none"
+              style={{ background: "rgba(15,47,143,0.06)", color: "#0f2f8f" }}
+              aria-label="Next month"
+            >
+              <ArrowRight size={15} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-0.5 mb-1">
+            {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+              <div key={`${d}-${i}`} className="h-7 flex items-center justify-center text-[10px] font-semibold" style={{ color: "#94a3b8" }}>
+                {d}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-0.5">
+            {cells.map((day, i) => {
+              if (day == null) return <div key={`e-${i}`} className="h-8" />;
+              const iso = toISODateLocal(new Date(year, month, day));
+              const isSelected = iso === selectedIso;
+              const isToday = iso === todayISODate();
+              return (
+                <button
+                  key={iso}
+                  type="button"
+                  onClick={() => {
+                    onChange(iso);
+                    setOpen(false);
+                  }}
+                  className="h-8 rounded-lg text-[12px] font-semibold focus:outline-none transition-colors"
+                  style={{
+                    background: isSelected ? GRADIENT : isToday ? "rgba(15,47,143,0.08)" : "transparent",
+                    color: isSelected ? "#ffffff" : "#0a1a4a",
+                    boxShadow: isSelected ? "0 4px 10px rgba(15,47,143,0.28)" : "none",
+                  }}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StartSubInspectionDialog({
   stepKey,
   date,
@@ -3346,14 +3529,7 @@ function StartSubInspectionDialog({
         </h2>
 
         <FormField label="Date" required>
-          <input
-            type="date"
-            className={inputCls}
-            style={inputStyle}
-            value={date}
-            onChange={e => onDateChange(e.target.value)}
-            required
-          />
+          <CompactBlueDatePicker value={date} onChange={onDateChange} />
         </FormField>
 
         <div className="flex gap-3">
@@ -3624,7 +3800,23 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
   );
 }
 
-// ─── Physical Verification (Step 1 of 2) ───────────────────────────────────────
+// ─── Pre-Shipment Inspection ──────────────────────────────────────────────────
+
+type PreShipmentTab = "verification" | "non-compliance" | "attachments";
+type NonComplianceView = "list" | "create";
+
+const NON_COMPLIANCE_TYPES = [
+  "Export License vs Declared Volume",
+  "Cargo not prepared for inspection",
+  "Incorrect log species declared",
+  "Incorrect log grade declared",
+  "Less than 95% of cargo declared",
+  "Undeclared logs present",
+  "Trimming without inspector present",
+  "Excess paper trimming (>2%)",
+  "Log Specie not on approved price endorsement list",
+  "Other",
+];
 
 function PhysicalVerificationScreen({
   task,
@@ -3635,14 +3827,30 @@ function PhysicalVerificationScreen({
   onBack: () => void;
   onProceed: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState<PreShipmentTab>("verification");
   const [volumeOk, setVolumeOk] = useState<"yes" | "no" | null>(null);
   const [nonConformanceReason, setNonConformanceReason] = useState("");
   const [photoAdded, setPhotoAdded] = useState(false);
+  const [ncView, setNcView] = useState<NonComplianceView>("list");
+  const [selectedNcTypes, setSelectedNcTypes] = useState<string[]>([]);
+  const [ncDescription, setNcDescription] = useState("");
+
+  const handleNcTypeToggle = (type: string) => {
+    setSelectedNcTypes(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
 
   const declaredM3 = task.logs * 21.875;
   const thresholdM3 = declaredM3 * 0.95;
   const formatVol = (n: number) =>
     n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  const tabs: { id: PreShipmentTab; label: string; short: string }[] = [
+    { id: "verification", label: "Verification", short: "Verify" },
+    { id: "non-compliance", label: "Non-Compliance", short: "NC" },
+    { id: "attachments", label: "Attachments", short: "Files" },
+  ];
 
   return (
     <div
@@ -3653,8 +3861,8 @@ function PhysicalVerificationScreen({
         <div className="flex items-center gap-3 min-w-0">
           <BackCardButton onClick={onBack} />
           <div className="min-w-0">
-            <h1 className="text-[17px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
-              Physical Verification
+            <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
+              Pre-Shipment Inspection
             </h1>
           </div>
         </div>
@@ -3662,6 +3870,45 @@ function PhysicalVerificationScreen({
 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
       <div className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 py-4 sm:py-5 gap-4">
+        {/* Tabs — above stepper */}
+        <div
+          className="flex p-1 rounded-2xl gap-0.5"
+          style={{
+            background: "rgba(255,255,255,0.88)",
+            border: "1px solid rgba(15,47,143,0.10)",
+            boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
+          }}
+          role="tablist"
+          aria-label="Pre-shipment sections"
+        >
+          {tabs.map(tab => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  if (tab.id !== "non-compliance") setNcView("list");
+                }}
+                className="flex-1 min-w-0 h-10 rounded-xl text-[11px] sm:text-[12px] font-semibold focus:outline-none transition-all duration-200 active:scale-[0.98] px-1"
+                style={{
+                  background: active ? GRADIENT : "transparent",
+                  color: active ? "#ffffff" : "#5a6a99",
+                  boxShadow: active ? "0 4px 12px rgba(15,47,143,0.25)" : "none",
+                }}
+              >
+                <span className="sm:hidden truncate block">{tab.short}</span>
+                <span className="hidden sm:inline truncate">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {activeTab === "verification" && (
+        <>
         {/* Progress — blue card */}
         <div
           className="relative overflow-hidden rounded-2xl px-3.5 sm:px-4 py-4 flex flex-col gap-3"
@@ -3873,6 +4120,160 @@ function PhysicalVerificationScreen({
             </div>
           )}
         </div>
+        </>
+        )}
+
+        {activeTab === "non-compliance" && ncView === "list" && (
+          <div className="flex flex-col gap-4">
+            <button
+              type="button"
+              onClick={() => setNcView("create")}
+              className="w-full h-11 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
+              style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
+            >
+              <Plus size={16} />
+              New Notice of Discrepancy
+            </button>
+
+            <div
+              className="rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-2"
+              style={{
+                background: "#ffffff",
+                border: "2px dashed rgba(15,47,143,0.18)",
+                boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+              }}
+            >
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center mb-1"
+                style={{ background: "rgba(15,47,143,0.06)", color: "#94a3b8" }}
+              >
+                <ClipboardList size={22} />
+              </div>
+              <p className="text-[12px] font-medium" style={{ color: "#94a3b8" }}>
+                No Notices of Discrepancy filed yet.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "non-compliance" && ncView === "create" && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setNcView("list")}
+                className="w-9 h-9 rounded-xl flex items-center justify-center focus:outline-none active:scale-[0.96]"
+                style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.12)", color: "#0a1a4a" }}
+                aria-label="Back to Non-Compliance Log"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <h2 className="text-[15px] font-bold" style={{ color: "#0a1a4a" }}>Notice of Discrepancy</h2>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
+                Non-Compliance Description <span style={{ color: "#d4183d" }}>*</span>
+              </label>
+              <textarea
+                rows={4}
+                value={ncDescription}
+                onChange={e => setNcDescription(e.target.value)}
+                placeholder="Describe the discrepancy observed..."
+                className="w-full p-3 text-[12px] rounded-xl focus:outline-none resize-none"
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid rgba(15,47,143,0.16)",
+                  color: "#0a1a4a",
+                  boxShadow: "0 2px 8px rgba(15,47,143,0.04)",
+                }}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                Type of Non-Compliance
+              </label>
+              <div
+                className="rounded-2xl p-3 flex flex-col gap-2.5 max-h-60 overflow-y-auto"
+                style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.10)", boxShadow: "0 2px 12px rgba(15,47,143,0.04)" }}
+              >
+                {NON_COMPLIANCE_TYPES.map(type => {
+                  const checked = selectedNcTypes.includes(type);
+                  return (
+                    <label
+                      key={type}
+                      className="flex items-start gap-2.5 cursor-pointer text-[12px]"
+                      style={{ color: "#0a1a4a" }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => handleNcTypeToggle(type)}
+                        className="mt-0.5 rounded accent-[#0f2f8f]"
+                      />
+                      <span>{type}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 focus:outline-none active:scale-[0.99] transition-all"
+              style={{
+                background: "#ffffff",
+                border: "2px dashed rgba(15,47,143,0.22)",
+              }}
+            >
+              <Camera size={22} style={{ color: "#94a3b8" }} />
+              <span className="text-[12px] font-medium" style={{ color: "#5a6a99" }}>
+                Attach Evidence Photo
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setNcView("list");
+                setNcDescription("");
+                setSelectedNcTypes([]);
+              }}
+              className="w-full h-12 rounded-xl text-[12px] font-bold uppercase tracking-wider text-white flex items-center justify-center focus:outline-none active:scale-[0.98]"
+              style={{ background: "#E00025", boxShadow: "0 4px 14px rgba(224,0,37,0.28)" }}
+            >
+              Submit Notice of Discrepancy
+            </button>
+          </div>
+        )}
+
+        {activeTab === "attachments" && (
+          <div className="flex flex-col gap-4">
+            <button
+              type="button"
+              className="rounded-2xl p-6 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
+              style={{
+                background: "#ffffff",
+                border: "2px dashed rgba(15,47,143,0.22)",
+                boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+              }}
+            >
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: "#e8edf9", color: "#5a6a99" }}
+              >
+                <Upload size={18} />
+              </div>
+              <p className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>+ Add Photo or Document</p>
+              <p className="text-[10px]" style={{ color: "#94a3b8" }}>JPG, PNG, or PDF up to 10MB</p>
+            </button>
+
+            {ATTACHMENT_FILES.map((file, i) => (
+              <AttachmentFileCard key={file.fileName} file={file} index={i} />
+            ))}
+          </div>
+        )}
       </div>
       </div>
     </div>
