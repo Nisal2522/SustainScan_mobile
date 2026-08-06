@@ -3241,6 +3241,7 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
   onBack: () => void;
   onViewFullInfo: () => void;
 }) {
+  const preShipmentDone = progress.preShipment === "completed";
 
   return (
     <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
@@ -3284,6 +3285,13 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
           </button>
         </div>
 
+        <p
+          className="mt-6 mb-3 text-xs font-bold uppercase tracking-wider"
+          style={{ color: "#5a6a99" }}
+        >
+          Inspection Type
+        </p>
+
         {/* Inspection process — connected timeline (line height auto-matches each card, no overshoot) */}
         <div className="flex flex-col">
           {INSPECTION_STEPS.map((step, idx) => {
@@ -3291,6 +3299,15 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
             const isDone = status === "completed";
             const isActive = status === "in-progress";
             const isLast = idx === INSPECTION_STEPS.length - 1;
+            const isLocked = step.key === "loading" && !preShipmentDone;
+            const isDisabled = isDone || isLocked;
+
+            const ctaLabel = isDone
+              ? "Completed"
+              : isActive
+                ? `Continue ${step.shortLabel}`
+                : `Start ${step.shortLabel}`;
+
             return (
               <div key={step.key}>
                 <div className="relative flex gap-4">
@@ -3332,17 +3349,22 @@ function InspectionDetailsScreen({ task, progress, onAdvance, onBack, onViewFull
                     <button
                       type="button"
                       onClick={() => onAdvance(step.key)}
-                      disabled={isDone}
-                      className="w-full h-12 mt-1 rounded-xl text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all duration-200 hover:brightness-110 disabled:active:scale-100 disabled:hover:brightness-100"
+                      disabled={isDisabled}
+                      className="w-full h-12 mt-1 rounded-xl text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all duration-200 hover:brightness-110 disabled:active:scale-100 disabled:hover:brightness-100 disabled:cursor-not-allowed"
                       style={{
-                        background: isDone ? "#eef1f6" : GRADIENT,
-                        color: isDone ? "#94a3b8" : "#ffffff",
-                        boxShadow: isDone ? "none" : "0 4px 16px rgba(15,47,143,0.30)",
+                        background: isDone || isLocked ? "#eef1f6" : GRADIENT,
+                        color: isDone || isLocked ? "#94a3b8" : "#ffffff",
+                        boxShadow: isDone || isLocked ? "none" : "0 4px 16px rgba(15,47,143,0.30)",
+                        opacity: isLocked ? 0.55 : 1,
+                        border: isLocked ? "1px solid rgba(15,47,143,0.10)" : "none",
                       }}
+                      aria-disabled={isDisabled}
                     >
-                      {isDone ? <><CheckCircle2 size={16} /> Completed</> : isActive
-                        ? <>Continue {step.shortLabel} <ChevronRight size={16} /></>
-                        : <>Start {step.shortLabel} <ChevronRight size={16} /></>}
+                      {isDone ? (
+                        <><CheckCircle2 size={16} /> {ctaLabel}</>
+                      ) : (
+                        <>{ctaLabel} <ChevronRight size={16} /></>
+                      )}
                     </button>
                   </div>
                 </div>
