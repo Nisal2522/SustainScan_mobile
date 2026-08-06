@@ -2863,7 +2863,7 @@ function RequestAttachmentsScreen({
             <MaterialSymbol name="arrow_back" size={22} />
           </button>
           <h1 className="flex-1 min-w-0 text-[18px] font-bold tracking-tight truncate" style={{ color: textPrimary }}>
-            Request Attachments
+            Attachments
           </h1>
         </div>
       </AppHeaderBar>
@@ -2890,7 +2890,7 @@ function RequestAttachmentsScreen({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.65)" }}>
-                  Request Attachments
+                  Attachments
                 </p>
                 <p className="text-[22px] font-bold tracking-tight leading-snug mt-1 text-white">Documents</p>
                 <p className="text-[12px] mt-1 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
