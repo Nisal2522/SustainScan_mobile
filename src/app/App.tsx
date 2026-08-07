@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ChangeEvent, type ReactNode, type CSSProperties } from "react";
+import { useState, useRef, useEffect, type ChangeEvent, type ReactNode, type CSSProperties, type TouchEvent } from "react";
 import { createPortal } from "react-dom";
 import {
   Eye, EyeOff, Mail, Lock, ChevronRight, MapPin, ChevronDown,
@@ -1764,6 +1764,8 @@ function ScheduleInspectionScreen({
     return "Start Inspection";
   };
 
+  const swipe = useSwipeBack(onBack);
+
   return (
     <div
       className="relative h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn"
@@ -1772,6 +1774,7 @@ function ScheduleInspectionScreen({
         fontFamily: "'Inter', sans-serif",
         color: textPrimary,
       }}
+      {...swipe}
     >
       {/* Soft atmospheric washes */}
       <div
@@ -2481,21 +2484,42 @@ function useInspectionInfoTheme(dark: boolean) {
   };
 }
 
+/** Left-edge swipe-back — arms only near the screen edge so vertical scroll stays free. */
 function useSwipeBack(onBack: () => void) {
   const start = useRef<{ x: number; y: number } | null>(null);
+  const EDGE_PX = 28;
+  const MIN_DX = 72;
+  const MAX_DY = 56;
 
   return {
-    onTouchStart: (e: { touches: ArrayLike<{ clientX: number; clientY: number }> }) => {
+    onTouchStart: (e: TouchEvent<HTMLElement>) => {
       const t = e.touches[0];
+      const rect = e.currentTarget.getBoundingClientRect();
+      // Only gestures that begin on the left edge count as swipe-back.
+      if (t.clientX - rect.left > EDGE_PX) {
+        start.current = null;
+        return;
+      }
       start.current = { x: t.clientX, y: t.clientY };
     },
-    onTouchEnd: (e: { changedTouches: ArrayLike<{ clientX: number; clientY: number }> }) => {
+    onTouchMove: (e: TouchEvent<HTMLElement>) => {
+      if (!start.current) return;
+      const t = e.touches[0];
+      const dx = t.clientX - start.current.x;
+      const dy = Math.abs(t.clientY - start.current.y);
+      // Bail out early if the finger is clearly scrolling vertically.
+      if (dy > MAX_DY && dy > Math.abs(dx)) start.current = null;
+    },
+    onTouchEnd: (e: TouchEvent<HTMLElement>) => {
       if (!start.current) return;
       const t = e.changedTouches[0];
       const dx = t.clientX - start.current.x;
       const dy = Math.abs(t.clientY - start.current.y);
       start.current = null;
-      if (dx > 72 && dy < 56) onBack();
+      if (dx >= MIN_DX && dy < MAX_DY) onBack();
+    },
+    onTouchCancel: () => {
+      start.current = null;
     },
   };
 }
@@ -3970,8 +3994,14 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
     onStartSession(key);
   };
 
+  const swipe = useSwipeBack(onBack);
+
   return (
-    <div className="relative min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
+    <div
+      className="relative min-h-screen w-full animate-fadeIn"
+      style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
+    >
       <AppHeaderBar>
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} />
@@ -4243,14 +4273,24 @@ function PhysicalVerificationScreen({
     { id: "attachments", label: "Attachments", short: "Files" },
   ];
 
+  const handleBack = () => {
+    if (activeTab === "non-compliance" && ncView === "create") {
+      setNcView("list");
+      return;
+    }
+    onBack();
+  };
+  const swipe = useSwipeBack(handleBack);
+
   return (
     <div
       className="h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn"
       style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
     >
       <AppHeaderBar>
         <div className="flex items-center gap-3 min-w-0">
-          <BackCardButton onClick={onBack} />
+          <BackCardButton onClick={handleBack} />
           <div className="min-w-0">
             <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
               Pre-Shipment Inspection
@@ -4552,19 +4592,6 @@ function PhysicalVerificationScreen({
 
         {activeTab === "non-compliance" && ncView === "create" && (
           <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setNcView("list")}
-                className="w-9 h-9 rounded-xl flex items-center justify-center focus:outline-none active:scale-[0.96]"
-                style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.12)", color: "#0a1a4a" }}
-                aria-label="Back to Non-Compliance Log"
-              >
-                <ArrowLeft size={16} />
-              </button>
-              <h2 className="text-[15px] font-bold" style={{ color: "#0a1a4a" }}>Notice of Discrepancy</h2>
-            </div>
-
             <div className="flex flex-col gap-1.5">
               <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
                 Non-Compliance Description <span style={{ color: "#d4183d" }}>*</span>
@@ -4635,7 +4662,7 @@ function PhysicalVerificationScreen({
                 setSelectedNcTypes([]);
               }}
               className="w-full h-12 rounded-xl text-[12px] font-bold uppercase tracking-wider text-white flex items-center justify-center focus:outline-none active:scale-[0.98]"
-              style={{ background: "#E00025", boxShadow: "0 4px 14px rgba(224,0,37,0.28)" }}
+              style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
             >
               Submit Notice of Discrepancy
             </button>
@@ -4948,9 +4975,14 @@ function SampleVerificationScanScreen({
   const detected = phase === "detected";
   const scanning = phase === "scanning";
   const frameColor = detected ? "#16a34a" : scanning ? "#0f2f8f" : "#c3cee6";
+  const swipe = useSwipeBack(onBack);
 
   return (
-    <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
+    <div
+      className="min-h-screen w-full animate-fadeIn"
+      style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
+    >
       <AppHeaderBar>
         <div className="flex items-center gap-3 min-w-0">
           <BackCardButton onClick={onBack} />
@@ -5106,13 +5138,19 @@ function QrDetailsScreen({
   const changedFields = getChangedLogFields(record.previous, record.log);
   // White fills keep the read-only fields legible against the tinted page.
   const readOnlyStyle = { ...inputStyle, background: "#ffffff", color: "#5a6a99", cursor: "not-allowed" as const };
+  const handleBack = view === "confirm" ? () => setView("details") : onBack;
+  const swipe = useSwipeBack(handleBack);
 
   if (view === "confirm") {
     return (
-      <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
+      <div
+        className="min-h-screen w-full animate-fadeIn"
+        style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
+        {...swipe}
+      >
         <AppHeaderBar>
           <div className="flex items-center gap-3 min-w-0">
-            <BackCardButton onClick={() => setView("details")} />
+            <BackCardButton onClick={handleBack} />
             <div className="min-w-0">
               <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
                 Verification Confirmation
@@ -5236,10 +5274,14 @@ function QrDetailsScreen({
   }
 
   return (
-    <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
+    <div
+      className="min-h-screen w-full animate-fadeIn"
+      style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
+    >
       <AppHeaderBar>
         <div className="flex items-center gap-3 min-w-0">
-          <BackCardButton onClick={onBack} />
+          <BackCardButton onClick={handleBack} />
           <div className="min-w-0">
             <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
               Scanned QR Details
