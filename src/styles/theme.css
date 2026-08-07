@@ -258,8 +258,48 @@
     animation: nudgeRight 2.4s ease-in-out infinite;
   }
 
+  /* Animates `top` so the line sweeps the full height of whatever frame contains it. */
+  @keyframes qrSweep {
+    0% {
+      top: 0%;
+      opacity: 0;
+    }
+    12% {
+      opacity: 1;
+    }
+    88% {
+      opacity: 1;
+    }
+    100% {
+      top: calc(100% - 2px);
+      opacity: 0;
+    }
+  }
+
+  .animate-qrSweep {
+    animation: qrSweep 1.9s ease-in-out infinite;
+  }
+
+  @keyframes qrPulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.5;
+    }
+    50% {
+      transform: scale(1.12);
+      opacity: 0.15;
+    }
+  }
+
+  .animate-qrPulse {
+    animation: qrPulse 1.8s ease-in-out infinite;
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .animate-nudgeRight {
+    .animate-nudgeRight,
+    .animate-qrSweep,
+    .animate-qrPulse {
       animation: none;
     }
   }

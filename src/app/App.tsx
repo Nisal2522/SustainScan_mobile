@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ReactNode, type CSSProperties } from "react";
+import { useState, useRef, useEffect, type ChangeEvent, type ReactNode, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import {
   Eye, EyeOff, Mail, Lock, ChevronRight, MapPin, ChevronDown,
@@ -18,7 +18,7 @@ import logEntryPhoto from "../imports/timber.png";
 
 type LoginTab = "client" | "cu";
 type UserType = "client" | "cu";
-type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details" | "physical-verification";
+type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details" | "physical-verification" | "sample-verification-scan" | "sample-verification-log";
 type InventoryTab = "all" | "modified";
 type InspectionDay = "today" | "tomorrow" | "later";
 type InspectionStatus = "pending" | "inprogress" | "complete";
@@ -70,9 +70,13 @@ interface AppSession {
 
 const AUTHENTICATED_SCREENS: Screen[] = [
   "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection", "inspection-details", "inspection-info-details", "physical-verification",
+  "sample-verification-scan", "sample-verification-log",
 ];
 
-const INSPECTION_TASK_SCREENS: Screen[] = ["inspection-details", "inspection-info-details", "physical-verification"];
+const INSPECTION_TASK_SCREENS: Screen[] = [
+  "inspection-details", "inspection-info-details", "physical-verification",
+  "sample-verification-scan", "sample-verification-log",
+];
 
 function loadSession(): AppSession | null {
   try {
@@ -1025,12 +1029,13 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
   const [pgOpen, setPgOpen] = useState(false);
   const [pnOpen, setPnOpen] = useState(false);
 
+  // White fills keep the fields legible against the tinted page.
   const fieldStyle = viewOnly
-    ? { ...inputStyle, background: "#eef1f6", color: "#5a6a99", cursor: "not-allowed" as const }
-    : inputStyle;
+    ? { ...inputStyle, background: "#ffffff", color: "#5a6a99", cursor: "not-allowed" as const }
+    : { ...inputStyle, background: "#ffffff" };
 
   return (
-    <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#ffffff", fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
       <AppHeaderBar>
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} />
@@ -1083,7 +1088,7 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
               <div className="relative">
                 <button type="button" onClick={() => { setPgOpen(v => !v); setPnOpen(false); }}
                   className="w-full rounded-xl px-4 py-3 text-sm text-left flex items-center justify-between focus:outline-none"
-                  style={{ ...inputStyle, color: productGroup ? "#0a1a4a" : "#9ca3af", border: pgOpen ? "1px solid #60a5fa" : "1px solid #dce4f5" }}>
+                  style={{ ...fieldStyle, color: productGroup ? "#0a1a4a" : "#9ca3af", border: pgOpen ? "1px solid #60a5fa" : "1px solid #dce4f5" }}>
                   <span>{productGroup || "Select"}</span>
                   <ChevronDown size={15} style={{ color: "#5a6a99", transform: pgOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
                 </button>
@@ -1113,7 +1118,7 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
                 <button type="button"
                   onClick={() => { if (productGroup) { setPnOpen(v => !v); setPgOpen(false); } }}
                   className="w-full rounded-xl px-4 py-3 text-sm text-left flex items-center justify-between focus:outline-none"
-                  style={{ ...inputStyle, color: productName ? "#0a1a4a" : "#9ca3af", border: pnOpen ? "1px solid #60a5fa" : "1px solid #dce4f5", opacity: productGroup ? 1 : 0.5 }}>
+                  style={{ ...fieldStyle, color: productName ? "#0a1a4a" : "#9ca3af", border: pnOpen ? "1px solid #60a5fa" : "1px solid #dce4f5", opacity: productGroup ? 1 : 0.5 }}>
                   <span>{productName || "Select"}</span>
                   <ChevronDown size={15} style={{ color: "#5a6a99", transform: pnOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
                 </button>
@@ -1194,7 +1199,7 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
             {viewOnly ? (
               <div
                 className="w-full rounded-xl overflow-hidden"
-                style={{ border: "1px solid #dce4f5", background: "#f0f4ff" }}>
+                style={{ border: "1px solid #dce4f5", background: "#ffffff" }}>
                 <img
                   src={logEntryPhoto}
                   alt="Registered log — timber"
@@ -1204,7 +1209,7 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
             ) : (
               <button type="button"
                 className="w-full rounded-xl flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:bg-blue-50 focus:outline-none"
-                style={{ background: "#f8faff", border: "1px solid #dce4f5", height: "140px" }}>
+                style={{ background: "#ffffff", border: "1px solid #dce4f5", height: "140px" }}>
                 <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#e8edf9" }}>
                   <ScanLine size={20} style={{ color: "#5a6a99" }} />
                 </div>
@@ -2871,6 +2876,16 @@ const ATTACHMENT_FILES: AttachmentFile[] = [
   },
 ];
 
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const ACCEPTED_ATTACHMENT_MIME = "image/jpeg,image/png,application/pdf";
+const ACCEPTED_ATTACHMENT_EXTS = ["jpg", "jpeg", "png", "pdf"];
+
+function formatAttachmentSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1)} MB`;
+}
+
 function parseAttachment(fileName: string) {
   const dot = fileName.lastIndexOf(".");
   const ext = (dot >= 0 ? fileName.slice(dot + 1) : "").toUpperCase();
@@ -3834,6 +3849,37 @@ function PhysicalVerificationScreen({
   const [ncView, setNcView] = useState<NonComplianceView>("list");
   const [selectedNcTypes, setSelectedNcTypes] = useState<string[]>([]);
   const [ncDescription, setNcDescription] = useState("");
+  const [attachments, setAttachments] = useState<AttachmentFile[]>(ATTACHMENT_FILES);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAttachmentPicked = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // Reset so picking the same file twice still fires a change event.
+    event.target.value = "";
+    if (!file) return;
+
+    const ext = file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase();
+    if (!ACCEPTED_ATTACHMENT_EXTS.includes(ext)) {
+      setAttachmentError("Unsupported file type. Choose a JPG, PNG, or PDF.");
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      setAttachmentError(`That file is ${formatAttachmentSize(file.size)}. The limit is 10 MB.`);
+      return;
+    }
+
+    setAttachmentError(null);
+    setAttachments(prev => [
+      ...prev,
+      {
+        fileName: file.name,
+        category: ext === "pdf" ? "DOCUMENT" : "PHOTO",
+        uploaded: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
+        size: formatAttachmentSize(file.size),
+      },
+    ]);
+  };
 
   const handleNcTypeToggle = (type: string) => {
     setSelectedNcTypes(prev =>
@@ -4250,8 +4296,17 @@ function PhysicalVerificationScreen({
 
         {activeTab === "attachments" && (
           <div className="flex flex-col gap-4">
+            <input
+              ref={attachmentInputRef}
+              type="file"
+              accept={ACCEPTED_ATTACHMENT_MIME}
+              onChange={handleAttachmentPicked}
+              className="hidden"
+            />
+
             <button
               type="button"
+              onClick={() => attachmentInputRef.current?.click()}
               className="rounded-2xl p-6 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
               style={{
                 background: "#ffffff",
@@ -4269,12 +4324,493 @@ function PhysicalVerificationScreen({
               <p className="text-[10px]" style={{ color: "#94a3b8" }}>JPG, PNG, or PDF up to 10MB</p>
             </button>
 
-            {ATTACHMENT_FILES.map((file, i) => (
-              <AttachmentFileCard key={file.fileName} file={file} index={i} />
+            {attachmentError && (
+              <p
+                role="alert"
+                className="text-[11px] font-semibold rounded-xl px-3 py-2.5"
+                style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid rgba(220,38,38,0.18)" }}
+              >
+                {attachmentError}
+              </p>
+            )}
+
+            {attachments.map((file, i) => (
+              <AttachmentFileCard key={`${file.fileName}-${i}`} file={file} index={i} />
             ))}
           </div>
         )}
       </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sample Verification ──────────────────────────────────────────────────────
+
+type ScanStatus = "verified" | "flagged";
+
+interface ScannedSampleLog {
+  code: string;
+  scannedAt: string;
+  status: ScanStatus;
+  log: RegisterLogFormData;
+}
+
+const SCAN_STATUS_META: Record<ScanStatus, { label: string; bg: string; color: string }> = {
+  verified: { label: "Verified", bg: "rgba(22,163,74,0.12)", color: "#16a34a" },
+  flagged: { label: "Flagged", bg: "rgba(245,158,11,0.16)", color: "#b45309" },
+};
+
+/** Mock QR payloads the simulated scanner cycles through, one per successful scan. */
+const SAMPLE_QR_POOL: { code: string; status: ScanStatus; log: RegisterLogFormData }[] = [
+  {
+    code: "SSC-QR-0000000014",
+    status: "verified",
+    log: {
+      serialNo: "0000000014", regDate: "2026-07-12", productGroup: "Group 1", productName: "Taun",
+      lotNumber: "LOT-2026-042", length: "10.4", diameter: "11.6", volume: "12.4", defectVolume: "0.8",
+      note: "Sample drawn from stack A — bark intact, no visible defects.", status: "AVAILABLE",
+    },
+  },
+  {
+    code: "SSC-QR-0000000027",
+    status: "flagged",
+    log: {
+      serialNo: "0000000027", regDate: "2026-07-12", productGroup: "Group 1", productName: "Kwila",
+      lotNumber: "LOT-2026-042", length: "9.8", diameter: "13.2", volume: "13.9", defectVolume: "1.4",
+      note: "Minor end split recorded during sample verification.", status: "AVAILABLE",
+    },
+  },
+  {
+    code: "SSC-QR-0000000031",
+    status: "verified",
+    log: {
+      serialNo: "0000000031", regDate: "2026-07-13", productGroup: "Group 2", productName: "Erima",
+      lotNumber: "LOT-2026-043", length: "11.2", diameter: "10.4", volume: "11.6", defectVolume: "0.5",
+      note: "Dimensions match the declared manifest entry.", status: "AVAILABLE",
+    },
+  },
+  {
+    code: "SSC-QR-0000000045",
+    status: "verified",
+    log: {
+      serialNo: "0000000045", regDate: "2026-07-13", productGroup: "Group 2", productName: "Calophyllum",
+      lotNumber: "LOT-2026-043", length: "10.0", diameter: "12.0", volume: "12.8", defectVolume: "1.1",
+      note: "Sample verified against exporter declared log details.", status: "AVAILABLE",
+    },
+  },
+];
+
+function formatScanTime(d: Date) {
+  return d.toLocaleString("en-US", {
+    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+  });
+}
+
+type ScannerPhase = "idle" | "scanning" | "detected";
+
+const CORNER_BRACKETS = [
+  { key: "tl", className: "top-0 left-0 border-t-[3px] border-l-[3px]", radius: "14px 0 0 0" },
+  { key: "tr", className: "top-0 right-0 border-t-[3px] border-r-[3px]", radius: "0 14px 0 0" },
+  { key: "bl", className: "bottom-0 left-0 border-b-[3px] border-l-[3px]", radius: "0 0 0 14px" },
+  { key: "br", className: "bottom-0 right-0 border-b-[3px] border-r-[3px]", radius: "0 0 14px 0" },
+];
+
+const SCAN_CARD_STYLE = {
+  background: "#ffffff",
+  border: "1px solid rgba(15,47,143,0.08)",
+  boxShadow: "0 2px 12px rgba(15,47,143,0.06)",
+} as const;
+
+/** Shared history list — same card language as the rest of the app. */
+function ScannedHistoryList({
+  records,
+  onSelect,
+}: {
+  records: ScannedSampleLog[];
+  onSelect: (code: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+          Scanned QR Codes
+        </p>
+        <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: "#94a3b8" }}>
+          {records.length} scanned
+        </span>
+      </div>
+
+      {records.length === 0 ? (
+        <div
+          className="rounded-2xl px-4 py-6 flex flex-col items-center gap-2 text-center"
+          style={{ background: "#ffffff", border: "1px dashed rgba(15,47,143,0.22)" }}
+        >
+          <span
+            className="w-10 h-10 rounded-full flex items-center justify-center"
+            style={{ background: "#e8edf9", color: "#5a6a99" }}
+          >
+            <QrCode size={18} />
+          </span>
+          <p className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>No QR codes scanned yet</p>
+          <p className="text-[11px]" style={{ color: "#94a3b8" }}>
+            Scanned samples will be listed here.
+          </p>
+        </div>
+      ) : (
+        records.map((record, i) => {
+          const meta = SCAN_STATUS_META[record.status];
+          return (
+            <button
+              key={record.code}
+              type="button"
+              onClick={() => onSelect(record.code)}
+              className="w-full text-left rounded-2xl px-4 py-3.5 flex items-center gap-3 animate-riseIn focus:outline-none active:scale-[0.99] transition-transform"
+              style={{ ...SCAN_CARD_STYLE, ["--rise-delay" as string]: `${40 + i * 45}ms` }}
+              aria-label={`View details for ${record.code}`}
+            >
+              <span
+                className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "#e8edf9", color: "#0f2f8f" }}
+              >
+                <QrCode size={20} />
+              </span>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-bold truncate" style={{ color: "#0a1a4a" }}>
+                  {record.code}
+                </p>
+                <p className="text-[11px] mt-1 truncate" style={{ color: "#5a6a99" }}>
+                  {record.scannedAt} <span aria-hidden>·</span> {record.log.productName}
+                </p>
+                <span
+                  className="inline-flex items-center mt-1.5 h-5 px-2 rounded-full text-[10px] font-bold uppercase tracking-wide"
+                  style={{ background: meta.bg, color: meta.color }}
+                >
+                  {meta.label}
+                </span>
+              </div>
+
+              <ChevronRight size={17} className="flex-shrink-0" style={{ color: "#94a3b8" }} />
+            </button>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+function SampleVerificationScanScreen({
+  task,
+  scanCount,
+  records,
+  autoStart,
+  onBack,
+  onScanned,
+  onOpenRecord,
+}: {
+  task: InspectionTask;
+  scanCount: number;
+  records: ScannedSampleLog[];
+  autoStart: boolean;
+  onBack: () => void;
+  onScanned: (record: ScannedSampleLog) => void;
+  onOpenRecord: (code: string) => void;
+}) {
+  // Arms itself when the user arrived here to scan; otherwise it waits so the history stays browsable.
+  const [phase, setPhase] = useState<ScannerPhase>(autoStart ? "scanning" : "idle");
+  const next = SAMPLE_QR_POOL[scanCount % SAMPLE_QR_POOL.length];
+
+  // Simulated capture: the frame "finds" a code, shows a confirmation beat, then advances.
+  useEffect(() => {
+    if (phase !== "scanning") return;
+    const timer = setTimeout(() => setPhase("detected"), 2400);
+    return () => clearTimeout(timer);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "detected") return;
+    const timer = setTimeout(
+      () => onScanned({
+        code: next.code,
+        scannedAt: formatScanTime(new Date()),
+        status: next.status,
+        log: next.log,
+      }),
+      900,
+    );
+    return () => clearTimeout(timer);
+  }, [phase, next, onScanned]);
+
+  const detected = phase === "detected";
+  const scanning = phase === "scanning";
+  const frameColor = detected ? "#16a34a" : scanning ? "#0f2f8f" : "#c3cee6";
+
+  return (
+    <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
+      <AppHeaderBar>
+        <div className="flex items-center gap-3 min-w-0">
+          <BackCardButton onClick={onBack} />
+          <div className="min-w-0">
+            <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
+              Sample Verification
+            </h1>
+            <p className="text-xs truncate" style={{ color: "#5a6a99" }}>
+              Step 2 of 2 · {task.shipment}
+            </p>
+          </div>
+        </div>
+      </AppHeaderBar>
+
+      <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 py-5 gap-5">
+
+        {/* Scanner card */}
+        <div className="rounded-2xl p-4 sm:p-5 flex flex-col gap-4" style={SCAN_CARD_STYLE}>
+          <div className="flex items-center gap-3">
+            <span
+              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "#e8edf9", color: "#0f2f8f" }}
+            >
+              <ScanLine size={20} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[15px] font-bold leading-snug" style={{ color: "#0a1a4a" }}>
+                Scan Log QR Code
+              </p>
+              <p className="text-[11px] mt-0.5 leading-snug" style={{ color: "#5a6a99" }}>
+                Hold the camera 15–20 cm from the QR.
+              </p>
+            </div>
+          </div>
+
+          {/* Viewfinder */}
+          <div className="flex justify-center py-1">
+            <div className="relative" style={{ width: "min(232px, 62vw)", aspectRatio: "1 / 1" }}>
+              <div
+                className="absolute inset-0 rounded-2xl overflow-hidden transition-colors duration-300"
+                style={{
+                  background: "#f8faff",
+                  border: `1px solid ${detected ? "rgba(22,163,74,0.35)" : "#dce4f5"}`,
+                  boxShadow: detected ? "0 0 0 4px rgba(22,163,74,0.10)" : "none",
+                }}
+              >
+                <img
+                  src={qrCode}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-contain p-8 transition-opacity duration-300"
+                  style={{ opacity: detected ? 0.9 : scanning ? 0.32 : 0.18 }}
+                />
+
+                {scanning && (
+                  <div
+                    className="absolute left-0 right-0 h-[2px] animate-qrSweep"
+                    style={{
+                      background: "linear-gradient(90deg, rgba(26,69,181,0) 0%, #1a45b5 50%, rgba(26,69,181,0) 100%)",
+                      boxShadow: "0 0 10px rgba(26,69,181,0.55)",
+                    }}
+                    aria-hidden="true"
+                  />
+                )}
+
+                {detected && (
+                  <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(248,250,255,0.72)" }}>
+                    <span
+                      className="w-14 h-14 rounded-full flex items-center justify-center animate-fadeIn"
+                      style={{ background: "#16a34a", boxShadow: "0 6px 20px rgba(22,163,74,0.35)" }}
+                    >
+                      <CheckCircle2 size={30} style={{ color: "#ffffff" }} />
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Corner brackets */}
+              {CORNER_BRACKETS.map(corner => (
+                <span
+                  key={corner.key}
+                  aria-hidden="true"
+                  className={`absolute w-7 h-7 transition-colors duration-300 ${corner.className}`}
+                  style={{ borderColor: frameColor, borderRadius: corner.radius }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Status line */}
+          <div className="flex items-center justify-center gap-2 min-h-[22px]">
+            {detected ? (
+              <>
+                <CheckCircle2 size={14} style={{ color: "#16a34a" }} />
+                <p className="text-[12px] font-bold truncate" style={{ color: "#16a34a" }}>
+                  {next.code} captured
+                </p>
+              </>
+            ) : scanning ? (
+              <>
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#0f2f8f" }} />
+                <p className="text-[12px] font-semibold" style={{ color: "#5a6a99" }}>
+                  Searching for a QR code…
+                </p>
+              </>
+            ) : (
+              <p className="text-[12px] font-semibold" style={{ color: "#94a3b8" }}>
+                Scanner paused
+              </p>
+            )}
+          </div>
+
+          {phase === "idle" ? (
+            <button
+              type="button"
+              onClick={() => setPhase("scanning")}
+              className="w-full min-h-[48px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
+              style={{ background: GRADIENT, boxShadow: "0 4px 16px rgba(15,47,143,0.35)" }}
+            >
+              <ScanLine size={16} />
+              Start Scanning
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPhase("detected")}
+              disabled={detected}
+              className="w-full min-h-[48px] rounded-xl text-sm font-bold flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all disabled:opacity-60"
+              style={{ background: "#f8faff", border: "1px solid #dce4f5", color: "#0f2f8f" }}
+            >
+              <QrCode size={16} />
+              {detected ? "Opening QR details…" : "Capture Now"}
+            </button>
+          )}
+        </div>
+
+        {/* Scanned history — stays below the scanner and grows with every capture */}
+        <ScannedHistoryList records={records} onSelect={onOpenRecord} />
+      </div>
+    </div>
+  );
+}
+
+function QrDetailsScreen({
+  record,
+  onBack,
+  onScanAnother,
+  onFinish,
+}: {
+  record: ScannedSampleLog;
+  onBack: () => void;
+  onScanAnother: () => void;
+  onFinish: () => void;
+}) {
+  const log = record.log;
+  // White fills keep the read-only fields legible against the tinted page.
+  const readOnlyStyle = { ...inputStyle, background: "#ffffff", color: "#5a6a99", cursor: "not-allowed" as const };
+
+  return (
+    <div className="min-h-screen w-full animate-fadeIn" style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}>
+      <AppHeaderBar>
+        <div className="flex items-center gap-3 min-w-0">
+          <BackCardButton onClick={onBack} />
+          <div className="min-w-0">
+            <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
+              QR Details
+            </h1>
+            <p className="text-xs truncate" style={{ color: "#5a6a99" }}>
+              Scanned sample log
+            </p>
+          </div>
+        </div>
+      </AppHeaderBar>
+
+      <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col">
+        <div className="flex flex-col gap-5 px-5 py-6 pb-10">
+
+          <FormField label="Serial No" required>
+            <input className={inputCls} style={readOnlyStyle} value={log.serialNo} readOnly />
+          </FormField>
+
+          <FormField label="Reg Date" required>
+            <input type="date" className={inputCls} style={{ ...readOnlyStyle, paddingRight: "2.5rem" }} value={log.regDate} readOnly />
+          </FormField>
+
+          <FormField label="Product Group" required>
+            <input className={inputCls} style={readOnlyStyle} value={log.productGroup} readOnly />
+          </FormField>
+
+          <FormField label="Product Name" required>
+            <input className={inputCls} style={readOnlyStyle} value={log.productName} readOnly />
+          </FormField>
+
+          <FormField label="Lot Number">
+            <input className={inputCls} style={readOnlyStyle} value={log.lotNumber} readOnly />
+          </FormField>
+
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>Measurements</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Length" required>
+                <div className="relative">
+                  <input className={inputCls} style={{ ...readOnlyStyle, paddingRight: "2.5rem" }} value={log.length} readOnly />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none" style={{ color: "#94a3b8" }}>m</span>
+                </div>
+              </FormField>
+              <FormField label="Diameter" required>
+                <div className="relative">
+                  <input className={inputCls} style={{ ...readOnlyStyle, paddingRight: "2.5rem" }} value={log.diameter} readOnly />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none" style={{ color: "#94a3b8" }}>cm</span>
+                </div>
+              </FormField>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Volume" required>
+                <div className="relative">
+                  <input className={inputCls} style={{ ...readOnlyStyle, paddingRight: "2.5rem" }} value={log.volume} readOnly />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none" style={{ color: "#94a3b8" }}>m³</span>
+                </div>
+              </FormField>
+              <FormField label="Defect Volume" required>
+                <div className="relative">
+                  <input className={inputCls} style={{ ...readOnlyStyle, paddingRight: "2.5rem" }} value={log.defectVolume} readOnly />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none" style={{ color: "#94a3b8" }}>m³</span>
+                </div>
+              </FormField>
+            </div>
+          </div>
+
+          <FormField label="Note" required>
+            <textarea className={inputCls} style={{ ...readOnlyStyle, resize: "none" }} rows={3} value={log.note} readOnly />
+          </FormField>
+
+          <FormField label="Status">
+            <input className={inputCls} style={readOnlyStyle} value={log.status} readOnly />
+          </FormField>
+
+          <FormField label="Image">
+            <div className="w-full rounded-xl overflow-hidden" style={{ border: "1px solid #dce4f5", background: "#ffffff" }}>
+              <img src={logEntryPhoto} alt="Scanned log — timber" className="w-full h-52 object-contain p-2" />
+            </div>
+          </FormField>
+
+          <div className="flex flex-col gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onScanAnother}
+              className="w-full min-h-[48px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
+              style={{ background: GRADIENT, boxShadow: "0 4px 16px rgba(15,47,143,0.35)" }}
+            >
+              <ScanLine size={16} />
+              Scan Another QR
+            </button>
+            <button
+              type="button"
+              onClick={onFinish}
+              className="w-full min-h-[48px] rounded-xl text-sm font-bold flex items-center justify-center focus:outline-none active:scale-[0.98] transition-all"
+              style={{ background: "#ffffff", border: "1px solid #dce4f5", color: "#0f2f8f" }}
+            >
+              Done
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -4347,6 +4883,12 @@ export default function App() {
   const [userType, setUserType] = useState<UserType>(restored?.userType ?? "client");
   const [registerLogPrefill, setRegisterLogPrefill] = useState<RegisterLogFormData | null>(null);
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(restored?.selectedInspectionId ?? null);
+  const [scannedSampleLogs, setScannedSampleLogs] = useState<ScannedSampleLog[]>([]);
+  // Always increments, so the mock scanner keeps cycling the pool even after every code is seen.
+  const [sampleScanCount, setSampleScanCount] = useState(0);
+  const [activeScannedCode, setActiveScannedCode] = useState<string | null>(null);
+  // True when the user navigated in order to scan, so the scanner arms itself on arrival.
+  const [autoStartScanner, setAutoStartScanner] = useState(true);
   const [inspectionProgressById, setInspectionProgressById] = useState<Record<string, InspectionProgress>>({});
 
   const isCU = userType === "cu";
@@ -4363,6 +4905,14 @@ export default function App() {
         currentStatus === "in-progress" ? "completed" : "completed";
       return { ...prev, [taskId]: { ...current, [key]: nextStatus } };
     });
+  };
+
+  const recordSampleScan = (record: ScannedSampleLog) => {
+    // Re-scanning a code refreshes its timestamp and moves it back to the top rather than duplicating.
+    setScannedSampleLogs(prev => [record, ...prev.filter(r => r.code !== record.code)]);
+    setSampleScanCount(n => n + 1);
+    setActiveScannedCode(record.code);
+    setScreen("sample-verification-log");
   };
 
   useEffect(() => {
@@ -4466,7 +5016,40 @@ export default function App() {
       <PhysicalVerificationScreen
         task={task}
         onBack={() => setScreen("inspection-details")}
-        onProceed={() => setScreen("inspection-details")}
+        onProceed={() => { setAutoStartScanner(true); setScreen("sample-verification-scan"); }}
+      />
+    );
+  }
+  if (screen === "sample-verification-scan" || screen === "sample-verification-log") {
+    const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
+    if (!task) {
+      return <ScheduleInspectionScreen {...scheduleScreenProps} />;
+    }
+    const activeRecord = scannedSampleLogs.find(r => r.code === activeScannedCode);
+    // Scans live in memory only, so a restored session on the details screen falls back to scanning.
+    if (screen === "sample-verification-scan" || !activeRecord) {
+      return (
+        <SampleVerificationScanScreen
+          key={sampleScanCount}
+          task={task}
+          scanCount={sampleScanCount}
+          records={scannedSampleLogs}
+          autoStart={autoStartScanner}
+          onBack={() => setScreen("physical-verification")}
+          onScanned={recordSampleScan}
+          onOpenRecord={code => {
+            setActiveScannedCode(code);
+            setScreen("sample-verification-log");
+          }}
+        />
+      );
+    }
+    return (
+      <QrDetailsScreen
+        record={activeRecord}
+        onBack={() => { setAutoStartScanner(false); setScreen("sample-verification-scan"); }}
+        onScanAnother={() => { setAutoStartScanner(true); setScreen("sample-verification-scan"); }}
+        onFinish={() => setScreen("inspection-details")}
       />
     );
   }
