@@ -815,14 +815,261 @@ function LocationScreen({ onNext }: { onNext: (location: string) => void }) {
 
 // ─── Home Screen ──────────────────────────────────────────────────────────────
 
-function HomeScreen({ location, onLogout, onNavigate, isCU, dark, setDark }: {
+function LogInventoryScopeSheet({
+  dark,
+  overlayBox,
+  onClose,
+  onConfirm,
+}: {
+  dark: boolean;
+  overlayBox: { top: number; left: number; width: number; height: number };
+  onClose: () => void;
+  onConfirm: (exporter: string, concession: string) => void;
+}) {
+  const [exporter, setExporter] = useState("");
+  const [concession, setConcession] = useState("");
+  const [exporterOpen, setExporterOpen] = useState(false);
+  const [concessionOpen, setConcessionOpen] = useState(false);
+
+  const selectedExporter = CU_CLIENT_DIRECTORY.find(c => c.name === exporter);
+  const concessions = selectedExporter?.concessions ?? [];
+  const canContinue = Boolean(exporter && concession);
+
+  const sheetBg = dark ? "#1e293b" : "#ffffff";
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#5a6a99";
+  const fieldBg = dark ? "rgba(255,255,255,0.06)" : "#f8faff";
+  const fieldBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)";
+  const listBg = dark ? "#0f172a" : "#ffffff";
+
+  return createPortal(
+    <div
+      className="z-[60] flex flex-col justify-end"
+      style={{
+        position: "fixed",
+        top: overlayBox.top,
+        left: overlayBox.left,
+        width: overlayBox.width,
+        height: overlayBox.height,
+      }}
+    >
+      <button
+        type="button"
+        className="absolute inset-0 border-0 p-0 cursor-default"
+        style={{
+          background: "rgba(10,22,70,0.45)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+        }}
+        aria-label="Close"
+        onClick={onClose}
+      />
+      <div
+        className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-riseIn"
+        style={{
+          background: sheetBg,
+          boxShadow: "0 -12px 40px rgba(15,47,143,0.18)",
+          maxHeight: "88%",
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Select exporter and concession"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-1 rounded-full" style={{ background: dark ? "rgba(255,255,255,0.2)" : "rgba(15,47,143,0.18)" }} />
+          <div className="w-full flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[16px] font-bold" style={{ color: textPrimary }}>
+                Log Inventory
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none flex-shrink-0"
+              style={{ background: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)", color: dark ? "#ffffff" : "#0f2f8f" }}
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4 overflow-y-auto overscroll-contain">
+          {/* Exporter Name */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
+              Exporter Name
+            </label>
+            <button
+              type="button"
+              onClick={() => { setExporterOpen(v => !v); setConcessionOpen(false); }}
+              className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-sm text-left focus:outline-none active:scale-[0.99] transition-all"
+              style={{
+                background: fieldBg,
+                border: `1.5px solid ${exporterOpen ? "rgba(15,47,143,0.45)" : fieldBorder}`,
+                color: exporter ? textPrimary : textMuted,
+                boxShadow: exporterOpen ? "0 0 0 3px rgba(15,47,143,0.10)" : "none",
+              }}
+              aria-expanded={exporterOpen}
+            >
+              <span className="truncate font-medium">{exporter || "Select an exporter…"}</span>
+              <ChevronDown
+                size={16}
+                style={{
+                  color: textMuted,
+                  transform: exporterOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s",
+                  flexShrink: 0,
+                }}
+              />
+            </button>
+            {exporterOpen && (
+              <div
+                className="rounded-2xl overflow-hidden animate-riseIn"
+                style={{
+                  background: listBg,
+                  border: `1px solid ${fieldBorder}`,
+                  boxShadow: "0 8px 24px rgba(15,47,143,0.10)",
+                  maxHeight: 180,
+                  overflowY: "auto",
+                }}
+              >
+                {CU_CLIENT_DIRECTORY.map(c => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => {
+                      setExporter(c.name);
+                      setConcession("");
+                      setExporterOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm font-medium transition-colors focus:outline-none"
+                    style={{
+                      color: exporter === c.name ? "#0f2f8f" : textPrimary,
+                      background: exporter === c.name ? "rgba(15,47,143,0.08)" : "transparent",
+                      borderBottom: `1px solid ${fieldBorder}`,
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Concessions — depends on exporter */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
+              Concessions
+            </label>
+            <button
+              type="button"
+              disabled={!exporter}
+              onClick={() => {
+                if (!exporter) return;
+                setConcessionOpen(v => !v);
+                setExporterOpen(false);
+              }}
+              className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-sm text-left focus:outline-none active:scale-[0.99] transition-all disabled:active:scale-100"
+              style={{
+                background: fieldBg,
+                border: `1.5px solid ${concessionOpen ? "rgba(15,47,143,0.45)" : fieldBorder}`,
+                color: concession ? textPrimary : textMuted,
+                opacity: exporter ? 1 : 0.55,
+                cursor: exporter ? "pointer" : "not-allowed",
+                boxShadow: concessionOpen ? "0 0 0 3px rgba(15,47,143,0.10)" : "none",
+              }}
+              aria-expanded={concessionOpen}
+            >
+              <span className="truncate font-medium">
+                {concession || (exporter ? "Select a concession…" : "Select an exporter first…")}
+              </span>
+              <ChevronDown
+                size={16}
+                style={{
+                  color: textMuted,
+                  transform: concessionOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s",
+                  flexShrink: 0,
+                }}
+              />
+            </button>
+            {concessionOpen && concessions.length > 0 && (
+              <div
+                className="rounded-2xl overflow-hidden animate-riseIn"
+                style={{
+                  background: listBg,
+                  border: `1px solid ${fieldBorder}`,
+                  boxShadow: "0 8px 24px rgba(15,47,143,0.10)",
+                  maxHeight: 180,
+                  overflowY: "auto",
+                }}
+              >
+                {concessions.map(loc => (
+                  <button
+                    key={loc}
+                    type="button"
+                    onClick={() => {
+                      setConcession(loc);
+                      setConcessionOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm font-medium transition-colors focus:outline-none"
+                    style={{
+                      color: concession === loc ? "#0f2f8f" : textPrimary,
+                      background: concession === loc ? "rgba(15,47,143,0.08)" : "transparent",
+                      borderBottom: `1px solid ${fieldBorder}`,
+                    }}
+                  >
+                    {loc}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          disabled={!canContinue}
+          onClick={() => {
+            if (!canContinue) return;
+            onConfirm(exporter, concession);
+          }}
+          className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all disabled:active:scale-100 disabled:opacity-45"
+          style={{ background: GRADIENT, boxShadow: canContinue ? "0 6px 18px rgba(15,47,143,0.32)" : "none" }}
+        >
+          Continue
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function HomeScreen({ location, onLogout, onNavigate, onOpenLogInventory, isCU, dark, setDark }: {
   location: string; onLogout: () => void; onNavigate: (s: Screen) => void;
+  onOpenLogInventory: (exporter: string, concession: string) => void;
   isCU: boolean; dark: boolean; setDark: (v: boolean) => void;
 }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState(LAST_SYNC);
+  const [inventorySheetOpen, setInventorySheetOpen] = useState(false);
+  const [overlayBox, setOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  const syncOverlayBox = () => {
+    const device = document.querySelector(".mobile-device");
+    if (device) {
+      const r = device.getBoundingClientRect();
+      setOverlayBox({ top: r.top, left: r.left, width: r.width, height: r.height });
+    } else {
+      setOverlayBox({ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight });
+    }
+  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -831,6 +1078,25 @@ function HomeScreen({ location, onLogout, onNavigate, isCU, dark, setDark }: {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    if (!inventorySheetOpen) return;
+    syncOverlayBox();
+    const vp = document.querySelector(".mobile-viewport");
+    window.addEventListener("resize", syncOverlayBox);
+    window.addEventListener("scroll", syncOverlayBox, true);
+    vp?.addEventListener("scroll", syncOverlayBox);
+    return () => {
+      window.removeEventListener("resize", syncOverlayBox);
+      window.removeEventListener("scroll", syncOverlayBox, true);
+      vp?.removeEventListener("scroll", syncOverlayBox);
+    };
+  }, [inventorySheetOpen]);
+
+  const openInventorySheet = () => {
+    syncOverlayBox();
+    setInventorySheetOpen(true);
+  };
 
   const bg = dark ? "#0f172a" : "#f0f4ff";
   const surface = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.5)";
@@ -914,7 +1180,7 @@ function HomeScreen({ location, onLogout, onNavigate, isCU, dark, setDark }: {
             </button>
           )}
 
-          <button onClick={() => onNavigate("log-inventory")}
+          <button onClick={openInventorySheet}
             className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
             style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
@@ -962,11 +1228,21 @@ function HomeScreen({ location, onLogout, onNavigate, isCU, dark, setDark }: {
         </div>
 
       </div>
+
+      {inventorySheetOpen && overlayBox && (
+        <LogInventoryScopeSheet
+          dark={dark}
+          overlayBox={overlayBox}
+          onClose={() => setInventorySheetOpen(false)}
+          onConfirm={(exporter, concession) => {
+            setInventorySheetOpen(false);
+            onOpenLogInventory(exporter, concession);
+          }}
+        />
+      )}
     </div>
   );
 }
-
-// ─── Scan Log Screen ──────────────────────────────────────────────────────────
 
 function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
   dark: boolean;
@@ -6205,7 +6481,12 @@ function QrDetailsScreen({
 }
 // ─── Log Inventory Screen ─────────────────────────────────────────────────────
 
-function LogInventoryScreen({ dark, onBack }: { dark: boolean; onBack: () => void; }) {
+function LogInventoryScreen({ dark, onBack, exporter, concession }: {
+  dark: boolean;
+  onBack: () => void;
+  exporter?: string;
+  concession?: string;
+}) {
   const [tab, setTab] = useState<InventoryTab>("all");
 
   const bg = dark ? "#0f172a" : "#f0f4ff";
@@ -6213,6 +6494,9 @@ function LogInventoryScreen({ dark, onBack }: { dark: boolean; onBack: () => voi
   const textMuted = dark ? "rgba(255,255,255,0.6)" : "#5a6a99";
 
   const items = tab === "all" ? INVENTORY_ITEMS : INVENTORY_ITEMS.filter(i => i.modified);
+  const scopeLabel = exporter && concession
+    ? `${exporter} · ${concession}`
+    : `${INVENTORY_ITEMS.length} records · ${INVENTORY_ITEMS.filter(i => i.modified).length} modified`;
 
   return (
     <div className="min-h-screen w-full transition-colors duration-300 animate-fadeIn" style={{ background: bg, fontFamily: "'Inter', sans-serif" }}>
@@ -6221,8 +6505,8 @@ function LogInventoryScreen({ dark, onBack }: { dark: boolean; onBack: () => voi
           <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
             <h1 className="text-[18px] font-bold tracking-tight" style={{ color: textPrimary }}>Log Inventory</h1>
-            <p className="text-xs" style={{ color: textMuted }}>
-              {INVENTORY_ITEMS.length} records · {INVENTORY_ITEMS.filter(i => i.modified).length} modified
+            <p className="text-xs truncate" style={{ color: textMuted }}>
+              {scopeLabel}
             </p>
           </div>
         </div>
@@ -6271,6 +6555,7 @@ export default function App() {
   const [location, setLocation] = useState(restored?.location ?? "");
   const [dark, setDark] = useState(restored?.dark ?? false);
   const [userType, setUserType] = useState<UserType>(restored?.userType ?? "client");
+  const [inventoryExporter, setInventoryExporter] = useState("");
   const [registerLogPrefill, setRegisterLogPrefill] = useState<RegisterLogFormData | null>(null);
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(restored?.selectedInspectionId ?? null);
   const [scannedSampleLogs, setScannedSampleLogs] = useState<ScannedSampleLog[]>([]);
@@ -6480,7 +6765,12 @@ export default function App() {
   );
   if (screen === "log-inventory") return (
     <>
-      <LogInventoryScreen dark={dark} onBack={() => setScreen("home")} />
+      <LogInventoryScreen
+        dark={dark}
+        onBack={() => setScreen("home")}
+        exporter={inventoryExporter || resolveExporterForConcession(location)}
+        concession={location || undefined}
+      />
       {bottomNav}
     </>
   );
@@ -6665,6 +6955,11 @@ export default function App() {
           setScreen("login");
         }}
         onNavigate={setScreen}
+        onOpenLogInventory={(exporter, concession) => {
+          setInventoryExporter(exporter);
+          setLocation(concession);
+          setScreen("log-inventory");
+        }}
         dark={dark}
         setDark={setDark}
       />
