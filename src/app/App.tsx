@@ -52,9 +52,20 @@ interface InspectionTask {
 interface InspectionProgress {
   preShipment: SubInspectionStatus;
   loading: SubInspectionStatus;
+  preShipmentStartDate: string | null;
+  preShipmentEndDate: string | null;
+  loadingStartDate: string | null;
+  loadingEndDate: string | null;
 }
 
-const EMPTY_INSPECTION_PROGRESS: InspectionProgress = { preShipment: "not-started", loading: "not-started" };
+const EMPTY_INSPECTION_PROGRESS: InspectionProgress = {
+  preShipment: "not-started",
+  loading: "not-started",
+  preShipmentStartDate: null,
+  preShipmentEndDate: null,
+  loadingStartDate: null,
+  loadingEndDate: null,
+};
 
 interface FormState { email: string; password: string; showPassword: boolean; }
 
@@ -454,7 +465,7 @@ function getBottomNavItems(isCU: boolean): BottomNavItem[] {
     return [
       { id: "home", label: "Home", screen: "home", icon: Home },
       { id: "scan", label: "Scan", screen: "scan-log", icon: ScanLine },
-      { id: "schedule", label: "Schedule", screen: "schedule-inspection", icon: Calendar },
+      { id: "schedule", label: "Inspection", screen: "schedule-inspection", icon: Calendar },
       { id: "inventory", label: "Inventory", screen: "log-inventory", icon: Package },
     ];
   }
@@ -918,7 +929,7 @@ function HomeScreen({ location, onLogout, onNavigate, isCU, dark, setDark }: {
                 <Calendar size={26} style={{ color: iconColor }} />
               </div>
               <div className="flex-1">
-                <p className="text-base font-bold" style={{ color: textPrimary }}>Schedule Inspection</p>
+                <p className="text-base font-bold" style={{ color: textPrimary }}>Inspection</p>
                 <p className="text-xs mt-0.5" style={{ color: textMuted }}>Plan and manage upcoming inspections</p>
               </div>
               <ChevronRight size={18} style={{ color: textMuted }} className="group-hover:translate-x-0.5 transition-transform duration-150" />
@@ -1811,7 +1822,7 @@ function ScheduleInspectionScreen({
             <BackCardButton onClick={onBack} dark={dark} />
             <div className="min-w-0">
               <h1 className="text-[18px] font-bold tracking-tight" style={{ color: textPrimary }}>
-                Schedule Inspection
+                Inspection
               </h1>
             </div>
           </div>
@@ -3964,7 +3975,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
   progress: InspectionProgress;
   onBack: () => void;
   onViewFullInfo: () => void;
-  onStartSession: (key: "preShipment" | "loading") => void;
+  onStartSession: (key: "preShipment" | "loading", startDate: string) => void;
 }) {
   const info = getShipmentDetailsData(task);
   const preShipmentDone = progress.preShipment === "completed";
@@ -4004,7 +4015,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
 
   const handleStepAction = (key: "preShipment" | "loading", isActive: boolean, isDisabled: boolean) => {
     if (isDisabled) return;
-    if (isActive) onStartSession(key);
+    if (isActive) onStartSession(key, progress[key === "preShipment" ? "preShipmentStartDate" : "loadingStartDate"] ?? todayISODate());
     else openStartDialog(key);
   };
 
@@ -4012,7 +4023,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
     if (!startDialogKey || !startDate) return;
     const key = startDialogKey;
     setStartDialogKey(null);
-    onStartSession(key);
+    onStartSession(key, startDate);
   };
 
   const swipe = useSwipeBack(onBack);
@@ -4157,6 +4168,50 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                       </h3>
                     </div>
                     <p className="text-xs leading-relaxed" style={{ color: "#5a6a99" }}>{step.description}</p>
+
+                    {(() => {
+                      const startIso = step.key === "preShipment"
+                        ? progress.preShipmentStartDate
+                        : progress.loadingStartDate;
+                      const endIso = step.key === "preShipment"
+                        ? progress.preShipmentEndDate
+                        : progress.loadingEndDate;
+                      // Fallback dummies until real schedule dates are set.
+                      const displayStartIso = startIso ?? todayISODate();
+                      const displayEndIso = endIso ?? toISODateLocal(
+                        new Date(parseISODateLocal(displayStartIso).getTime() + 2 * 24 * 60 * 60 * 1000),
+                      );
+                      return (
+                        <div
+                          className="rounded-xl px-2.5 py-1.5 grid grid-cols-2 gap-2"
+                          style={{
+                            background: "#f5f8ff",
+                            border: "1px solid rgba(15,47,143,0.10)",
+                          }}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                              Start Date
+                            </p>
+                            <p className="text-[12px] font-bold mt-0.5 tabular-nums leading-tight" style={{ color: "#0a1a4a" }}>
+                              {formatDisplayDate(displayStartIso)}
+                            </p>
+                          </div>
+                          <div
+                            className="min-w-0 pl-2"
+                            style={{ borderLeft: "1px solid rgba(15,47,143,0.10)" }}
+                          >
+                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                              End Date
+                            </p>
+                            <p className="text-[12px] font-bold mt-0.5 tabular-nums leading-tight" style={{ color: "#0a1a4a" }}>
+                              {formatDisplayDate(displayEndIso)}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <div><SubInspectionStatusPill status={status} /></div>
 
                     <button
@@ -5785,14 +5840,37 @@ export default function App() {
     }));
   };
 
-  const advanceInspectionProgress = (taskId: string, key: "preShipment" | "loading") => {
+  const advanceInspectionProgress = (
+    taskId: string,
+    key: "preShipment" | "loading",
+    options?: { startDate?: string; complete?: boolean },
+  ) => {
     setInspectionProgressById(prev => {
       const current = prev[taskId] ?? EMPTY_INSPECTION_PROGRESS;
       const currentStatus = current[key];
-      const nextStatus: SubInspectionStatus =
-        currentStatus === "not-started" ? "in-progress" :
-        currentStatus === "in-progress" ? "completed" : "completed";
-      return { ...prev, [taskId]: { ...current, [key]: nextStatus } };
+      const nextStatus: SubInspectionStatus = options?.complete
+        ? "completed"
+        : currentStatus === "not-started"
+          ? "in-progress"
+          : currentStatus === "in-progress"
+            ? "completed"
+            : "completed";
+
+      const startField = key === "preShipment" ? "preShipmentStartDate" : "loadingStartDate";
+      const endField = key === "preShipment" ? "preShipmentEndDate" : "loadingEndDate";
+      const next: InspectionProgress = {
+        ...current,
+        [key]: nextStatus,
+      };
+
+      if (options?.startDate && !current[startField]) {
+        next[startField] = options.startDate;
+      }
+      if (nextStatus === "completed" && !current[endField]) {
+        next[endField] = todayISODate();
+      }
+
+      return { ...prev, [taskId]: next };
     });
   };
 
@@ -5918,9 +5996,11 @@ export default function App() {
           progress={getInspectionProgress(task.id)}
           onBack={() => setScreen("schedule-inspection")}
           onViewFullInfo={() => setScreen("inspection-info-details")}
-          onStartSession={key => {
+          onStartSession={(key, startDate) => {
             const current = getInspectionProgress(task.id)[key];
-            if (current === "not-started") advanceInspectionProgress(task.id, key);
+            if (current === "not-started") {
+              advanceInspectionProgress(task.id, key, { startDate });
+            }
             setScreen("physical-verification");
           }}
         />
@@ -5987,7 +6067,10 @@ export default function App() {
         <QrDetailsScreen
           record={activeRecord}
           onBack={() => { setAutoStartScanner(false); setScreen("sample-verification-scan"); }}
-          onFinish={() => setScreen("inspection-details")}
+          onFinish={() => {
+            advanceInspectionProgress(task.id, "preShipment", { complete: true });
+            setScreen("inspection-details");
+          }}
         />
         {bottomNav}
       </>
