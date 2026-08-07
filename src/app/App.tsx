@@ -5,7 +5,7 @@ import {
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
   ScanLine, QrCode, Calendar, Search, ListFilter, X, Truck, CheckCircle2, ArrowRight,
   Ship, Anchor, CircleDollarSign, Layers, Container, Paperclip, Scale, FileText,
-  Clock, Plus, Camera, Upload, Home, Image as ImageIcon,
+  Clock, Plus, Camera, Upload, Home, Image as ImageIcon, Trash2,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
 import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
@@ -1745,15 +1745,13 @@ function ScheduleInspectionScreen({
   onBack,
   onStartInspection,
   getProgress,
-  exporter,
-  concession,
 }: {
   dark?: boolean;
   onBack: () => void;
   onStartInspection: (task: InspectionTask) => void;
   getProgress: (taskId: string) => InspectionProgress;
-  exporter: string;
-  concession: string;
+  exporter?: string;
+  concession?: string;
 }) {
   const [dayFilter, setDayFilter] = useState<DayFilter>("today");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -1912,7 +1910,7 @@ function ScheduleInspectionScreen({
         aria-hidden="true"
       />
 
-      {/* Sticky chrome: 1 Header → 2 Assignment → 3 Search → 4 Tabs → 5 Summary */}
+      {/* Sticky chrome: Header → Search → Tabs → Summary */}
       <div
         className="relative z-40 shrink-0 w-full"
         style={{ background: pageBg }}
@@ -1930,56 +1928,7 @@ function ScheduleInspectionScreen({
         </AppHeaderBar>
 
         <div className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-4 pb-3 gap-3.5">
-          {/* 2. Assignment Context Card */}
-          <div
-            className="relative overflow-hidden rounded-2xl p-3.5 sm:p-4 animate-riseIn"
-            style={{
-              ["--rise-delay" as string]: "20ms",
-              background: GRADIENT,
-              boxShadow: "0 10px 28px rgba(15,47,143,0.28)",
-            }}
-          >
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 55%)" }}
-              aria-hidden="true"
-            />
-
-            <div className="relative z-10 flex flex-col gap-3.5">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.18)" }}
-                >
-                  <ClipboardList size={17} style={{ color: "#ffffff" }} />
-                </div>
-                <h2 className="text-[15px] font-bold text-white tracking-tight">Assignment</h2>
-              </div>
-
-              <div
-                className="rounded-xl px-3 py-3 grid grid-cols-2 gap-2.5 sm:gap-3"
-                style={{
-                  background: "rgba(255,255,255,0.10)",
-                  border: "1px solid rgba(255,255,255,0.14)",
-                }}
-              >
-                <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.58)" }}>
-                    Exporter
-                  </p>
-                  <p className="text-[12px] sm:text-[13px] font-semibold text-white mt-1 leading-snug break-words">{exporter}</p>
-                </div>
-                <div className="min-w-0 pl-2.5 sm:pl-3" style={{ borderLeft: "1px solid rgba(255,255,255,0.16)" }}>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.58)" }}>
-                    Concession
-                  </p>
-                  <p className="text-[12px] sm:text-[13px] font-semibold text-white mt-1 leading-snug break-words">{concession}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Search & Filter Controls */}
+          {/* Search & Filter Controls */}
           <div className="flex items-center gap-2.5 animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }}>
             <div
               className="flex-1 min-w-0 flex items-center gap-3 h-12 px-3.5 rounded-2xl transition-[box-shadow,border-color,background] duration-200"
@@ -2183,9 +2132,12 @@ function ScheduleInspectionScreen({
                     </div>
 
                     <div className="flex flex-col gap-0.5">
-                      <h3 className="text-[15px] font-bold leading-snug tracking-tight tabular-nums" style={{ color: textPrimary }}>
-                        {task.shipment}
+                      <h3 className="text-[15px] font-bold leading-snug tracking-tight" style={{ color: textPrimary }}>
+                        {task.exporter}
                       </h3>
+                      <p className="text-[12px] font-medium leading-snug truncate tabular-nums" style={{ color: textMuted }}>
+                        {task.shipment}
+                      </p>
                     </div>
 
                     {/* Iconized meta row */}
@@ -3402,10 +3354,12 @@ function AttachmentFileCard({
   file,
   dark = false,
   index = 0,
+  onDelete,
 }: {
   file: AttachmentFile;
   dark?: boolean;
   index?: number;
+  onDelete?: () => void;
 }) {
   const parsed = parseAttachment(file.fileName);
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
@@ -3430,9 +3384,8 @@ function AttachmentFileCard({
           : { background: "#fef2f2", color: "#dc2626" };
 
   return (
-    <button
-      type="button"
-      className="w-full text-left rounded-3xl p-4 animate-riseIn focus:outline-none active:scale-[0.99] transition-transform"
+    <div
+      className="w-full rounded-3xl p-4 animate-riseIn"
       style={{
         backdropFilter: "blur(18px)",
         WebkitBackdropFilter: "blur(18px)",
@@ -3441,7 +3394,6 @@ function AttachmentFileCard({
         boxShadow: elevation,
         ["--rise-delay" as string]: `${60 + index * 50}ms`,
       }}
-      aria-label={`View ${parsed.title}`}
     >
       <div className="flex items-center gap-3">
         <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={iconTone}>
@@ -3474,19 +3426,37 @@ function AttachmentFileCard({
           </div>
         </div>
 
-        <span
-          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 self-center"
-          style={{
-            background: dark ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.08)",
-            color: accent,
-            border: cardBorder,
-          }}
-          aria-hidden
-        >
-          <MaterialSymbol name="visibility" size={20} />
-        </span>
+        <div className="flex items-center gap-2 flex-shrink-0 self-center">
+          <button
+            type="button"
+            className="w-10 h-10 rounded-xl flex items-center justify-center focus:outline-none active:scale-95 transition-transform"
+            style={{
+              background: dark ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.08)",
+              color: accent,
+              border: cardBorder,
+            }}
+            aria-label={`View ${parsed.title}`}
+          >
+            <MaterialSymbol name="visibility" size={20} />
+          </button>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="w-10 h-10 rounded-xl flex items-center justify-center focus:outline-none active:scale-95 transition-transform"
+              style={{
+                background: dark ? "rgba(220,38,38,0.18)" : "#fef2f2",
+                color: dark ? "#f87171" : "#dc2626",
+                border: dark ? "1px solid rgba(248,113,113,0.25)" : "1px solid rgba(220,38,38,0.16)",
+              }}
+              aria-label={`Delete ${parsed.title}`}
+            >
+              <Trash2 size={17} />
+            </button>
+          )}
+        </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -5003,27 +4973,61 @@ function PhysicalVerificationScreen({
                 Type of Non-Compliance
               </label>
               <div
-                className="rounded-2xl p-3 flex flex-col gap-2.5 max-h-60 overflow-y-auto"
-                style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.10)", boxShadow: "0 2px 12px rgba(15,47,143,0.04)" }}
+                className="rounded-2xl overflow-hidden flex flex-col"
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid rgba(15,47,143,0.12)",
+                  boxShadow: "0 2px 12px rgba(15,47,143,0.05)",
+                }}
               >
-                {NON_COMPLIANCE_TYPES.map(type => {
-                  const checked = selectedNcTypes.includes(type);
-                  return (
-                    <label
-                      key={type}
-                      className="flex items-start gap-2.5 cursor-pointer text-[12px]"
-                      style={{ color: "#0a1a4a" }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => handleNcTypeToggle(type)}
-                        className="mt-0.5 rounded accent-[#0f2f8f]"
-                      />
-                      <span>{type}</span>
-                    </label>
-                  );
-                })}
+                <div className="px-3.5 pt-3 pb-2">
+                  <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+                    Non-Compliance Records
+                  </p>
+                </div>
+
+                <div className="px-3 pb-3 flex flex-col gap-2 max-h-56 overflow-y-auto overscroll-contain">
+                  {NON_COMPLIANCE_TYPES.map(type => {
+                    const checked = selectedNcTypes.includes(type);
+                    return (
+                      <label
+                        key={type}
+                        className="flex items-center gap-3 cursor-pointer rounded-full px-3 py-2.5 transition-all active:scale-[0.99]"
+                        style={{
+                          background: checked ? "rgba(15,47,143,0.06)" : "#ffffff",
+                          border: checked
+                            ? "1.5px solid rgba(15,47,143,0.35)"
+                            : "1.5px solid rgba(15,47,143,0.12)",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleNcTypeToggle(type)}
+                          className="w-4 h-4 flex-shrink-0 rounded accent-[#0f2f8f]"
+                        />
+                        <span className="text-[14px] font-medium leading-snug" style={{ color: "#0a1a4a" }}>
+                          {type}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div
+                  className="px-3.5 py-2.5"
+                  style={{
+                    background: "rgba(15,47,143,0.05)",
+                    borderTop: "1px solid rgba(15,47,143,0.08)",
+                  }}
+                >
+                  <p className="text-[12px] font-semibold" style={{ color: "#5a6a99" }}>
+                    Summary:{" "}
+                    <span style={{ color: "#0f2f8f" }}>
+                      {selectedNcTypes.length} selected
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -5177,7 +5181,12 @@ function PhysicalVerificationScreen({
             )}
 
             {attachments.map((file, i) => (
-              <AttachmentFileCard key={`${file.fileName}-${i}`} file={file} index={i} />
+              <AttachmentFileCard
+                key={`${file.fileName}-${i}`}
+                file={file}
+                index={i}
+                onDelete={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
+              />
             ))}
           </div>
         )}
@@ -6298,6 +6307,13 @@ export default function App() {
   }, [screen, userType, location, dark, selectedInspectionId]);
 
   // Safety net: if we ever land on a task-dependent screen without a resolvable task
+  useEffect(() => {
+    if (screen !== "cu-signin") return;
+    setUserType("cu");
+    setLocation(prev => prev || "Control Union");
+    setScreen("home");
+  }, [screen]);
+
   // (e.g. a stale/lost id), bounce back to the list instead of rendering blank.
   useEffect(() => {
     if (INSPECTION_TASK_SCREENS.includes(screen) && !SCHEDULED_INSPECTIONS.some(t => t.id === selectedInspectionId)) {
@@ -6308,11 +6324,8 @@ export default function App() {
   if (screen === "login") return (
     <LoginScreen
       onSignIn={() => { setUserType("client"); setScreen("location"); }}
-      onCUSignIn={() => setScreen("cu-signin")}
+      onCUSignIn={() => { setUserType("cu"); setLocation("Control Union"); setScreen("home"); }}
     />
-  );
-  if (screen === "cu-signin") return (
-    <CUSignInScreen onNext={loc => { setUserType("cu"); setLocation(loc); setScreen("home"); }} />
   );
   if (screen === "location") return (
     <LocationScreen onNext={loc => { setUserType("client"); setLocation(loc); setScreen("home"); }} />
