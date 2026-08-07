@@ -1258,10 +1258,15 @@ interface RegisterLogFormData {
   serialNo: string;
   regDate: string;
   productGroup: string;
+  productType: string;
   productName: string;
   lotNumber: string;
   length: string;
   diameter: string;
+  diameter1: string;
+  diameter2: string;
+  diameter3: string;
+  diameter4: string;
   volume: string;
   defectVolume: string;
   note: string;
@@ -1272,10 +1277,15 @@ const EMPTY_REGISTER_LOG: RegisterLogFormData = {
   serialNo: "",
   regDate: "",
   productGroup: "",
+  productType: "",
   productName: "",
   lotNumber: "",
   length: "",
   diameter: "",
+  diameter1: "",
+  diameter2: "",
+  diameter3: "",
+  diameter4: "",
   volume: "",
   defectVolume: "",
   note: "",
@@ -1287,10 +1297,15 @@ const REGISTERED_LOG_ENTRY: RegisterLogFormData = {
   serialNo: "0000000001",
   regDate: "2026-05-25",
   productGroup: "Group 1",
+  productType: "Saw/Veneer",
   productName: "Taun",
   lotNumber: "LOT-2026-042",
   length: "10.0",
   diameter: "11.0",
+  diameter1: "11.0",
+  diameter2: "10.8",
+  diameter3: "10.6",
+  diameter4: "10.5",
   volume: "12.0",
   defectVolume: "1.2",
   note: "Previously registered — review details before updating.",
@@ -1298,6 +1313,7 @@ const REGISTERED_LOG_ENTRY: RegisterLogFormData = {
 };
 
 const PRODUCT_GROUPS = ["Group 1", "Group 2"] as const;
+const PRODUCT_TYPES = ["Round Log", "Saw/Veneer", "Sawn Timber", "Flitch", "Billet"] as const;
 
 const PRODUCT_NAMES: Record<(typeof PRODUCT_GROUPS)[number], string[]> = {
   "Group 1": [...TIMBER_SPECIES.slice(0, 17)],
@@ -1326,15 +1342,21 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
   const [serialNo, setSerialNo] = useState(initial.serialNo);
   const [regDate, setRegDate] = useState(initial.regDate);
   const [productGroup, setProductGroup] = useState(initial.productGroup);
+  const [productType, setProductType] = useState(initial.productType);
   const [productName, setProductName] = useState(initial.productName);
   const [lotNumber, setLotNumber] = useState(initial.lotNumber);
   const [length, setLength] = useState(initial.length);
   const [diameter, setDiameter] = useState(initial.diameter);
+  const [diameter1, setDiameter1] = useState(initial.diameter1);
+  const [diameter2, setDiameter2] = useState(initial.diameter2);
+  const [diameter3, setDiameter3] = useState(initial.diameter3);
+  const [diameter4, setDiameter4] = useState(initial.diameter4);
   const [volume, setVolume] = useState(initial.volume);
   const [defectVolume, setDefectVolume] = useState(initial.defectVolume);
   const [note, setNote] = useState(initial.note);
   const [status, setStatus] = useState(initial.status);
   const [pgOpen, setPgOpen] = useState(false);
+  const [ptOpen, setPtOpen] = useState(false);
   const [pnOpen, setPnOpen] = useState(false);
 
   // White fills keep the fields legible against the tinted page.
@@ -1391,7 +1413,7 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
               <input className={inputCls} style={fieldStyle} value={productGroup} readOnly />
             ) : (
               <div className="relative">
-                <button type="button" onClick={() => { setPgOpen(v => !v); setPnOpen(false); }}
+                <button type="button" onClick={() => { setPgOpen(v => !v); setPnOpen(false); setPtOpen(false); }}
                   className="w-full rounded-xl px-4 py-3 text-sm text-left flex items-center justify-between focus:outline-none"
                   style={{ ...fieldStyle, color: productGroup ? "#0a1a4a" : "#9ca3af", border: pgOpen ? "1px solid #60a5fa" : "1px solid #dce4f5" }}>
                   <span>{productGroup || "Select"}</span>
@@ -1414,6 +1436,35 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
             )}
           </FormField>
 
+          {/* Product Type */}
+          <FormField label="Product Type" required>
+            {viewOnly ? (
+              <input className={inputCls} style={fieldStyle} value={productType} readOnly />
+            ) : (
+              <div className="relative">
+                <button type="button" onClick={() => { setPtOpen(v => !v); setPgOpen(false); setPnOpen(false); }}
+                  className="w-full rounded-xl px-4 py-3 text-sm text-left flex items-center justify-between focus:outline-none"
+                  style={{ ...fieldStyle, color: productType ? "#0a1a4a" : "#9ca3af", border: ptOpen ? "1px solid #60a5fa" : "1px solid #dce4f5" }}>
+                  <span>{productType || "Select"}</span>
+                  <ChevronDown size={15} style={{ color: "#5a6a99", transform: ptOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+                </button>
+                {ptOpen && (
+                  <div className="absolute left-0 right-0 mt-1 rounded-xl z-20 shadow-xl overflow-hidden"
+                    style={{ background: "#ffffff", border: "1px solid #dce4f5", maxHeight: "200px", overflowY: "auto" }}>
+                    {PRODUCT_TYPES.map(t => (
+                      <button key={t} type="button"
+                        onClick={() => { setProductType(t); setPtOpen(false); }}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 focus:outline-none transition-colors"
+                        style={{ color: productType === t ? "#0f2f8f" : "#0a1a4a", fontWeight: productType === t ? 600 : 400, borderBottom: "1px solid #f0f4ff" }}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </FormField>
+
           {/* Product Name */}
           <FormField label="Product Name" required>
             {viewOnly ? (
@@ -1421,7 +1472,7 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
             ) : (
               <div className="relative">
                 <button type="button"
-                  onClick={() => { if (productGroup) { setPnOpen(v => !v); setPgOpen(false); } }}
+                  onClick={() => { if (productGroup) { setPnOpen(v => !v); setPgOpen(false); setPtOpen(false); } }}
                   className="w-full rounded-xl px-4 py-3 text-sm text-left flex items-center justify-between focus:outline-none"
                   style={{ ...fieldStyle, color: productName ? "#0a1a4a" : "#9ca3af", border: pnOpen ? "1px solid #60a5fa" : "1px solid #dce4f5", opacity: productGroup ? 1 : 0.5 }}>
                   <span>{productName || "Select"}</span>
@@ -1459,17 +1510,63 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
           {/* Measurements — 2-column pairs */}
           <div className="flex flex-col gap-3">
             <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>Measurements</p>
+            <div className="flex flex-col gap-3">
+              <FormField label="D1 (cm)">
+                <input
+                  type="text"
+                  className={inputCls}
+                  style={fieldStyle}
+                  placeholder="--"
+                  value={diameter1}
+                  onChange={e => setDiameter1(e.target.value)}
+                  readOnly={viewOnly}
+                />
+              </FormField>
+              <FormField label="D2 (cm)">
+                <input
+                  type="text"
+                  className={inputCls}
+                  style={fieldStyle}
+                  placeholder="--"
+                  value={diameter2}
+                  onChange={e => setDiameter2(e.target.value)}
+                  readOnly={viewOnly}
+                />
+              </FormField>
+              <FormField label="D3 (cm)">
+                <input
+                  type="text"
+                  className={inputCls}
+                  style={fieldStyle}
+                  placeholder="--"
+                  value={diameter3}
+                  onChange={e => setDiameter3(e.target.value)}
+                  readOnly={viewOnly}
+                />
+              </FormField>
+              <FormField label="D4 (cm)">
+                <input
+                  type="text"
+                  className={inputCls}
+                  style={fieldStyle}
+                  placeholder="--"
+                  value={diameter4}
+                  onChange={e => setDiameter4(e.target.value)}
+                  readOnly={viewOnly}
+                />
+              </FormField>
+            </div>
             <div className="grid grid-cols-2 gap-3">
+              <FormField label="Avg.diamete" required>
+                <div className="relative">
+                  <input type="number" className={inputCls} style={{ ...fieldStyle, paddingRight: "2.5rem" }} placeholder="0.00" step="0.01" min="0" value={diameter} onChange={e => setDiameter(e.target.value)} readOnly={viewOnly} />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none" style={{ color: "#94a3b8" }}>cm</span>
+                </div>
+              </FormField>
               <FormField label="Length" required>
                 <div className="relative">
                   <input type="number" className={inputCls} style={{ ...fieldStyle, paddingRight: "2.5rem" }} placeholder="0.00" step="0.01" min="0" value={length} onChange={e => setLength(e.target.value)} readOnly={viewOnly} />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none" style={{ color: "#94a3b8" }}>m</span>
-                </div>
-              </FormField>
-              <FormField label="Diameter" required>
-                <div className="relative">
-                  <input type="number" className={inputCls} style={{ ...fieldStyle, paddingRight: "2.5rem" }} placeholder="0.00" step="0.01" min="0" value={diameter} onChange={e => setDiameter(e.target.value)} readOnly={viewOnly} />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none" style={{ color: "#94a3b8" }}>cm</span>
                 </div>
               </FormField>
             </div>
@@ -5110,13 +5207,17 @@ const SAMPLE_QR_POOL: { code: string; status: ScanStatus; log: RegisterLogFormDa
     code: "SSC-QR-0000000014",
     status: "verified",
     log: {
-      serialNo: "0000000014", regDate: "2026-07-12", productGroup: "Group 1", productName: "Taun",
-      lotNumber: "LOT-2026-042", length: "10.4", diameter: "11.6", volume: "12.4", defectVolume: "0.8",
+      serialNo: "0000000014", regDate: "2026-07-12", productGroup: "Group 1", productType: "Saw/Veneer", productName: "Taun",
+      lotNumber: "LOT-2026-042", length: "10.4", diameter: "11.6",
+      diameter1: "11.6", diameter2: "11.4", diameter3: "11.2", diameter4: "11.0",
+      volume: "12.4", defectVolume: "0.8",
       note: "Sample drawn from stack A — bark intact, no visible defects.", status: "AVAILABLE",
     },
     previous: {
-      serialNo: "0000000014", regDate: "2026-07-12", productGroup: "Group 1", productName: "Taun",
-      lotNumber: "LOT-2026-042", length: "10.0", diameter: "11.0", volume: "12.0", defectVolume: "1.2",
+      serialNo: "0000000014", regDate: "2026-07-12", productGroup: "Group 1", productType: "Saw/Veneer", productName: "Taun",
+      lotNumber: "LOT-2026-042", length: "10.0", diameter: "11.0",
+      diameter1: "11.0", diameter2: "10.8", diameter3: "10.6", diameter4: "10.5",
+      volume: "12.0", defectVolume: "1.2",
       note: "Declared by exporter — pending sample verification.", status: "AVAILABLE",
     },
   },
@@ -5124,13 +5225,17 @@ const SAMPLE_QR_POOL: { code: string; status: ScanStatus; log: RegisterLogFormDa
     code: "SSC-QR-0000000027",
     status: "flagged",
     log: {
-      serialNo: "0000000027", regDate: "2026-07-12", productGroup: "Group 1", productName: "Kwila",
-      lotNumber: "LOT-2026-042", length: "9.8", diameter: "13.2", volume: "13.9", defectVolume: "1.4",
+      serialNo: "0000000027", regDate: "2026-07-12", productGroup: "Group 1", productType: "Round Log", productName: "Kwila",
+      lotNumber: "LOT-2026-042", length: "9.8", diameter: "13.2",
+      diameter1: "13.2", diameter2: "13.0", diameter3: "12.8", diameter4: "12.6",
+      volume: "13.9", defectVolume: "1.4",
       note: "Minor end split recorded during sample verification.", status: "AVAILABLE",
     },
     previous: {
-      serialNo: "0000000027", regDate: "2026-07-12", productGroup: "Group 1", productName: "Kwila",
-      lotNumber: "LOT-2026-040", length: "9.8", diameter: "12.5", volume: "13.0", defectVolume: "0.9",
+      serialNo: "0000000027", regDate: "2026-07-12", productGroup: "Group 1", productType: "Round Log", productName: "Kwila",
+      lotNumber: "LOT-2026-040", length: "9.8", diameter: "12.5",
+      diameter1: "12.5", diameter2: "12.4", diameter3: "12.2", diameter4: "12.0",
+      volume: "13.0", defectVolume: "0.9",
       note: "Exporter declared dimensions.", status: "AVAILABLE",
     },
   },
@@ -5138,13 +5243,17 @@ const SAMPLE_QR_POOL: { code: string; status: ScanStatus; log: RegisterLogFormDa
     code: "SSC-QR-0000000031",
     status: "verified",
     log: {
-      serialNo: "0000000031", regDate: "2026-07-13", productGroup: "Group 2", productName: "Erima",
-      lotNumber: "LOT-2026-043", length: "11.2", diameter: "10.4", volume: "11.6", defectVolume: "0.5",
+      serialNo: "0000000031", regDate: "2026-07-13", productGroup: "Group 2", productType: "Sawn Timber", productName: "Erima",
+      lotNumber: "LOT-2026-043", length: "11.2", diameter: "10.4",
+      diameter1: "10.4", diameter2: "10.4", diameter3: "10.2", diameter4: "10.2",
+      volume: "11.6", defectVolume: "0.5",
       note: "Dimensions match the declared manifest entry.", status: "AVAILABLE",
     },
     previous: {
-      serialNo: "0000000031", regDate: "2026-07-13", productGroup: "Group 2", productName: "Erima",
-      lotNumber: "LOT-2026-043", length: "11.0", diameter: "10.4", volume: "11.2", defectVolume: "0.5",
+      serialNo: "0000000031", regDate: "2026-07-13", productGroup: "Group 2", productType: "Sawn Timber", productName: "Erima",
+      lotNumber: "LOT-2026-043", length: "11.0", diameter: "10.4",
+      diameter1: "10.4", diameter2: "10.3", diameter3: "10.2", diameter4: "10.1",
+      volume: "11.2", defectVolume: "0.5",
       note: "Dimensions match the declared manifest entry.", status: "AVAILABLE",
     },
   },
@@ -5152,13 +5261,17 @@ const SAMPLE_QR_POOL: { code: string; status: ScanStatus; log: RegisterLogFormDa
     code: "SSC-QR-0000000045",
     status: "verified",
     log: {
-      serialNo: "0000000045", regDate: "2026-07-13", productGroup: "Group 2", productName: "Calophyllum",
-      lotNumber: "LOT-2026-043", length: "10.0", diameter: "12.0", volume: "12.8", defectVolume: "1.1",
+      serialNo: "0000000045", regDate: "2026-07-13", productGroup: "Group 2", productType: "Flitch", productName: "Calophyllum",
+      lotNumber: "LOT-2026-043", length: "10.0", diameter: "12.0",
+      diameter1: "12.0", diameter2: "11.8", diameter3: "11.6", diameter4: "11.5",
+      volume: "12.8", defectVolume: "1.1",
       note: "Sample verified against exporter declared log details.", status: "AVAILABLE",
     },
     previous: {
-      serialNo: "0000000045", regDate: "2026-07-10", productGroup: "Group 2", productName: "Calophyllum",
-      lotNumber: "LOT-2026-043", length: "10.0", diameter: "12.0", volume: "12.0", defectVolume: "1.1",
+      serialNo: "0000000045", regDate: "2026-07-10", productGroup: "Group 2", productType: "Flitch", productName: "Calophyllum",
+      lotNumber: "LOT-2026-043", length: "10.0", diameter: "12.0",
+      diameter1: "12.0", diameter2: "11.9", diameter3: "11.7", diameter4: "11.6",
+      volume: "12.0", defectVolume: "1.1",
       note: "Awaiting physical sample check.", status: "PENDING",
     },
   },
@@ -5174,10 +5287,15 @@ const LOG_COMPARE_FIELDS: LogCompareField[] = [
   { key: "serialNo", label: "Serial No" },
   { key: "regDate", label: "Reg Date" },
   { key: "productGroup", label: "Product Group" },
+  { key: "productType", label: "Product Type" },
   { key: "productName", label: "Product Name" },
   { key: "lotNumber", label: "Lot Number" },
+  { key: "diameter", label: "Avg.diamete", unit: "cm" },
   { key: "length", label: "Length", unit: "m" },
-  { key: "diameter", label: "Diameter", unit: "cm" },
+  { key: "diameter1", label: "D1", unit: "cm" },
+  { key: "diameter2", label: "D2", unit: "cm" },
+  { key: "diameter3", label: "D3", unit: "cm" },
+  { key: "diameter4", label: "D4", unit: "cm" },
   { key: "volume", label: "Volume", unit: "m³" },
   { key: "defectVolume", label: "Defect Volume", unit: "m³" },
   { key: "note", label: "Note" },
@@ -5490,6 +5608,190 @@ function SampleVerificationScanScreen({
   );
 }
 
+type MeasurementValues = {
+  diameter1: string;
+  diameter2: string;
+  diameter3: string;
+  diameter4: string;
+  diameter: string;
+  length: string;
+  volume: string;
+  defectVolume: string;
+};
+
+const EMPTY_MEASUREMENTS: MeasurementValues = {
+  diameter1: "",
+  diameter2: "",
+  diameter3: "",
+  diameter4: "",
+  diameter: "",
+  length: "",
+  volume: "",
+  defectVolume: "",
+};
+
+function measurementsFromLog(data: RegisterLogFormData): MeasurementValues {
+  return {
+    diameter1: data.diameter1,
+    diameter2: data.diameter2,
+    diameter3: data.diameter3,
+    diameter4: data.diameter4,
+    diameter: data.diameter,
+    length: data.length,
+    volume: data.volume,
+    defectVolume: data.defectVolume,
+  };
+}
+
+function MeasurementSidePanel({
+  title,
+  values,
+  onChange,
+  readOnly = false,
+}: {
+  title: string;
+  values: MeasurementValues;
+  onChange?: (patch: Partial<MeasurementValues>) => void;
+  readOnly?: boolean;
+}) {
+  const compactInput = "w-full rounded-xl px-2 py-2 text-[12px] outline-none border focus:border-blue-400";
+  const unitCls = "absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium pointer-events-none";
+  const labelCls = "text-[12px] font-semibold";
+  const fieldStyle: CSSProperties = readOnly
+    ? { background: "#ffffff", border: "1px solid #dce4f5", color: "#5a6a99", cursor: "not-allowed" }
+    : { background: "#ffffff", border: "1px solid #dce4f5", color: "#0a1a4a" };
+
+  const set = (key: keyof MeasurementValues) => (e: ChangeEvent<HTMLInputElement>) => {
+    onChange?.({ [key]: e.target.value });
+  };
+
+  return (
+    <div
+      className="flex-1 min-w-0 rounded-2xl px-2 py-2 flex flex-col gap-1.5"
+      style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.10)" }}
+    >
+      <p className="text-[12px] font-bold uppercase tracking-wider pb-0.5" style={{ color: "#0f2f8f" }}>
+        {title}
+      </p>
+
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-0.5">
+          <label className={labelCls} style={{ color: "#0a1a4a" }}>D1 (cm)</label>
+          <input
+            className={compactInput}
+            style={fieldStyle}
+            value={values.diameter1}
+            placeholder="--"
+            readOnly={readOnly}
+            onChange={set("diameter1")}
+          />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <label className={labelCls} style={{ color: "#0a1a4a" }}>D2 (cm)</label>
+          <input
+            className={compactInput}
+            style={fieldStyle}
+            value={values.diameter2}
+            placeholder="--"
+            readOnly={readOnly}
+            onChange={set("diameter2")}
+          />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <label className={labelCls} style={{ color: "#0a1a4a" }}>D3 (cm)</label>
+          <input
+            className={compactInput}
+            style={fieldStyle}
+            value={values.diameter3}
+            placeholder="--"
+            readOnly={readOnly}
+            onChange={set("diameter3")}
+          />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <label className={labelCls} style={{ color: "#0a1a4a" }}>D4 (cm)</label>
+          <input
+            className={compactInput}
+            style={fieldStyle}
+            value={values.diameter4}
+            placeholder="--"
+            readOnly={readOnly}
+            onChange={set("diameter4")}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-0.5">
+        <label className={labelCls} style={{ color: "#0a1a4a" }}>
+          Avg.diamete <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <input
+            className={compactInput}
+            style={{ ...fieldStyle, paddingRight: "1.75rem" }}
+            value={values.diameter}
+            placeholder="0.00"
+            readOnly={readOnly}
+            onChange={set("diameter")}
+          />
+          <span className={unitCls} style={{ color: "#94a3b8" }}>cm</span>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-0.5">
+        <label className={labelCls} style={{ color: "#0a1a4a" }}>
+          Length <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <input
+            className={compactInput}
+            style={{ ...fieldStyle, paddingRight: "1.5rem" }}
+            value={values.length}
+            placeholder="0.00"
+            readOnly={readOnly}
+            onChange={set("length")}
+          />
+          <span className={unitCls} style={{ color: "#94a3b8" }}>m</span>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-0.5">
+        <label className={labelCls} style={{ color: "#0a1a4a" }}>
+          Volume <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <input
+            className={compactInput}
+            style={{ ...fieldStyle, paddingRight: "1.75rem" }}
+            value={values.volume}
+            placeholder="0.00"
+            readOnly={readOnly}
+            onChange={set("volume")}
+          />
+          <span className={unitCls} style={{ color: "#94a3b8" }}>m³</span>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-0.5">
+        <label className={labelCls} style={{ color: "#0a1a4a" }}>
+          Defect Volume <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <input
+            className={compactInput}
+            style={{ ...fieldStyle, paddingRight: "1.75rem" }}
+            value={values.defectVolume}
+            placeholder="0.00"
+            readOnly={readOnly}
+            onChange={set("defectVolume")}
+          />
+          <span className={unitCls} style={{ color: "#94a3b8" }}>m³</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function QrDetailsScreen({
   record,
   onBack,
@@ -5501,6 +5803,8 @@ function QrDetailsScreen({
 }) {
   const [view, setView] = useState<"details" | "confirm">("details");
   const log = record.log;
+  const exporter = record.previous;
+  const [inspectorMeasurements, setInspectorMeasurements] = useState<MeasurementValues>(EMPTY_MEASUREMENTS);
   const changedFields = getChangedLogFields(record.previous, record.log);
   // White fills keep the read-only fields legible against the tinted page.
   const readOnlyStyle = { ...inputStyle, background: "#ffffff", color: "#5a6a99", cursor: "not-allowed" as const };
@@ -5671,6 +5975,10 @@ function QrDetailsScreen({
             <input className={inputCls} style={readOnlyStyle} value={log.productGroup} readOnly />
           </FormField>
 
+          <FormField label="Product Type" required>
+            <input className={inputCls} style={readOnlyStyle} value={log.productType} readOnly />
+          </FormField>
+
           <FormField label="Product Name" required>
             <input className={inputCls} style={readOnlyStyle} value={log.productName} readOnly />
           </FormField>
@@ -5679,35 +5987,19 @@ function QrDetailsScreen({
             <input className={inputCls} style={readOnlyStyle} value={log.lotNumber} readOnly />
           </FormField>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>Measurements</p>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Length" required>
-                <div className="relative">
-                  <input className={inputCls} style={{ ...readOnlyStyle, paddingRight: "2.5rem" }} value={log.length} readOnly />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none" style={{ color: "#94a3b8" }}>m</span>
-                </div>
-              </FormField>
-              <FormField label="Diameter" required>
-                <div className="relative">
-                  <input className={inputCls} style={{ ...readOnlyStyle, paddingRight: "2.5rem" }} value={log.diameter} readOnly />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none" style={{ color: "#94a3b8" }}>cm</span>
-                </div>
-              </FormField>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Volume" required>
-                <div className="relative">
-                  <input className={inputCls} style={{ ...readOnlyStyle, paddingRight: "2.5rem" }} value={log.volume} readOnly />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none" style={{ color: "#94a3b8" }}>m³</span>
-                </div>
-              </FormField>
-              <FormField label="Defect Volume" required>
-                <div className="relative">
-                  <input className={inputCls} style={{ ...readOnlyStyle, paddingRight: "2.5rem" }} value={log.defectVolume} readOnly />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none" style={{ color: "#94a3b8" }}>m³</span>
-                </div>
-              </FormField>
+            <div className="flex gap-2.5 items-start">
+              <MeasurementSidePanel
+                title="Exporter"
+                values={measurementsFromLog(exporter)}
+                readOnly
+              />
+              <MeasurementSidePanel
+                title="Inspector"
+                values={inspectorMeasurements}
+                onChange={patch => setInspectorMeasurements(prev => ({ ...prev, ...patch }))}
+              />
             </div>
           </div>
 
