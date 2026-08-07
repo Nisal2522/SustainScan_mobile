@@ -30,12 +30,16 @@ interface PhysicalVerificationDraft {
   volumeOk: "yes" | "no" | null;
   photoAdded: boolean;
   nonConformanceReason: string;
+  physicalStepComplete: boolean;
+  sampleStepComplete: boolean;
 }
 
 const EMPTY_PHYSICAL_VERIFICATION: PhysicalVerificationDraft = {
   volumeOk: null,
   photoAdded: false,
   nonConformanceReason: "",
+  physicalStepComplete: false,
+  sampleStepComplete: false,
 };
 
 interface InspectionTask {
@@ -4368,6 +4372,104 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
 type PreShipmentTab = "verification" | "non-compliance" | "attachments";
 type NonComplianceView = "list" | "create";
 
+const PRE_SHIPMENT_VERIFY_STEPS = [
+  { id: "physical" as const, label: "Physical verification" },
+  { id: "sample" as const, label: "Sample verification" },
+];
+
+function PreShipmentVerifyStepper({
+  activeStep,
+  physicalComplete,
+  sampleComplete,
+  onStepSelect,
+}: {
+  activeStep: "physical" | "sample";
+  physicalComplete: boolean;
+  sampleComplete: boolean;
+  onStepSelect: (step: "physical" | "sample") => void;
+}) {
+  const activeIndex = activeStep === "physical" ? 0 : 1;
+  const stepComplete = [physicalComplete, sampleComplete];
+  const doneCount = stepComplete.filter(Boolean).length;
+  const allDone = physicalComplete && sampleComplete;
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl px-3.5 sm:px-4 py-4 flex flex-col gap-3"
+      style={{ background: GRADIENT, boxShadow: "0 10px 26px rgba(15,47,143,0.30)" }}
+    >
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.00) 58%)" }}
+        aria-hidden="true"
+      />
+
+      <div className="relative z-10 flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.78)" }}>
+          {allDone ? "Completed" : "Current Step"}
+        </p>
+        <span
+          className="text-[11px] font-semibold rounded-full px-2.5 py-1 flex-shrink-0"
+          style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}
+        >
+          {allDone ? "2 / 2" : `${activeIndex + 1} / 2`}
+        </span>
+      </div>
+
+      <p className="relative z-10 text-[14px] font-bold leading-snug" style={{ color: "#ffffff" }}>
+        {allDone ? "Pre-shipment verification complete" : PRE_SHIPMENT_VERIFY_STEPS[activeIndex].label}
+      </p>
+
+      <div className="relative z-10 flex gap-2" role="tablist" aria-label="Verification steps">
+        {PRE_SHIPMENT_VERIFY_STEPS.map((step, i) => {
+          const done = stepComplete[i];
+          const active = activeIndex === i;
+          const filled = done || active;
+          return (
+            <button
+              key={step.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-label={`${step.label}${done ? ", completed" : ""}`}
+              onClick={() => onStepSelect(step.id)}
+              className="h-2 flex-1 rounded-full transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              style={{
+                background: filled ? "#ffffff" : "rgba(255,255,255,0.28)",
+                boxShadow: active && !done ? "0 2px 10px rgba(255,255,255,0.38)" : done ? "0 0 0 1px rgba(255,255,255,0.35)" : "none",
+              }}
+            />
+          );
+        })}
+      </div>
+
+      <div className="relative z-10 grid grid-cols-2 gap-2">
+        {PRE_SHIPMENT_VERIFY_STEPS.map((step, i) => {
+          const done = stepComplete[i];
+          const active = activeIndex === i;
+          return (
+            <button
+              key={step.id}
+              type="button"
+              onClick={() => onStepSelect(step.id)}
+              className={`text-[9px] sm:text-[10px] font-semibold truncate focus:outline-none transition-colors ${i === 1 ? "text-right" : "text-left"}`}
+              style={{ color: active || done ? "#ffffff" : "rgba(255,255,255,0.72)" }}
+            >
+              {done ? `✓ ${step.label}` : step.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {!allDone && doneCount > 0 && (
+        <p className="relative z-10 text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.72)" }}>
+          {doneCount} of 2 steps measured
+        </p>
+      )}
+    </div>
+  );
+}
+
 const NON_COMPLIANCE_TYPES = [
   "Export License vs Declared Volume",
   "Cargo not prepared for inspection",
@@ -4387,21 +4489,24 @@ function PhysicalVerificationScreen({
   onDraftChange,
   onBack,
   onProceed,
+  onGoToSample,
 }: {
   task: InspectionTask;
   draft: PhysicalVerificationDraft;
   onDraftChange: (patch: Partial<PhysicalVerificationDraft>) => void;
   onBack: () => void;
   onProceed: () => void;
+  onGoToSample: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<PreShipmentTab>("verification");
-  const { volumeOk, photoAdded, nonConformanceReason } = draft;
+  const { volumeOk, photoAdded, nonConformanceReason, physicalStepComplete, sampleStepComplete } = draft;
   const [ncView, setNcView] = useState<NonComplianceView>("list");
   const [selectedNcTypes, setSelectedNcTypes] = useState<string[]>([]);
   const [ncDescription, setNcDescription] = useState("");
   const [evidencePhotos, setEvidencePhotos] = useState<EvidencePhoto[]>([]);
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
   const [evidenceSheetOpen, setEvidenceSheetOpen] = useState(false);
+  const [photoSheetPurpose, setPhotoSheetPurpose] = useState<"evidence" | "verification">("evidence");
   const [evidenceSheetBox, setEvidenceSheetBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [attachments, setAttachments] = useState<AttachmentFile[]>(ATTACHMENT_FILES);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
@@ -4440,6 +4545,13 @@ function PhysicalVerificationScreen({
   }, []);
 
   const openEvidenceSheet = () => {
+    setPhotoSheetPurpose("evidence");
+    syncEvidenceSheetBox();
+    setEvidenceSheetOpen(true);
+  };
+
+  const openVerificationPhotoSheet = () => {
+    setPhotoSheetPurpose("verification");
     syncEvidenceSheetBox();
     setEvidenceSheetOpen(true);
   };
@@ -4454,7 +4566,25 @@ function PhysicalVerificationScreen({
     setEvidenceError(null);
   };
 
+  const handleVerificationPhotoPicked = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    closeEvidenceSheet();
+    if (!file) return;
+
+    const ext = file.name.includes(".")
+      ? file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase()
+      : "";
+    const isImage = file.type.startsWith("image/") || ACCEPTED_EVIDENCE_EXTS.includes(ext);
+    if (!isImage || file.size > MAX_ATTACHMENT_BYTES) return;
+    onDraftChange({ photoAdded: true });
+  };
+
   const handleEvidencePicked = (event: ChangeEvent<HTMLInputElement>) => {
+    if (photoSheetPurpose === "verification") {
+      handleVerificationPhotoPicked(event);
+      return;
+    }
     const files = event.target.files;
     event.target.value = "";
     closeEvidenceSheet();
@@ -4613,51 +4743,14 @@ function PhysicalVerificationScreen({
 
         {activeTab === "verification" && (
         <>
-        {/* Progress — blue card */}
-        <div
-          className="relative overflow-hidden rounded-2xl px-3.5 sm:px-4 py-4 flex flex-col gap-3"
-          style={{ background: GRADIENT, boxShadow: "0 10px 26px rgba(15,47,143,0.30)" }}
-        >
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.00) 58%)" }}
-            aria-hidden="true"
-          />
-
-          <div className="relative z-10 flex items-center justify-between gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.78)" }}>
-              Current Step
-            </p>
-            <span
-              className="text-[11px] font-semibold rounded-full px-2.5 py-1 flex-shrink-0"
-              style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}
-            >
-              1 / 2
-            </span>
-          </div>
-
-          <p className="relative z-10 text-[14px] font-bold leading-snug" style={{ color: "#ffffff" }}>
-            Physical verification
-          </p>
-
-          <div className="relative z-10 flex gap-2">
-            {[0, 1].map(i => (
-              <div
-                key={i}
-                className="h-2 flex-1 rounded-full transition-all duration-300"
-                style={{
-                  background: i === 0 ? "#ffffff" : "rgba(255,255,255,0.28)",
-                  boxShadow: i === 0 ? "0 2px 10px rgba(255,255,255,0.38)" : "none",
-                }}
-              />
-            ))}
-          </div>
-
-          <div className="relative z-10 grid grid-cols-2 gap-2 text-[9px] sm:text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.72)" }}>
-            <span className="truncate">Physical verification</span>
-            <span className="truncate text-right">Sample verification</span>
-          </div>
-        </div>
+        <PreShipmentVerifyStepper
+          activeStep="physical"
+          physicalComplete={physicalStepComplete}
+          sampleComplete={sampleStepComplete}
+          onStepSelect={step => {
+            if (step === "sample") onGoToSample();
+          }}
+        />
 
         {/* Declared volume card */}
         <div
@@ -4758,68 +4851,92 @@ function PhysicalVerificationScreen({
             </button>
           </div>
 
-          {volumeOk === "yes" && (
-            <button
-              type="button"
-              onClick={onProceed}
-              className="w-full min-h-[48px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
-              style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
-            >
-              Proceed
-              <ArrowRight size={16} />
-            </button>
-          )}
-
-          {volumeOk === "no" && (
+          {(volumeOk === "yes" || volumeOk === "no") && (
             <div
               className="rounded-2xl p-3.5 flex flex-col gap-3"
-              style={{ background: "#fff6f8", border: "1px solid rgba(212,24,61,0.20)" }}
+              style={{
+                background: volumeOk === "no" ? "#fff6f8" : "rgba(22,163,74,0.08)",
+                border: volumeOk === "no" ? "1px solid rgba(212,24,61,0.20)" : "1px solid rgba(22,163,74,0.28)",
+              }}
             >
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#9f1239" }}>
-                  NON-CONFORMANCE REASON
+                <p
+                  className="text-[11px] font-semibold uppercase tracking-wider"
+                  style={{ color: volumeOk === "no" ? "#9f1239" : "#166534" }}
+                >
+                  Reason
                 </p>
                 <textarea
                   value={nonConformanceReason}
                   onChange={e => onDraftChange({ nonConformanceReason: e.target.value })}
                   rows={3}
-                  placeholder="Enter reason for non-conformance"
+                  placeholder="Enter reason"
                   className="w-full mt-2 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none"
-                  style={{ background: "#ffffff", border: "1px solid rgba(212,24,61,0.25)", color: "#0a1a4a" }}
+                  style={{
+                    background: "#ffffff",
+                    border: volumeOk === "no" ? "1px solid rgba(212,24,61,0.25)" : "1px solid rgba(22,163,74,0.30)",
+                    color: "#0a1a4a",
+                  }}
                 />
               </div>
 
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#9f1239" }}>
-                  ADD PHOTO
+                <p
+                  className="text-[11px] font-semibold uppercase tracking-wider mb-2"
+                  style={{ color: volumeOk === "no" ? "#9f1239" : "#166534" }}
+                >
+                  Add Photo
                 </p>
                 <button
                   type="button"
-                  onClick={() => onDraftChange({ photoAdded: !photoAdded })}
-                  className="w-full rounded-xl px-3.5 py-3 flex items-center justify-between focus:outline-none transition-all duration-200"
+                  onClick={openVerificationPhotoSheet}
+                  className="w-full rounded-xl px-3 py-3.5 flex flex-col items-center justify-center gap-1.5 focus:outline-none active:scale-[0.99] transition-all"
                   style={{
-                    background: photoAdded ? "rgba(22,163,74,0.10)" : "#ffffff",
-                    border: photoAdded ? "1px solid rgba(22,163,74,0.45)" : "1px solid rgba(212,24,61,0.25)",
+                    background: photoAdded
+                      ? "rgba(22,163,74,0.10)"
+                      : "#ffffff",
+                    border: photoAdded
+                      ? "2px dashed rgba(22,163,74,0.45)"
+                      : volumeOk === "no"
+                        ? "2px dashed rgba(212,24,61,0.28)"
+                        : "2px dashed rgba(22,163,74,0.32)",
                   }}
                 >
-                  <span className="text-sm font-semibold" style={{ color: photoAdded ? "#166534" : "#9f1239" }}>
-                    {photoAdded ? "Photo added" : "Tap to add photo"}
+                  <span
+                    className="w-9 h-9 rounded-xl flex items-center justify-center"
+                    style={{
+                      background: photoAdded
+                        ? "rgba(22,163,74,0.16)"
+                        : volumeOk === "no"
+                          ? "rgba(212,24,61,0.10)"
+                          : "rgba(22,163,74,0.12)",
+                      color: photoAdded ? "#16a34a" : volumeOk === "no" ? "#d4183d" : "#166534",
+                    }}
+                  >
+                    <Camera size={18} />
                   </span>
                   <span
-                    className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{ background: photoAdded ? "rgba(22,163,74,0.16)" : "rgba(212,24,61,0.10)" }}
+                    className="text-[12px] font-bold"
+                    style={{ color: photoAdded ? "#166534" : volumeOk === "no" ? "#9f1239" : "#0a1a4a" }}
                   >
-                    <ScanLine size={16} style={{ color: photoAdded ? "#16a34a" : "#d4183d" }} />
+                    {photoAdded ? "Photo added" : "Add Photo"}
+                  </span>
+                  <span
+                    className="text-[10px] font-medium text-center leading-snug"
+                    style={{ color: "#5a6a99" }}
+                  >
+                    {photoAdded ? "Tap to change photo" : "Take photo or upload from gallery"}
                   </span>
                 </button>
               </div>
 
               <button
                 type="button"
+                onClick={onProceed}
                 className="w-full min-h-[44px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
-                style={{ background: "#d4183d", boxShadow: "0 6px 16px rgba(212,24,61,0.30)" }}
+                style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
               >
-                Submit Non-Conformance
+                Submit
               </button>
             </div>
           )}
@@ -5097,13 +5214,13 @@ function PhysicalVerificationScreen({
             }}
             role="dialog"
             aria-modal="true"
-            aria-label="Add evidence photo"
+            aria-label={photoSheetPurpose === "verification" ? "Add photo" : "Add evidence photo"}
           >
             <div className="flex flex-col items-center gap-3">
               <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
               <div className="w-full flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
-                  Add Evidence Photo
+                  {photoSheetPurpose === "verification" ? "Add Photo" : "Add Evidence Photo"}
                 </p>
                 <button
                   type="button"
@@ -5159,7 +5276,7 @@ function PhysicalVerificationScreen({
                 <input
                   type="file"
                   accept="image/*"
-                  multiple
+                  multiple={photoSheetPurpose === "evidence"}
                   onChange={handleEvidencePicked}
                   className="sr-only"
                 />
@@ -5341,19 +5458,77 @@ const SCAN_GLASS = {
 /** Shared history list — frosted rows on the tinted page, not solid white cards. */
 function ScannedHistoryList({
   records,
+  targetVolumeM3,
   onSelect,
 }: {
   records: ScannedSampleLog[];
+  targetVolumeM3: number;
   onSelect: (code: string) => void;
 }) {
+  const scanned = records.length;
+  const scannedVolume = records.reduce((sum, record) => {
+    const raw = Number(record.log.volume || record.previous.volume);
+    return sum + (Number.isNaN(raw) ? 0 : raw);
+  }, 0);
+  const safeTarget = Math.max(0.1, targetVolumeM3);
+  const progress = Math.min(1, scannedVolume / safeTarget);
+  const percent = progress * 100;
+  const formatVol = (n: number) =>
+    n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
   return (
     <div className="flex flex-col gap-3">
+      <div
+        className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-2.5"
+        style={{
+          background: "#ffffff",
+          border: "1px solid rgba(15,47,143,0.14)",
+          boxShadow: "0 2px 12px rgba(15,47,143,0.05)",
+        }}
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#0f2f8f" }}>
+          Total Scanned Volume
+        </p>
+
+        <div className="flex items-end justify-between gap-2">
+          <p className="min-w-0 leading-none">
+            <span className="text-[22px] font-bold tabular-nums" style={{ color: "#0a1a4a" }}>
+              {formatVol(scannedVolume)} m³
+            </span>
+            <span className="text-[13px] font-medium ml-1.5" style={{ color: "#94a3b8" }}>
+              / {formatVol(safeTarget)} m³ target
+            </span>
+          </p>
+          <span className="text-[15px] font-bold tabular-nums flex-shrink-0" style={{ color: "#0a1a4a" }}>
+            {percent.toFixed(1)}%
+          </span>
+        </div>
+
+        <div
+          className="h-2.5 w-full rounded-full overflow-hidden"
+          style={{ background: "rgba(15,47,143,0.10)" }}
+          role="progressbar"
+          aria-valuenow={Number(percent.toFixed(1))}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Total scanned volume progress"
+        >
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${progress * 100}%`,
+              background: "#0f2f8f",
+            }}
+          />
+        </div>
+      </div>
+
       <div className="flex items-baseline justify-between gap-2 px-0.5">
         <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
           Scanned QR Codes
         </p>
         <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: "#94a3b8" }}>
-          {records.length} scanned
+          {scanned} scanned
         </span>
       </div>
 
@@ -5419,6 +5594,7 @@ function SampleVerificationScanScreen({
   scanCount,
   records,
   autoStart,
+  targetVolumeM3,
   onBack,
   onScanned,
   onOpenRecord,
@@ -5426,6 +5602,7 @@ function SampleVerificationScanScreen({
   scanCount: number;
   records: ScannedSampleLog[];
   autoStart: boolean;
+  targetVolumeM3: number;
   onBack: () => void;
   onScanned: (record: ScannedSampleLog) => void;
   onOpenRecord: (code: string) => void;
@@ -5602,7 +5779,7 @@ function SampleVerificationScanScreen({
         </section>
 
         {/* Scanned history — stays below the scanner and grows with every capture */}
-        <ScannedHistoryList records={records} onSelect={onOpenRecord} />
+        <ScannedHistoryList records={records} targetVolumeM3={targetVolumeM3} onSelect={onOpenRecord} />
       </div>
     </div>
   );
@@ -5660,15 +5837,24 @@ const MEASUREMENT_ROWS: {
   { key: "defectVolume", label: "Defect Vol.", unit: "m³", required: true, inspectorInput: true },
 ];
 
-function displayMeasurementValue(value: string) {
+/** Format numeric measurement values to one decimal place (e.g. 12 → 12.0). */
+function formatMeasurementOneDecimal(value: string) {
   const trimmed = value.trim();
-  return trimmed === "" ? "—" : trimmed;
+  if (trimmed === "") return "";
+  const num = Number(trimmed);
+  if (Number.isNaN(num)) return trimmed;
+  return num.toFixed(1);
+}
+
+function displayMeasurementOneDecimal(value: string) {
+  const formatted = formatMeasurementOneDecimal(value);
+  return formatted === "" ? "—" : formatted;
 }
 
 function isMeasurementChanged(exporterVal: string, inspectorVal: string) {
-  const prev = displayMeasurementValue(exporterVal);
-  const curr = displayMeasurementValue(inspectorVal);
-  return prev !== "—" && curr !== "—" && prev !== curr;
+  const prev = formatMeasurementOneDecimal(exporterVal);
+  const curr = formatMeasurementOneDecimal(inspectorVal);
+  return prev !== "" && curr !== "" && prev !== curr;
 }
 
 function MeasurementCompareTable({
@@ -5760,7 +5946,7 @@ function MeasurementCompareTable({
                 lineHeight: "16px",
               }}
             >
-              {displayMeasurementValue(exporterVal)}
+              {displayMeasurementOneDecimal(exporterVal)}
             </div>
 
             {showInspectorInput ? (
@@ -5776,9 +5962,16 @@ function MeasurementCompareTable({
                   lineHeight: "16px",
                   fontFamily: "inherit",
                 }}
+                inputMode="decimal"
                 value={inspectorVal}
                 placeholder="--"
                 onChange={e => onInspectorChange?.({ [row.key]: e.target.value })}
+                onBlur={() => {
+                  const formatted = formatMeasurementOneDecimal(inspectorVal);
+                  if (formatted !== inspectorVal) {
+                    onInspectorChange?.({ [row.key]: formatted });
+                  }
+                }}
               />
             ) : (
               <div
@@ -5792,7 +5985,7 @@ function MeasurementCompareTable({
                   lineHeight: "16px",
                 }}
               >
-                {displayMeasurementValue(inspectorVal)}
+                {displayMeasurementOneDecimal(inspectorVal)}
               </div>
             )}
           </div>
@@ -5816,8 +6009,8 @@ function QrDetailsScreen({
   const exporterMeasurements = measurementsFromLog(exporter);
   const [inspectorMeasurements, setInspectorMeasurements] = useState<MeasurementValues>(() => ({
     ...EMPTY_INSPECTOR_MEASUREMENTS,
-    length: exporterMeasurements.length,
-    volume: exporterMeasurements.volume,
+    length: formatMeasurementOneDecimal(exporterMeasurements.length),
+    volume: formatMeasurementOneDecimal(exporterMeasurements.volume),
   }));
   const [inspectorComment, setInspectorComment] = useState("");
   const [commentTouched, setCommentTouched] = useState(false);
@@ -6234,7 +6427,15 @@ export default function App() {
           draft={physicalVerificationById[task.id] ?? EMPTY_PHYSICAL_VERIFICATION}
           onDraftChange={patch => updatePhysicalVerification(task.id, patch)}
           onBack={() => setScreen("inspection-details")}
-          onProceed={() => { setAutoStartScanner(true); setScreen("sample-verification-scan"); }}
+          onProceed={() => {
+            updatePhysicalVerification(task.id, { physicalStepComplete: true });
+            setAutoStartScanner(true);
+            setScreen("sample-verification-scan");
+          }}
+          onGoToSample={() => {
+            setAutoStartScanner(false);
+            setScreen("sample-verification-scan");
+          }}
         />
         {bottomNav}
       </>
@@ -6260,6 +6461,7 @@ export default function App() {
             scanCount={sampleScanCount}
             records={scannedSampleLogs}
             autoStart={autoStartScanner}
+            targetVolumeM3={task.logs * 21.875}
             onBack={() => setScreen("physical-verification")}
             onScanned={recordSampleScan}
             onOpenRecord={code => {
@@ -6278,7 +6480,10 @@ export default function App() {
           onBack={() => { setAutoStartScanner(false); setScreen("sample-verification-scan"); }}
           onFinish={() => {
             advanceInspectionProgress(task.id, "preShipment", { complete: true });
-            setScreen("inspection-details");
+            updatePhysicalVerification(task.id, { sampleStepComplete: true });
+            setAutoStartScanner(false);
+            setActiveScannedCode(null);
+            setScreen("sample-verification-scan");
           }}
         />
         {bottomNav}
