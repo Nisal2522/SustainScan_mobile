@@ -897,20 +897,22 @@ function HomeScreen({ location, onLogout, onNavigate, isCU, dark, setDark }: {
         <div className="flex flex-col gap-4">
           <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: dark ? "rgba(255,255,255,0.55)" : "#5a6a99" }}>Actions</p>
 
-          <button onClick={() => onNavigate("scan-log")}
-            className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
-            style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
-              {isCU ? <ScanLine size={26} style={{ color: iconColor }} /> : <ClipboardList size={26} style={{ color: iconColor }} />}
-            </div>
-            <div className="flex-1">
-              <p className="text-base font-bold" style={{ color: textPrimary }}>{isCU ? "Scan Log" : "Register Log"}</p>
-              <p className="text-xs mt-0.5" style={{ color: textMuted }}>
-                {isCU ? "View scanned log details" : "Record new sustainability entry"}
-              </p>
-            </div>
-            <ChevronRight size={18} style={{ color: textMuted }} className="group-hover:translate-x-0.5 transition-transform duration-150" />
-          </button>
+          {!isCU && (
+            <button onClick={() => onNavigate("scan-log")}
+              className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
+              style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
+                <ClipboardList size={26} style={{ color: iconColor }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-base font-bold" style={{ color: textPrimary }}>Register Log</p>
+                <p className="text-xs mt-0.5" style={{ color: textMuted }}>
+                  Record new sustainability entry
+                </p>
+              </div>
+              <ChevronRight size={18} style={{ color: textMuted }} className="group-hover:translate-x-0.5 transition-transform duration-150" />
+            </button>
+          )}
 
           <button onClick={() => onNavigate("log-inventory")}
             className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
@@ -5320,6 +5322,9 @@ interface ScannedSampleLog {
   log: RegisterLogFormData;
   /** Declared / previously recorded values used for the verification diff. */
   previous: RegisterLogFormData;
+  /** Inspector values captured during verification (shown again on edit). */
+  inspectorMeasurements?: MeasurementValues;
+  inspectorComment?: string;
 }
 
 const SCAN_STATUS_META: Record<ScanStatus, { label: string; bg: string; color: string }> = {
@@ -5557,6 +5562,7 @@ function ScannedHistoryList({
       ) : (
         records.map((record, i) => {
           const meta = SCAN_STATUS_META[record.status];
+          const hasEdits = Boolean(record.inspectorMeasurements);
           return (
             <button
               key={record.code}
@@ -5574,7 +5580,7 @@ function ScannedHistoryList({
               </span>
 
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-wrap">
                   <p className="text-[14px] font-bold truncate" style={{ color: "#0a1a4a" }}>
                     {record.code}
                   </p>
@@ -5584,6 +5590,14 @@ function ScannedHistoryList({
                   >
                     {meta.label}
                   </span>
+                  {hasEdits && (
+                    <span
+                      className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
+                      style={{ background: "rgba(15,47,143,0.12)", color: "#0f2f8f" }}
+                    >
+                      Edited
+                    </span>
+                  )}
                 </div>
                 <p className="text-[11px] mt-1 truncate" style={{ color: "#5a6a99" }}>
                   {record.scannedAt} <span aria-hidden>·</span> {record.log.productName}
@@ -6011,17 +6025,20 @@ function QrDetailsScreen({
 }: {
   record: ScannedSampleLog;
   onBack: () => void;
-  onFinish: () => void;
+  onFinish: (result: { measurements: MeasurementValues; comment: string }) => void;
 }) {
   const log = record.log;
   const exporter = record.previous;
   const exporterMeasurements = measurementsFromLog(exporter);
-  const [inspectorMeasurements, setInspectorMeasurements] = useState<MeasurementValues>(() => ({
-    ...EMPTY_INSPECTOR_MEASUREMENTS,
-    length: formatMeasurementOneDecimal(exporterMeasurements.length),
-    volume: formatMeasurementOneDecimal(exporterMeasurements.volume),
-  }));
-  const [inspectorComment, setInspectorComment] = useState("");
+  const [inspectorMeasurements, setInspectorMeasurements] = useState<MeasurementValues>(() => {
+    if (record.inspectorMeasurements) return record.inspectorMeasurements;
+    return {
+      ...EMPTY_INSPECTOR_MEASUREMENTS,
+      length: formatMeasurementOneDecimal(exporterMeasurements.length),
+      volume: formatMeasurementOneDecimal(exporterMeasurements.volume),
+    };
+  });
+  const [inspectorComment, setInspectorComment] = useState(record.inspectorComment ?? "");
   const [commentTouched, setCommentTouched] = useState(false);
   // White fills keep the read-only fields legible against the tinted page.
   const readOnlyStyle = { ...inputStyle, background: "#ffffff", color: "#5a6a99", cursor: "not-allowed" as const };
@@ -6033,13 +6050,14 @@ function QrDetailsScreen({
   const commentRequired = hasChanges;
   const commentValid = !commentRequired || inspectorComment.trim().length > 0;
   const commentError = commentTouched && commentRequired && !inspectorComment.trim();
+  const isEditingSaved = Boolean(record.inspectorMeasurements);
 
   const handleVerifySubmit = () => {
     if (commentRequired && !inspectorComment.trim()) {
       setCommentTouched(true);
       return;
     }
-    onFinish();
+    onFinish({ measurements: inspectorMeasurements, comment: inspectorComment.trim() });
   };
 
   return (
@@ -6053,7 +6071,7 @@ function QrDetailsScreen({
           <BackCardButton onClick={onBack} />
           <div className="min-w-0">
             <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
-              Scanned QR Details
+              {isEditingSaved ? "Edit QR Verification" : "Scanned QR Details"}
             </h1>
           </div>
         </div>
@@ -6159,7 +6177,6 @@ function QrDetailsScreen({
     </div>
   );
 }
-
 // ─── Log Inventory Screen ─────────────────────────────────────────────────────
 
 function LogInventoryScreen({ dark, onBack }: { dark: boolean; onBack: () => void; }) {
@@ -6491,7 +6508,19 @@ export default function App() {
         <QrDetailsScreen
           record={activeRecord}
           onBack={() => { setAutoStartScanner(false); setScreen("sample-verification-scan"); }}
-          onFinish={() => {
+          onFinish={({ measurements, comment }) => {
+            setScannedSampleLogs(prev =>
+              prev.map(r =>
+                r.code === activeRecord.code
+                  ? {
+                      ...r,
+                      status: "verified",
+                      inspectorMeasurements: measurements,
+                      inspectorComment: comment,
+                    }
+                  : r,
+              ),
+            );
             advanceInspectionProgress(task.id, "preShipment", { complete: true });
             updatePhysicalVerification(task.id, { sampleStepComplete: true });
             setAutoStartScanner(false);
