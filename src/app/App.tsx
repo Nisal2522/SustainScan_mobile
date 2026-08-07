@@ -5,7 +5,7 @@ import {
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
   ScanLine, QrCode, Calendar, Search, ListFilter, X, Truck, CheckCircle2, ArrowRight,
   Ship, Anchor, CircleDollarSign, Layers, Container, Paperclip, Scale, FileText,
-  Clock, AlertTriangle, Plus, Camera, Upload, Home,
+  Clock, AlertTriangle, Plus, Camera, Upload, Home, Image as ImageIcon,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
 import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
@@ -25,6 +25,18 @@ type InspectionStatus = "pending" | "inprogress" | "complete";
 type DayFilter = "today" | "upcoming";
 type StatusFilter = "all" | InspectionStatus;
 type SubInspectionStatus = "not-started" | "in-progress" | "completed";
+
+interface PhysicalVerificationDraft {
+  volumeOk: "yes" | "no" | null;
+  photoAdded: boolean;
+  nonConformanceReason: string;
+}
+
+const EMPTY_PHYSICAL_VERIFICATION: PhysicalVerificationDraft = {
+  volumeOk: null,
+  photoAdded: false,
+  nonConformanceReason: "",
+};
 
 interface InspectionTask {
   id: string;
@@ -3240,6 +3252,15 @@ const ATTACHMENT_FILES: AttachmentFile[] = [
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_ATTACHMENT_MIME = "image/jpeg,image/png,application/pdf";
 const ACCEPTED_ATTACHMENT_EXTS = ["jpg", "jpeg", "png", "pdf"];
+const ACCEPTED_EVIDENCE_MIME = "image/jpeg,image/png,image/webp";
+const ACCEPTED_EVIDENCE_EXTS = ["jpg", "jpeg", "png", "webp"];
+
+type EvidencePhoto = {
+  id: string;
+  name: string;
+  previewUrl: string;
+  size: string;
+};
 
 function formatAttachmentSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -4210,23 +4231,120 @@ const NON_COMPLIANCE_TYPES = [
 
 function PhysicalVerificationScreen({
   task,
+  draft,
+  onDraftChange,
   onBack,
   onProceed,
 }: {
   task: InspectionTask;
+  draft: PhysicalVerificationDraft;
+  onDraftChange: (patch: Partial<PhysicalVerificationDraft>) => void;
   onBack: () => void;
   onProceed: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<PreShipmentTab>("verification");
-  const [volumeOk, setVolumeOk] = useState<"yes" | "no" | null>(null);
-  const [nonConformanceReason, setNonConformanceReason] = useState("");
-  const [photoAdded, setPhotoAdded] = useState(false);
+  const { volumeOk, photoAdded, nonConformanceReason } = draft;
   const [ncView, setNcView] = useState<NonComplianceView>("list");
   const [selectedNcTypes, setSelectedNcTypes] = useState<string[]>([]);
   const [ncDescription, setNcDescription] = useState("");
+  const [evidencePhotos, setEvidencePhotos] = useState<EvidencePhoto[]>([]);
+  const [evidenceError, setEvidenceError] = useState<string | null>(null);
+  const [evidenceSheetOpen, setEvidenceSheetOpen] = useState(false);
+  const [evidenceSheetBox, setEvidenceSheetBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [attachments, setAttachments] = useState<AttachmentFile[]>(ATTACHMENT_FILES);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const evidencePhotosRef = useRef(evidencePhotos);
+  evidencePhotosRef.current = evidencePhotos;
+
+  const syncEvidenceSheetBox = () => {
+    const device = document.querySelector(".mobile-device");
+    if (device) {
+      const r = device.getBoundingClientRect();
+      setEvidenceSheetBox({ top: r.top, left: r.left, width: r.width, height: r.height });
+    } else {
+      setEvidenceSheetBox({ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight });
+    }
+  };
+
+  useEffect(() => {
+    if (!evidenceSheetOpen) return;
+    syncEvidenceSheetBox();
+    const vp = document.querySelector(".mobile-viewport");
+    window.addEventListener("resize", syncEvidenceSheetBox);
+    window.addEventListener("scroll", syncEvidenceSheetBox, true);
+    vp?.addEventListener("scroll", syncEvidenceSheetBox);
+    return () => {
+      window.removeEventListener("resize", syncEvidenceSheetBox);
+      window.removeEventListener("scroll", syncEvidenceSheetBox, true);
+      vp?.removeEventListener("scroll", syncEvidenceSheetBox);
+    };
+  }, [evidenceSheetOpen]);
+
+  useEffect(() => {
+    return () => {
+      evidencePhotosRef.current.forEach(photo => URL.revokeObjectURL(photo.previewUrl));
+    };
+  }, []);
+
+  const openEvidenceSheet = () => {
+    syncEvidenceSheetBox();
+    setEvidenceSheetOpen(true);
+  };
+
+  const closeEvidenceSheet = () => setEvidenceSheetOpen(false);
+
+  const clearEvidencePhotos = () => {
+    setEvidencePhotos(prev => {
+      prev.forEach(photo => URL.revokeObjectURL(photo.previewUrl));
+      return [];
+    });
+    setEvidenceError(null);
+  };
+
+  const handleEvidencePicked = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    event.target.value = "";
+    closeEvidenceSheet();
+    if (!files?.length) return;
+
+    const accepted: EvidencePhoto[] = [];
+    let error: string | null = null;
+
+    Array.from(files).forEach(file => {
+      const ext = file.name.includes(".")
+        ? file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase()
+        : "";
+      const isImage =
+        file.type.startsWith("image/") || ACCEPTED_EVIDENCE_EXTS.includes(ext);
+      if (!isImage) {
+        error = "Unsupported file type. Choose a JPG, PNG, or WEBP image.";
+        return;
+      }
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        error = `${file.name || "That photo"} is ${formatAttachmentSize(file.size)}. The limit is 10 MB.`;
+        return;
+      }
+      accepted.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name: file.name || `Photo ${accepted.length + 1}.jpg`,
+        previewUrl: URL.createObjectURL(file),
+        size: formatAttachmentSize(file.size),
+      });
+    });
+
+    if (error) setEvidenceError(error);
+    else setEvidenceError(null);
+    if (accepted.length) setEvidencePhotos(prev => [...prev, ...accepted]);
+  };
+
+  const removeEvidencePhoto = (id: string) => {
+    setEvidencePhotos(prev => {
+      const target = prev.find(photo => photo.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter(photo => photo.id !== id);
+    });
+  };
 
   const handleAttachmentPicked = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -4437,7 +4555,7 @@ function PhysicalVerificationScreen({
           <div className="grid grid-cols-2 gap-3" role="group" aria-label="Volume confirmation">
             <button
               type="button"
-              onClick={() => setVolumeOk(prev => (prev === "yes" ? null : "yes"))}
+              onClick={() => onDraftChange({ volumeOk: volumeOk === "yes" ? null : "yes" })}
               className="rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none"
               style={{
                 background: volumeOk === "yes" ? "rgba(22,163,74,0.10)" : "#f8fafc",
@@ -4463,7 +4581,7 @@ function PhysicalVerificationScreen({
 
             <button
               type="button"
-              onClick={() => setVolumeOk(prev => (prev === "no" ? null : "no"))}
+              onClick={() => onDraftChange({ volumeOk: volumeOk === "no" ? null : "no" })}
               className="rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none"
               style={{
                 background: volumeOk === "no" ? "rgba(212,24,61,0.08)" : "#f8fafc",
@@ -4511,7 +4629,7 @@ function PhysicalVerificationScreen({
                 </p>
                 <textarea
                   value={nonConformanceReason}
-                  onChange={e => setNonConformanceReason(e.target.value)}
+                  onChange={e => onDraftChange({ nonConformanceReason: e.target.value })}
                   rows={3}
                   placeholder="Enter reason for non-conformance"
                   className="w-full mt-2 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none"
@@ -4525,7 +4643,7 @@ function PhysicalVerificationScreen({
                 </p>
                 <button
                   type="button"
-                  onClick={() => setPhotoAdded(v => !v)}
+                  onClick={() => onDraftChange({ photoAdded: !photoAdded })}
                   className="w-full rounded-xl px-3.5 py-3 flex items-center justify-between focus:outline-none transition-all duration-200"
                   style={{
                     background: photoAdded ? "rgba(22,163,74,0.10)" : "#ffffff",
@@ -4640,19 +4758,98 @@ function PhysicalVerificationScreen({
               </div>
             </div>
 
-            <button
-              type="button"
-              className="rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 focus:outline-none active:scale-[0.99] transition-all"
-              style={{
-                background: "#ffffff",
-                border: "2px dashed rgba(15,47,143,0.22)",
-              }}
-            >
-              <Camera size={22} style={{ color: "#94a3b8" }} />
-              <span className="text-[12px] font-medium" style={{ color: "#5a6a99" }}>
-                Attach Evidence Photo
-              </span>
-            </button>
+            <div className="flex flex-col gap-2.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                Evidence Photos
+              </p>
+
+              <button
+                type="button"
+                onClick={openEvidenceSheet}
+                className="rounded-2xl px-4 py-5 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
+                style={{
+                  background: "#ffffff",
+                  border: "2px dashed rgba(15,47,143,0.22)",
+                  boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+                }}
+              >
+                <span
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center"
+                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                >
+                  <Camera size={20} />
+                </span>
+                <span className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+                  Add Evidence Photo
+                </span>
+                <span className="text-[11px] font-medium text-center" style={{ color: "#5a6a99" }}>
+                  Take a photo or upload from gallery
+                </span>
+              </button>
+
+              {evidenceError && (
+                <p className="text-[11px] font-medium px-0.5" style={{ color: "#d4183d" }} role="alert">
+                  {evidenceError}
+                </p>
+              )}
+
+              {evidencePhotos.length > 0 && (
+                <div className="flex flex-col gap-2 animate-riseIn">
+                  <div className="flex items-center justify-between px-0.5">
+                    <p className="text-[11px] font-semibold" style={{ color: "#5a6a99" }}>
+                      {evidencePhotos.length} photo{evidencePhotos.length === 1 ? "" : "s"} attached
+                    </p>
+                    <button
+                      type="button"
+                      onClick={clearEvidencePhotos}
+                      className="text-[11px] font-semibold focus:outline-none active:opacity-70"
+                      style={{ color: "#0f2f8f" }}
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {evidencePhotos.map((photo, i) => (
+                      <div
+                        key={photo.id}
+                        className="relative aspect-square rounded-xl overflow-hidden animate-riseIn"
+                        style={{
+                          ["--rise-delay" as string]: `${40 + i * 40}ms`,
+                          background: "#ffffff",
+                          border: "1px solid rgba(15,47,143,0.12)",
+                          boxShadow: "0 2px 8px rgba(15,47,143,0.06)",
+                        }}
+                      >
+                        <img
+                          src={photo.previewUrl}
+                          alt={photo.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeEvidencePhoto(photo.id)}
+                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center focus:outline-none active:scale-95"
+                          style={{
+                            background: "rgba(10,26,74,0.72)",
+                            color: "#ffffff",
+                            backdropFilter: "blur(6px)",
+                          }}
+                          aria-label={`Remove ${photo.name}`}
+                        >
+                          <X size={12} strokeWidth={2.5} />
+                        </button>
+                        <div
+                          className="absolute inset-x-0 bottom-0 px-1.5 py-1"
+                          style={{ background: "linear-gradient(180deg, transparent, rgba(10,26,74,0.72))" }}
+                        >
+                          <p className="text-[9px] font-medium text-white truncate">{photo.size}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <button
               type="button"
@@ -4660,6 +4857,7 @@ function PhysicalVerificationScreen({
                 setNcView("list");
                 setNcDescription("");
                 setSelectedNcTypes([]);
+                clearEvidencePhotos();
               }}
               className="w-full h-12 rounded-xl text-[12px] font-bold uppercase tracking-wider text-white flex items-center justify-center focus:outline-none active:scale-[0.98]"
               style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
@@ -4716,6 +4914,119 @@ function PhysicalVerificationScreen({
         )}
       </div>
       </div>
+
+      {evidenceSheetOpen && evidenceSheetBox && createPortal(
+        <div
+          className="z-[60] flex flex-col justify-end"
+          style={{
+            position: "fixed",
+            top: evidenceSheetBox.top,
+            left: evidenceSheetBox.left,
+            width: evidenceSheetBox.width,
+            height: evidenceSheetBox.height,
+          }}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 border-0 p-0 cursor-default"
+            style={{
+              background: "rgba(10,22,70,0.45)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+            }}
+            aria-label="Close"
+            onClick={closeEvidenceSheet}
+          />
+          <div
+            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-riseIn"
+            style={{
+              background: "#ffffff",
+              boxShadow: "0 -12px 40px rgba(15,47,143,0.18)",
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add evidence photo"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
+              <div className="w-full flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+                  Add Evidence Photo
+                </p>
+                <button
+                  type="button"
+                  onClick={closeEvidenceSheet}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
+                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  aria-label="Close"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                Source
+              </p>
+              {/* Label + capture input keeps the tap in the same user gesture so mobile OS opens the camera. */}
+              <label
+                className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left focus-within:outline-none active:scale-[0.99] transition-all cursor-pointer"
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid rgba(15,47,143,0.12)",
+                  boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleEvidencePicked}
+                  className="sr-only"
+                />
+                <span
+                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                >
+                  <Camera size={16} />
+                </span>
+                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: "#0a1a4a" }}>
+                  Take Photo
+                </span>
+                <ChevronRight size={16} style={{ color: "#5a6a99" }} />
+              </label>
+              <label
+                className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left focus-within:outline-none active:scale-[0.99] transition-all cursor-pointer"
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid rgba(15,47,143,0.12)",
+                  boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleEvidencePicked}
+                  className="sr-only"
+                />
+                <span
+                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                >
+                  <ImageIcon size={16} />
+                </span>
+                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: "#0a1a4a" }}>
+                  Upload from Gallery
+                </span>
+                <ChevronRight size={16} style={{ color: "#5a6a99" }} />
+              </label>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
@@ -5460,11 +5771,19 @@ export default function App() {
   // True when the user navigated in order to scan, so the scanner arms itself on arrival.
   const [autoStartScanner, setAutoStartScanner] = useState(true);
   const [inspectionProgressById, setInspectionProgressById] = useState<Record<string, InspectionProgress>>({});
+  const [physicalVerificationById, setPhysicalVerificationById] = useState<Record<string, PhysicalVerificationDraft>>({});
 
   const isCU = userType === "cu";
 
   const getInspectionProgress = (taskId: string): InspectionProgress =>
     inspectionProgressById[taskId] ?? EMPTY_INSPECTION_PROGRESS;
+
+  const updatePhysicalVerification = (taskId: string, patch: Partial<PhysicalVerificationDraft>) => {
+    setPhysicalVerificationById(prev => ({
+      ...prev,
+      [taskId]: { ...(prev[taskId] ?? EMPTY_PHYSICAL_VERIFICATION), ...patch },
+    }));
+  };
 
   const advanceInspectionProgress = (taskId: string, key: "preShipment" | "loading") => {
     setInspectionProgressById(prev => {
@@ -5623,6 +5942,8 @@ export default function App() {
       <>
         <PhysicalVerificationScreen
           task={task}
+          draft={physicalVerificationById[task.id] ?? EMPTY_PHYSICAL_VERIFICATION}
+          onDraftChange={patch => updatePhysicalVerification(task.id, patch)}
           onBack={() => setScreen("inspection-details")}
           onProceed={() => { setAutoStartScanner(true); setScreen("sample-verification-scan"); }}
         />
