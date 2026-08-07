@@ -3703,29 +3703,22 @@ function InspectionInfoDetailsScreen({
   dark: boolean;
   onBack: () => void;
 }) {
-  const [activeSectionId, setActiveSectionId] = useState<InspectionInfoSectionId | null>(null);
+  const [expandedSectionId, setExpandedSectionId] = useState<InspectionInfoSectionId | null>(null);
   const [loading, setLoading] = useState(true);
   const sections = getInspectionInfoSections(task);
-  const activeSection = sections.find(s => s.id === activeSectionId) ?? null;
   const t = useInspectionInfoTheme(dark);
-  const swipe = useSwipeBack(activeSection ? () => setActiveSectionId(null) : onBack);
+  const swipe = useSwipeBack(onBack);
 
   useEffect(() => {
     setLoading(true);
+    setExpandedSectionId(null);
     const id = window.setTimeout(() => setLoading(false), 520);
     return () => window.clearTimeout(id);
   }, [task.id]);
 
-  if (activeSection) {
-    return (
-      <InspectionInfoSectionDetailScreen
-        task={task}
-        section={activeSection}
-        dark={dark}
-        onBack={() => setActiveSectionId(null)}
-      />
-    );
-  }
+  const toggleSection = (id: InspectionInfoSectionId) => {
+    setExpandedSectionId(prev => (prev === id ? null : id));
+  };
 
   return (
     <div
@@ -3761,46 +3754,79 @@ function InspectionInfoDetailsScreen({
                   className="rounded-[18px] overflow-hidden"
                   style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, boxShadow: t.cardShadow }}
                 >
-                  {rows.map((section, index) => (
-                    <button
-                      key={section.id}
-                      type="button"
-                      onClick={() => setActiveSectionId(section.id)}
-                      className="w-full px-3.5 py-3.5 flex items-center gap-3 text-left focus:outline-none active:opacity-70 transition-opacity"
-                      style={{ borderTop: index === 0 ? undefined : `1px solid ${t.rowDivider}` }}
-                      aria-label={`Open ${section.title}`}
-                    >
+                  {rows.map((section, index) => {
+                    const expanded = expandedSectionId === section.id;
+                    const fields = getInspectionInfoSectionFields(section.id, task);
+                    return (
                       <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{
-                          background: section.alert ? t.alertIconBg : t.iconBg,
-                          color: section.alert ? "#d4183d" : t.iconColor,
-                        }}
+                        key={section.id}
+                        style={{ borderTop: index === 0 ? undefined : `1px solid ${t.rowDivider}` }}
                       >
-                        {section.icon}
+                        <button
+                          type="button"
+                          onClick={() => toggleSection(section.id)}
+                          className="w-full px-3.5 py-3.5 flex items-center gap-3 text-left focus:outline-none active:opacity-70 transition-opacity"
+                          aria-expanded={expanded}
+                          aria-controls={`info-panel-${section.id}`}
+                          id={`info-trigger-${section.id}`}
+                        >
+                          <div
+                            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{
+                              background: section.alert ? t.alertIconBg : t.iconBg,
+                              color: section.alert ? "#d4183d" : t.iconColor,
+                            }}
+                          >
+                            {section.icon}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[15px] font-semibold leading-snug" style={{ color: t.textPrimary }}>{section.title}</p>
+                          </div>
+                          <span
+                            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-transform duration-200"
+                            style={{
+                              background: expanded ? GRADIENT : t.iconBg,
+                              color: expanded ? "#ffffff" : t.iconColor,
+                              boxShadow: expanded ? "0 2px 8px rgba(15,47,143,0.28)" : "none",
+                              transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                            }}
+                            aria-hidden
+                          >
+                            <ChevronDown size={16} />
+                          </span>
+                        </button>
+
+                        <div
+                          id={`info-panel-${section.id}`}
+                          role="region"
+                          aria-labelledby={`info-trigger-${section.id}`}
+                          className="grid transition-[grid-template-rows] duration-200 ease-out"
+                          style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
+                        >
+                          <div className="overflow-hidden">
+                            <div
+                              className="px-3.5 pb-3.5 pt-0.5 flex flex-col gap-0"
+                              style={{
+                                background: dark ? "rgba(15,23,42,0.35)" : "rgba(240,244,255,0.85)",
+                                borderTop: expanded ? `1px solid ${t.rowDivider}` : undefined,
+                              }}
+                            >
+                              {fields.map(([label, val], i) => (
+                                <div
+                                  key={label}
+                                  className="py-2.5 flex items-start justify-between gap-4"
+                                  style={{ borderTop: i === 0 ? undefined : `1px solid ${t.rowDivider}` }}
+                                >
+                                  <p className="text-[12px] font-medium flex-shrink-0 pt-0.5" style={{ color: t.textMuted }}>{label}</p>
+                                  <p className="text-[13px] font-semibold text-right break-words leading-snug" style={{ color: t.textPrimary }}>{val}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[15px] font-semibold leading-snug" style={{ color: t.textPrimary }}>{section.title}</p>
-                      </div>
-                      <span
-                        className="inline-flex items-center h-6 px-2 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0 max-w-[38%] truncate"
-                        style={
-                          section.alert
-                            ? { background: "#d4183d", color: "#ffffff" }
-                            : { background: t.badgeBg, color: t.badgeColor }
-                        }
-                      >
-                        {section.badge}
-                      </span>
-                      <span
-                        className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 animate-nudgeRight"
-                        style={{ background: GRADIENT, color: "#ffffff", boxShadow: "0 2px 8px rgba(15,47,143,0.28)" }}
-                        aria-hidden
-                      >
-                        <ArrowRight size={14} />
-                      </span>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             );
@@ -6255,17 +6281,52 @@ export default function App() {
   const [autoStartScanner, setAutoStartScanner] = useState(true);
   const [inspectionProgressById, setInspectionProgressById] = useState<Record<string, InspectionProgress>>({});
   const [physicalVerificationById, setPhysicalVerificationById] = useState<Record<string, PhysicalVerificationDraft>>({});
+  // Which sub-inspection (Pre-Shipment vs Loading) the physical/sample flow is currently working on.
+  const [activeInspectionStep, setActiveInspectionStep] = useState<"preShipment" | "loading">("preShipment");
 
   const isCU = userType === "cu";
 
-  const getInspectionProgress = (taskId: string): InspectionProgress =>
-    inspectionProgressById[taskId] ?? EMPTY_INSPECTION_PROGRESS;
+  const getInspectionProgress = (taskId: string): InspectionProgress => {
+    const stored = inspectionProgressById[taskId];
+    if (stored) return stored;
+    // Seeded Complete inspections already have everything done — surface both steps as completed with dates filled.
+    const task = SCHEDULED_INSPECTIONS.find(t => t.id === taskId);
+    if (task?.status === "complete") {
+      const today = todayISODate();
+      return {
+        preShipment: "completed",
+        loading: "completed",
+        preShipmentStartDate: today,
+        preShipmentEndDate: today,
+        loadingStartDate: today,
+        loadingEndDate: today,
+      };
+    }
+    return EMPTY_INSPECTION_PROGRESS;
+  };
 
   const updatePhysicalVerification = (taskId: string, patch: Partial<PhysicalVerificationDraft>) => {
     setPhysicalVerificationById(prev => ({
       ...prev,
       [taskId]: { ...(prev[taskId] ?? EMPTY_PHYSICAL_VERIFICATION), ...patch },
     }));
+  };
+
+  const getPhysicalVerification = (taskId: string): PhysicalVerificationDraft => {
+    const stored = physicalVerificationById[taskId];
+    if (stored) return stored;
+    const progress = getInspectionProgress(taskId);
+    // Complete inspections already have verification data filled.
+    if (progress.preShipment === "completed" || progress.loading === "completed") {
+      return {
+        volumeOk: "yes",
+        photoAdded: true,
+        nonConformanceReason: "",
+        physicalStepComplete: true,
+        sampleStepComplete: true,
+      };
+    }
+    return EMPTY_PHYSICAL_VERIFICATION;
   };
 
   const advanceInspectionProgress = (
@@ -6300,6 +6361,38 @@ export default function App() {
 
       return { ...prev, [taskId]: next };
     });
+  };
+
+  /** Finish the active step: fill verification data + mark that step completed. Returns true when the whole inspection is Complete. */
+  const finalizeActiveInspectionStep = (taskId: string): boolean => {
+    const step = activeInspectionStep;
+    const draft = physicalVerificationById[taskId] ?? EMPTY_PHYSICAL_VERIFICATION;
+    updatePhysicalVerification(taskId, {
+      volumeOk: draft.volumeOk ?? "yes",
+      photoAdded: true,
+      physicalStepComplete: true,
+      sampleStepComplete: true,
+    });
+    const current = getInspectionProgress(taskId);
+    const today = todayISODate();
+    const nextPre: SubInspectionStatus = step === "preShipment" ? "completed" : current.preShipment;
+    const nextLoading: SubInspectionStatus = step === "loading" ? "completed" : current.loading;
+    setInspectionProgressById(prev => {
+      const cur = prev[taskId] ?? EMPTY_INSPECTION_PROGRESS;
+      return {
+        ...prev,
+        [taskId]: {
+          ...cur,
+          preShipment: nextPre,
+          loading: nextLoading,
+          preShipmentStartDate: cur.preShipmentStartDate ?? (step === "preShipment" ? today : cur.preShipmentStartDate),
+          preShipmentEndDate: nextPre === "completed" ? (cur.preShipmentEndDate ?? today) : cur.preShipmentEndDate,
+          loadingStartDate: cur.loadingStartDate ?? (step === "loading" ? today : cur.loadingStartDate),
+          loadingEndDate: nextLoading === "completed" ? (cur.loadingEndDate ?? today) : cur.loadingEndDate,
+        },
+      };
+    });
+    return nextPre === "completed" && nextLoading === "completed";
   };
 
   const recordSampleScan = (record: ScannedSampleLog) => {
@@ -6432,7 +6525,13 @@ export default function App() {
             const current = getInspectionProgress(task.id)[key];
             if (current === "not-started") {
               advanceInspectionProgress(task.id, key, { startDate });
+              // Fresh step → clear prior verification draft so data must be filled again.
+              setPhysicalVerificationById(prev => ({
+                ...prev,
+                [task.id]: { ...EMPTY_PHYSICAL_VERIFICATION },
+              }));
             }
+            setActiveInspectionStep(key);
             setScreen("physical-verification");
           }}
         />
@@ -6454,7 +6553,7 @@ export default function App() {
       <>
         <PhysicalVerificationScreen
           task={task}
-          draft={physicalVerificationById[task.id] ?? EMPTY_PHYSICAL_VERIFICATION}
+          draft={getPhysicalVerification(task.id)}
           onDraftChange={patch => updatePhysicalVerification(task.id, patch)}
           onBack={() => setScreen("inspection-details")}
           onProceed={() => {
@@ -6521,11 +6620,12 @@ export default function App() {
                   : r,
               ),
             );
-            advanceInspectionProgress(task.id, "preShipment", { complete: true });
-            updatePhysicalVerification(task.id, { sampleStepComplete: true });
+            const inspectionComplete = finalizeActiveInspectionStep(task.id);
             setAutoStartScanner(false);
             setActiveScannedCode(null);
-            setScreen("sample-verification-scan");
+            // Complete = both steps done with data filled → show Complete card on schedule.
+            // Otherwise return to details so Loading can be finished next.
+            setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
           }}
         />
         {bottomNav}
