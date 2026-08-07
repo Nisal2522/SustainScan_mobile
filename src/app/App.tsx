@@ -5,7 +5,7 @@ import {
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
   ScanLine, QrCode, Calendar, Search, ListFilter, X, Truck, CheckCircle2, ArrowRight,
   Ship, Anchor, CircleDollarSign, Layers, Container, Paperclip, Scale, FileText,
-  Clock, AlertTriangle, Plus, Camera, Upload, Home, Image as ImageIcon,
+  Clock, Plus, Camera, Upload, Home, Image as ImageIcon,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
 import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
@@ -5619,7 +5619,7 @@ type MeasurementValues = {
   defectVolume: string;
 };
 
-const EMPTY_MEASUREMENTS: MeasurementValues = {
+const EMPTY_INSPECTOR_MEASUREMENTS: MeasurementValues = {
   diameter1: "",
   diameter2: "",
   diameter3: "",
@@ -5643,151 +5643,161 @@ function measurementsFromLog(data: RegisterLogFormData): MeasurementValues {
   };
 }
 
-function MeasurementSidePanel({
-  title,
-  values,
-  onChange,
-  readOnly = false,
+const MEASUREMENT_ROWS: {
+  key: keyof MeasurementValues;
+  label: string;
+  unit?: string;
+  required?: boolean;
+  inspectorInput?: boolean;
+}[] = [
+  { key: "diameter1", label: "D1", unit: "cm", inspectorInput: true },
+  { key: "diameter2", label: "D2", unit: "cm", inspectorInput: true },
+  { key: "diameter3", label: "D3", unit: "cm", inspectorInput: true },
+  { key: "diameter4", label: "D4", unit: "cm", inspectorInput: true },
+  { key: "diameter", label: "Avg.diamete", unit: "cm", required: true, inspectorInput: true },
+  { key: "length", label: "Length", unit: "m", required: true },
+  { key: "volume", label: "Volume", unit: "m³", required: true },
+  { key: "defectVolume", label: "Defect Vol.", unit: "m³", required: true, inspectorInput: true },
+];
+
+function displayMeasurementValue(value: string) {
+  const trimmed = value.trim();
+  return trimmed === "" ? "—" : trimmed;
+}
+
+function isMeasurementChanged(exporterVal: string, inspectorVal: string) {
+  const prev = displayMeasurementValue(exporterVal);
+  const curr = displayMeasurementValue(inspectorVal);
+  return prev !== "—" && curr !== "—" && prev !== curr;
+}
+
+function MeasurementCompareTable({
+  exporter,
+  inspector,
+  onInspectorChange,
+  inspectorReadOnly = false,
 }: {
-  title: string;
-  values: MeasurementValues;
-  onChange?: (patch: Partial<MeasurementValues>) => void;
-  readOnly?: boolean;
+  exporter: MeasurementValues;
+  inspector: MeasurementValues;
+  onInspectorChange?: (patch: Partial<MeasurementValues>) => void;
+  inspectorReadOnly?: boolean;
 }) {
-  const compactInput = "w-full rounded-xl px-2 py-2 text-[12px] outline-none border focus:border-blue-400";
-  const unitCls = "absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium pointer-events-none";
-  const labelCls = "text-[12px] font-semibold";
-  const fieldStyle: CSSProperties = readOnly
-    ? { background: "#ffffff", border: "1px solid #dce4f5", color: "#5a6a99", cursor: "not-allowed" }
-    : { background: "#ffffff", border: "1px solid #dce4f5", color: "#0a1a4a" };
-
-  const set = (key: keyof MeasurementValues) => (e: ChangeEvent<HTMLInputElement>) => {
-    onChange?.({ [key]: e.target.value });
-  };
-
   return (
     <div
-      className="flex-1 min-w-0 rounded-2xl px-2 py-2 flex flex-col gap-1.5"
-      style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.10)" }}
+      className="w-full overflow-hidden rounded-2xl"
+      style={{
+        background: "#ffffff",
+        border: "1px solid rgba(15,47,143,0.10)",
+        boxShadow: "0 2px 12px rgba(15,47,143,0.05)",
+      }}
     >
-      <p className="text-[12px] font-bold uppercase tracking-wider pb-0.5" style={{ color: "#0f2f8f" }}>
-        {title}
-      </p>
-
-      <div className="flex flex-col gap-1.5">
-        <div className="flex flex-col gap-0.5">
-          <label className={labelCls} style={{ color: "#0a1a4a" }}>D1 (cm)</label>
-          <input
-            className={compactInput}
-            style={fieldStyle}
-            value={values.diameter1}
-            placeholder="--"
-            readOnly={readOnly}
-            onChange={set("diameter1")}
-          />
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <label className={labelCls} style={{ color: "#0a1a4a" }}>D2 (cm)</label>
-          <input
-            className={compactInput}
-            style={fieldStyle}
-            value={values.diameter2}
-            placeholder="--"
-            readOnly={readOnly}
-            onChange={set("diameter2")}
-          />
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <label className={labelCls} style={{ color: "#0a1a4a" }}>D3 (cm)</label>
-          <input
-            className={compactInput}
-            style={fieldStyle}
-            value={values.diameter3}
-            placeholder="--"
-            readOnly={readOnly}
-            onChange={set("diameter3")}
-          />
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <label className={labelCls} style={{ color: "#0a1a4a" }}>D4 (cm)</label>
-          <input
-            className={compactInput}
-            style={fieldStyle}
-            value={values.diameter4}
-            placeholder="--"
-            readOnly={readOnly}
-            onChange={set("diameter4")}
-          />
-        </div>
+      <div
+        className="grid items-center px-3 py-2.5"
+        style={{
+          gridTemplateColumns: "minmax(4.5rem, 1.1fr) 1fr 1fr",
+          background: "#ffffff",
+          borderBottom: "1px solid rgba(15,47,143,0.10)",
+        }}
+      >
+        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+          Parameters
+        </p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-center" style={{ color: "#5a6a99" }}>
+          Exporter
+        </p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-center" style={{ color: "#0f2f8f" }}>
+          Inspector
+        </p>
       </div>
 
-      <div className="flex flex-col gap-0.5">
-        <label className={labelCls} style={{ color: "#0a1a4a" }}>
-          Avg.diamete <span className="text-red-500">*</span>
-        </label>
-        <div className="relative">
-          <input
-            className={compactInput}
-            style={{ ...fieldStyle, paddingRight: "1.75rem" }}
-            value={values.diameter}
-            placeholder="0.00"
-            readOnly={readOnly}
-            onChange={set("diameter")}
-          />
-          <span className={unitCls} style={{ color: "#94a3b8" }}>cm</span>
-        </div>
-      </div>
+      {MEASUREMENT_ROWS.map((row, index) => {
+        const exporterVal = exporter[row.key];
+        const inspectorVal = inspector[row.key];
+        const changed = isMeasurementChanged(exporterVal, inspectorVal);
+        const showInspectorInput = !inspectorReadOnly && row.inspectorInput;
 
-      <div className="flex flex-col gap-0.5">
-        <label className={labelCls} style={{ color: "#0a1a4a" }}>
-          Length <span className="text-red-500">*</span>
-        </label>
-        <div className="relative">
-          <input
-            className={compactInput}
-            style={{ ...fieldStyle, paddingRight: "1.5rem" }}
-            value={values.length}
-            placeholder="0.00"
-            readOnly={readOnly}
-            onChange={set("length")}
-          />
-          <span className={unitCls} style={{ color: "#94a3b8" }}>m</span>
-        </div>
-      </div>
+        return (
+          <div
+            key={row.key}
+            className="grid items-center px-3 py-2"
+            style={{
+              gridTemplateColumns: "minmax(4.5rem, 1.1fr) 1fr 1fr",
+              gap: "0.5rem",
+              background: changed ? "rgba(15,47,143,0.035)" : "#ffffff",
+              borderBottom: index === MEASUREMENT_ROWS.length - 1 ? "none" : "1px solid rgba(15,47,143,0.06)",
+            }}
+          >
+            <div className="min-w-0 flex items-start gap-1.5">
+              <span
+                className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{
+                  background: changed ? "#0f2f8f" : "transparent",
+                  boxShadow: changed ? "0 0 0 3px rgba(15,47,143,0.14)" : undefined,
+                }}
+                aria-hidden
+              />
+              <div className="min-w-0">
+                <p className="text-[12px] font-semibold leading-tight" style={{ color: "#0a1a4a" }}>
+                  {row.label}
+                  {row.required && <span className="text-red-500 ml-0.5">*</span>}
+                </p>
+                {row.unit && (
+                  <p className="text-[9px] font-medium mt-0.5" style={{ color: "#94a3b8" }}>
+                    {row.unit}
+                  </p>
+                )}
+              </div>
+            </div>
 
-      <div className="flex flex-col gap-0.5">
-        <label className={labelCls} style={{ color: "#0a1a4a" }}>
-          Volume <span className="text-red-500">*</span>
-        </label>
-        <div className="relative">
-          <input
-            className={compactInput}
-            style={{ ...fieldStyle, paddingRight: "1.75rem" }}
-            value={values.volume}
-            placeholder="0.00"
-            readOnly={readOnly}
-            onChange={set("volume")}
-          />
-          <span className={unitCls} style={{ color: "#94a3b8" }}>m³</span>
-        </div>
-      </div>
+            <div
+              className="min-h-[36px] rounded-xl px-2 flex items-center justify-center text-[12px] font-semibold tabular-nums"
+              style={{
+                background: "rgba(15,47,143,0.04)",
+                border: "1px solid rgba(15,47,143,0.08)",
+                color: "#5a6a99",
+                fontSize: "12px",
+                fontWeight: 600,
+                lineHeight: "16px",
+              }}
+            >
+              {displayMeasurementValue(exporterVal)}
+            </div>
 
-      <div className="flex flex-col gap-0.5">
-        <label className={labelCls} style={{ color: "#0a1a4a" }}>
-          Defect Volume <span className="text-red-500">*</span>
-        </label>
-        <div className="relative">
-          <input
-            className={compactInput}
-            style={{ ...fieldStyle, paddingRight: "1.75rem" }}
-            value={values.defectVolume}
-            placeholder="0.00"
-            readOnly={readOnly}
-            onChange={set("defectVolume")}
-          />
-          <span className={unitCls} style={{ color: "#94a3b8" }}>m³</span>
-        </div>
-      </div>
+            {showInspectorInput ? (
+              <input
+                className="w-full min-h-[36px] rounded-xl px-2 text-center tabular-nums outline-none focus:border-blue-400"
+                style={{
+                  background: changed ? "rgba(15,47,143,0.06)" : "#ffffff",
+                  border: `1px solid ${changed ? "rgba(15,47,143,0.35)" : "#dce4f5"}`,
+                  color: "#5a6a99",
+                  boxShadow: changed ? "0 0 0 2px rgba(15,47,143,0.08)" : undefined,
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  lineHeight: "16px",
+                  fontFamily: "inherit",
+                }}
+                value={inspectorVal}
+                placeholder="--"
+                onChange={e => onInspectorChange?.({ [row.key]: e.target.value })}
+              />
+            ) : (
+              <div
+                className="min-h-[36px] rounded-xl px-2 flex items-center justify-center text-[12px] font-semibold tabular-nums"
+                style={{
+                  background: changed ? "rgba(15,47,143,0.08)" : "#ffffff",
+                  border: `1px solid ${changed ? "rgba(15,47,143,0.28)" : "#dce4f5"}`,
+                  color: changed ? "#0f2f8f" : "#5a6a99",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  lineHeight: "16px",
+                }}
+              >
+                {displayMeasurementValue(inspectorVal)}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -5801,147 +5811,34 @@ function QrDetailsScreen({
   onBack: () => void;
   onFinish: () => void;
 }) {
-  const [view, setView] = useState<"details" | "confirm">("details");
   const log = record.log;
   const exporter = record.previous;
-  const [inspectorMeasurements, setInspectorMeasurements] = useState<MeasurementValues>(EMPTY_MEASUREMENTS);
-  const changedFields = getChangedLogFields(record.previous, record.log);
+  const exporterMeasurements = measurementsFromLog(exporter);
+  const [inspectorMeasurements, setInspectorMeasurements] = useState<MeasurementValues>(() => ({
+    ...EMPTY_INSPECTOR_MEASUREMENTS,
+    length: exporterMeasurements.length,
+    volume: exporterMeasurements.volume,
+  }));
+  const [inspectorComment, setInspectorComment] = useState("");
+  const [commentTouched, setCommentTouched] = useState(false);
   // White fills keep the read-only fields legible against the tinted page.
   const readOnlyStyle = { ...inputStyle, background: "#ffffff", color: "#5a6a99", cursor: "not-allowed" as const };
-  const handleBack = view === "confirm" ? () => setView("details") : onBack;
-  const swipe = useSwipeBack(handleBack);
+  const swipe = useSwipeBack(onBack);
 
-  if (view === "confirm") {
-    return (
-      <div
-        className="min-h-screen w-full animate-fadeIn"
-        style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
-        {...swipe}
-      >
-        <AppHeaderBar>
-          <div className="flex items-center gap-3 min-w-0">
-            <BackCardButton onClick={handleBack} />
-            <div className="min-w-0">
-              <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
-                Verification Confirmation
-              </h1>
-            </div>
-          </div>
-        </AppHeaderBar>
+  const hasChanges = MEASUREMENT_ROWS.some(row =>
+    isMeasurementChanged(exporterMeasurements[row.key], inspectorMeasurements[row.key]),
+  );
+  const commentRequired = hasChanges;
+  const commentValid = !commentRequired || inspectorComment.trim().length > 0;
+  const commentError = commentTouched && commentRequired && !inspectorComment.trim();
 
-        <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col">
-          <div className="flex flex-col gap-5 px-5 pt-6" style={{ paddingBottom: BOTTOM_NAV_PAD }}>
-            {/* Summary strip */}
-            <div className="rounded-2xl px-4 py-3.5 flex items-center gap-3" style={SCAN_GLASS}>
-              <span
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(15,47,143,0.10)", color: "#0f2f8f" }}
-              >
-                <AlertTriangle size={18} />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[13px] font-bold truncate" style={{ color: "#0a1a4a" }}>
-                  {record.code}
-                </p>
-                <p className="text-[11px] mt-0.5" style={{ color: "#5a6a99" }}>
-                  {changedFields.length} field{changedFields.length === 1 ? "" : "s"} changed
-                </p>
-              </div>
-            </div>
-
-            {/* Changed fields only — side-by-side Previous vs Current */}
-            <div className="flex flex-col gap-3">
-              <div className="flex items-baseline justify-between gap-2 px-0.5">
-                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
-                  Changed Fields
-                </p>
-                <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <span style={{ color: "#94a3b8" }}>Previous</span>
-                  <span style={{ color: "#0f2f8f" }}>Current</span>
-                </div>
-              </div>
-
-              {changedFields.length === 0 ? (
-                <div className="rounded-2xl px-4 py-6 text-center" style={SCAN_GLASS}>
-                  <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>No differences found</p>
-                  <p className="text-[11px] mt-1" style={{ color: "#5a6a99" }}>
-                    Scanned values match the previous record.
-                  </p>
-                </div>
-              ) : (
-                changedFields.map((field, i) => {
-                  const prevVal = formatCompareValue(field, record.previous[field.key]);
-                  const currVal = formatCompareValue(field, record.log[field.key]);
-                  return (
-                    <div
-                      key={field.key}
-                      className="rounded-2xl px-4 py-3.5 flex flex-col gap-2.5 animate-riseIn"
-                      style={{ ...SCAN_GLASS, ["--rise-delay" as string]: `${40 + i * 40}ms` }}
-                    >
-                      <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
-                        {field.label}
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: "#94a3b8" }}>
-                            Previous
-                          </p>
-                          <p className="text-[13px] font-medium leading-snug break-words" style={{ color: "#5a6a99" }}>
-                            {prevVal}
-                          </p>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: "#0f2f8f" }}>
-                            Current
-                          </p>
-                          <p className="text-[13px] font-bold leading-snug break-words" style={{ color: "#0f2f8f" }}>
-                            {currVal}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Confirmation prompt */}
-            <div
-              className="rounded-2xl px-4 py-3.5"
-              style={{
-                background: "rgba(15,47,143,0.06)",
-                border: "1px solid rgba(15,47,143,0.14)",
-              }}
-            >
-              <p className="text-[12px] leading-relaxed font-medium" style={{ color: "#0a1a4a" }}>
-                Please review the changes below. Do you want to verify and submit these updates?
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 pt-1">
-              <button
-                type="button"
-                onClick={() => setView("details")}
-                className="flex-1 min-h-[48px] rounded-xl text-sm font-bold flex items-center justify-center focus:outline-none active:scale-[0.98] transition-all"
-                style={{ background: "#ffffff", border: "1px solid #dce4f5", color: "#0f2f8f" }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={onFinish}
-                className="flex-1 min-h-[48px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-1.5 focus:outline-none active:scale-[0.98] transition-all px-2"
-                style={{ background: GRADIENT, boxShadow: "0 4px 16px rgba(15,47,143,0.35)" }}
-              >
-                <CheckCircle2 size={15} className="flex-shrink-0" />
-                <span className="truncate">Verify & Submit</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleVerifySubmit = () => {
+    if (commentRequired && !inspectorComment.trim()) {
+      setCommentTouched(true);
+      return;
+    }
+    onFinish();
+  };
 
   return (
     <div
@@ -5951,7 +5848,7 @@ function QrDetailsScreen({
     >
       <AppHeaderBar>
         <div className="flex items-center gap-3 min-w-0">
-          <BackCardButton onClick={handleBack} />
+          <BackCardButton onClick={onBack} />
           <div className="min-w-0">
             <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
               Scanned QR Details
@@ -5989,19 +5886,37 @@ function QrDetailsScreen({
 
           <div className="flex flex-col gap-2.5">
             <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>Measurements</p>
-            <div className="flex gap-2.5 items-start">
-              <MeasurementSidePanel
-                title="Exporter"
-                values={measurementsFromLog(exporter)}
-                readOnly
-              />
-              <MeasurementSidePanel
-                title="Inspector"
-                values={inspectorMeasurements}
-                onChange={patch => setInspectorMeasurements(prev => ({ ...prev, ...patch }))}
-              />
-            </div>
+            <MeasurementCompareTable
+              exporter={exporterMeasurements}
+              inspector={inspectorMeasurements}
+              onInspectorChange={patch => setInspectorMeasurements(prev => ({ ...prev, ...patch }))}
+            />
           </div>
+
+          {hasChanges && (
+            <FormField label="Inspector comment" required>
+              <textarea
+                className={inputCls}
+                style={{
+                  ...inputStyle,
+                  background: "#ffffff",
+                  resize: "none",
+                  minHeight: "96px",
+                  border: commentError ? "1px solid #ef4444" : inputStyle.border,
+                }}
+                rows={3}
+                value={inspectorComment}
+                placeholder="Add a comment about the changes…"
+                onChange={e => setInspectorComment(e.target.value)}
+                onBlur={() => setCommentTouched(true)}
+              />
+              {commentError && (
+                <p className="text-[11px] font-medium" style={{ color: "#ef4444" }}>
+                  Comment is required when measurements are changed.
+                </p>
+              )}
+            </FormField>
+          )}
 
           <FormField label="Note" required>
             <textarea className={inputCls} style={{ ...readOnlyStyle, resize: "none" }} rows={3} value={log.note} readOnly />
@@ -6028,11 +5943,13 @@ function QrDetailsScreen({
             </button>
             <button
               type="button"
-              onClick={() => setView("confirm")}
-              className="flex-1 min-h-[48px] rounded-xl text-sm font-bold text-white flex items-center justify-center focus:outline-none active:scale-[0.98] transition-all"
+              onClick={handleVerifySubmit}
+              disabled={!commentValid}
+              className="flex-1 min-h-[48px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-1.5 focus:outline-none active:scale-[0.98] transition-all px-2 disabled:opacity-50"
               style={{ background: GRADIENT, boxShadow: "0 4px 16px rgba(15,47,143,0.35)" }}
             >
-              Submit
+              <CheckCircle2 size={15} className="flex-shrink-0" />
+              <span className="truncate">Verify & Submit</span>
             </button>
           </div>
         </div>
