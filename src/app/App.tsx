@@ -18,7 +18,7 @@ import logEntryPhoto from "../imports/timber.png";
 
 type LoginTab = "client" | "cu";
 type UserType = "client" | "cu";
-type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details" | "approved-price-endorsement" | "declared-log-details" | "physical-verification" | "sample-verification-scan" | "sample-verification-log";
+type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details" | "approved-price-endorsement" | "declared-log-details" | "permitted-vs-declared" | "physical-verification" | "sample-verification-scan" | "sample-verification-log";
 type InventoryTab = "all" | "modified";
 type InspectionDay = "today" | "tomorrow" | "later";
 type InspectionStatus = "pending" | "inprogress" | "complete";
@@ -96,12 +96,12 @@ interface AppSession {
 }
 
 const AUTHENTICATED_SCREENS: Screen[] = [
-  "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection", "inspection-details", "inspection-info-details", "approved-price-endorsement", "declared-log-details", "physical-verification",
+  "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection", "inspection-details", "inspection-info-details", "approved-price-endorsement", "declared-log-details", "permitted-vs-declared", "physical-verification",
   "sample-verification-scan", "sample-verification-log",
 ];
 
 const INSPECTION_TASK_SCREENS: Screen[] = [
-  "inspection-details", "inspection-info-details", "approved-price-endorsement", "declared-log-details", "physical-verification",
+  "inspection-details", "inspection-info-details", "approved-price-endorsement", "declared-log-details", "permitted-vs-declared", "physical-verification",
   "sample-verification-scan", "sample-verification-log",
 ];
 
@@ -115,6 +115,7 @@ const SCHEDULE_MODULE_SCREENS: Screen[] = [
   "inspection-info-details",
   "approved-price-endorsement",
   "declared-log-details",
+  "permitted-vs-declared",
   "physical-verification",
   "sample-verification-scan",
   "sample-verification-log",
@@ -2973,7 +2974,7 @@ function GradientInfoHeroCard({
   icon: ReactNode;
   title: string;
   subtitle: string;
-  stats: { label: string; value: string }[];
+  stats: { label: string; value: string; valueColor?: string }[];
   onClick?: () => void;
   showArrow?: boolean;
   ariaLabel?: string;
@@ -2998,9 +2999,11 @@ function GradientInfoHeroCard({
 
           <div className="min-w-0 flex-1">
             <h2 className="text-[15px] font-bold text-white tracking-tight">{title}</h2>
-            <p className="text-[13px] font-medium mt-1 leading-snug truncate" style={{ color: "rgba(255,255,255,0.78)" }}>
-              {subtitle}
-            </p>
+            {subtitle ? (
+              <p className="text-[13px] font-medium mt-1 leading-snug truncate" style={{ color: "rgba(255,255,255,0.78)" }}>
+                {subtitle}
+              </p>
+            ) : null}
           </div>
 
           {showArrow && (
@@ -3031,7 +3034,10 @@ function GradientInfoHeroCard({
                   <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.58)" }}>
                     {stat.label}
                   </p>
-                  <p className="text-[13px] sm:text-[15px] font-bold text-white mt-1 tabular-nums tracking-tight leading-snug break-words">
+                  <p
+                    className="text-[13px] sm:text-[15px] font-bold mt-1 tabular-nums tracking-tight leading-snug break-words"
+                    style={{ color: stat.valueColor ?? "#ffffff" }}
+                  >
                     {stat.value}
                   </p>
                 </>
@@ -3040,7 +3046,12 @@ function GradientInfoHeroCard({
                   <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.58)" }}>
                     {stat.label}
                   </p>
-                  <p className="text-[14px] font-bold text-white text-right tabular-nums tracking-tight">{stat.value}</p>
+                  <p
+                    className="text-[14px] font-bold text-right tabular-nums tracking-tight"
+                    style={{ color: stat.valueColor ?? "#ffffff" }}
+                  >
+                    {stat.value}
+                  </p>
                 </>
               )}
             </div>
@@ -3435,6 +3446,187 @@ function DeclaredLogDetailsScreen({
                   <p
                     className={`text-[13px] text-right ${bold ? "font-bold tabular-nums" : "font-semibold"}`}
                     style={{ color: t.textPrimary }}
+                  >
+                    {value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface VolumeVarianceItem {
+  id: string;
+  group: string;
+  code: string;
+  species: string;
+  permitVol: string;
+  declaredVol: string;
+  difference: string;
+  differencePct: string;
+  remarks: string;
+}
+
+const VOLUME_VARIANCE_ITEMS: VolumeVarianceItem[] = [
+  {
+    id: "1",
+    group: "Group 1",
+    code: "BUR",
+    species: "Burckella",
+    permitVol: "153.000 m³",
+    declaredVol: "121.574 m³",
+    difference: "-31.428 m³",
+    differencePct: "-20.5%",
+    remarks: "*****",
+  },
+  {
+    id: "2",
+    group: "Group 1",
+    code: "CAL",
+    species: "Calophyllum",
+    permitVol: "38.000 m³",
+    declaredVol: "55.238 m³",
+    difference: "+17.238 m³",
+    differencePct: "+45.4%",
+    remarks: "*****",
+  },
+  {
+    id: "3",
+    group: "Group 1",
+    code: "DIL",
+    species: "Dillenia",
+    permitVol: "178.500 m³",
+    declaredVol: "162.100 m³",
+    difference: "-16.400 m³",
+    differencePct: "-9.2%",
+    remarks: "*****",
+  },
+  {
+    id: "4",
+    group: "Group 2",
+    code: "KWI",
+    species: "Kwila",
+    permitVol: "320.000 m³",
+    declaredVol: "298.450 m³",
+    difference: "-21.550 m³",
+    differencePct: "-6.7%",
+    remarks: "*****",
+  },
+  {
+    id: "5",
+    group: "Group 2",
+    code: "TAU",
+    species: "Taun",
+    permitVol: "265.000 m³",
+    declaredVol: "271.200 m³",
+    difference: "+6.200 m³",
+    differencePct: "+2.3%",
+    remarks: "*****",
+  },
+];
+
+function PermittedVsDeclaredScreen({
+  dark,
+  onBack,
+}: {
+  dark: boolean;
+  onBack: () => void;
+}) {
+  const t = useInspectionInfoTheme(dark);
+  const swipe = useSwipeBack(onBack);
+  const items = VOLUME_VARIANCE_ITEMS;
+  const alertColor = "#d4183d";
+  const summaryAccent = dark ? "#93c5fd" : "#0f2f8f";
+  const cardBg = dark ? "rgba(30,41,59,0.72)" : "#ffffff";
+  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.10)";
+  const rowBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)";
+
+  return (
+    <div
+      className="min-h-screen w-full transition-colors duration-300 animate-fadeIn"
+      style={{ background: t.bg, fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
+    >
+      <AppHeaderBar dark={dark}>
+        <div className="flex items-center gap-3">
+          <BackCardButton onClick={onBack} dark={dark} />
+          <div className="min-w-0">
+            <h1 className="text-[18px] font-bold tracking-tight leading-snug" style={{ color: t.textPrimary }}>
+              Permitted vs Declared
+            </h1>
+          </div>
+        </div>
+      </AppHeaderBar>
+
+      <div
+        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 gap-3"
+        style={{ paddingBottom: BOTTOM_NAV_PAD }}
+      >
+        <GradientInfoHeroCard
+          icon={<Scale size={17} style={{ color: "#ffffff" }} />}
+          title="SAW/VENEER"
+          subtitle=""
+          showArrow={false}
+          stats={[
+            { label: "Species Lines", value: "11" },
+            { label: "Flagged Variances", value: "10", valueColor: "#fecaca" },
+          ]}
+        />
+
+        {items.map(item => (
+          <div
+            key={item.id}
+            className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-2.5"
+            style={{
+              background: cardBg,
+              border: `1px solid ${cardBorder}`,
+              boxShadow: dark ? "none" : "0 2px 10px rgba(15,47,143,0.05)",
+            }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className="inline-flex items-center h-6 px-2.5 rounded-md text-[11px] font-bold"
+                style={{ background: "#0f2f8f", color: "#ffffff" }}
+              >
+                {item.group}
+              </span>
+              <span
+                className="inline-flex items-center h-6 px-2.5 rounded-md text-[11px] font-bold tracking-wide"
+                style={{
+                  background: dark ? "rgba(255,255,255,0.06)" : "rgba(15,47,143,0.06)",
+                  color: summaryAccent,
+                  border: `1px solid ${cardBorder}`,
+                }}
+              >
+                {item.code}
+              </span>
+            </div>
+
+            <p className="text-[17px] font-bold tracking-tight leading-tight" style={{ color: t.textPrimary }}>
+              {item.species}
+            </p>
+
+            <div className="flex flex-col gap-1.5">
+              {([
+                ["Permit Vol.", item.permitVol, false, undefined],
+                ["Declared Vol.", item.declaredVol, true, undefined],
+                ["Difference", item.difference, false, undefined],
+                ["Difference %", item.differencePct, true, alertColor],
+                ["Remarks", item.remarks, false, undefined],
+              ] as const).map(([label, value, bold, color], i) => (
+                <div
+                  key={label}
+                  className="flex items-baseline justify-between gap-3 pt-1.5"
+                  style={{ borderTop: i === 0 ? undefined : `1px solid ${rowBorder}` }}
+                >
+                  <p className="text-[12px] font-medium" style={{ color: t.textMuted }}>{label}</p>
+                  <p
+                    className={`text-[13px] text-right tabular-nums ${bold ? "font-bold" : "font-semibold"}`}
+                    style={{ color: color ?? t.textPrimary }}
                   >
                     {value}
                   </p>
@@ -4606,12 +4798,14 @@ function InspectionInfoDetailsScreen({
   onBack,
   onOpenApe,
   onOpenDeclaredLogs,
+  onOpenVolumeVariance,
 }: {
   task: InspectionTask;
   dark: boolean;
   onBack: () => void;
   onOpenApe: () => void;
   onOpenDeclaredLogs: () => void;
+  onOpenVolumeVariance: () => void;
 }) {
   const [expandedSectionId, setExpandedSectionId] = useState<InspectionInfoSectionId | null>(null);
   const [loading, setLoading] = useState(true);
@@ -4626,7 +4820,7 @@ function InspectionInfoDetailsScreen({
     return () => window.clearTimeout(id);
   }, [task.id]);
 
-  const navigateSections = new Set<InspectionInfoSectionId>(["ape", "declared-logs"]);
+  const navigateSections = new Set<InspectionInfoSectionId>(["ape", "declared-logs", "volume-variance"]);
 
   const toggleSection = (id: InspectionInfoSectionId) => {
     if (id === "ape") {
@@ -4635,6 +4829,10 @@ function InspectionInfoDetailsScreen({
     }
     if (id === "declared-logs") {
       onOpenDeclaredLogs();
+      return;
+    }
+    if (id === "volume-variance") {
+      onOpenVolumeVariance();
       return;
     }
     setExpandedSectionId(prev => (prev === id ? null : id));
@@ -7540,6 +7738,7 @@ export default function App() {
           onBack={() => setScreen("inspection-details")}
           onOpenApe={() => setScreen("approved-price-endorsement")}
           onOpenDeclaredLogs={() => setScreen("declared-log-details")}
+          onOpenVolumeVariance={() => setScreen("permitted-vs-declared")}
         />
         {bottomNav}
       </>
@@ -7579,6 +7778,26 @@ export default function App() {
       <>
         <DeclaredLogDetailsScreen
           task={task}
+          dark={dark}
+          onBack={() => setScreen("inspection-info-details")}
+        />
+        {bottomNav}
+      </>
+    );
+  }
+  if (screen === "permitted-vs-declared") {
+    const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
+    if (!task) {
+      return (
+        <>
+          <ScheduleInspectionScreen {...scheduleScreenProps} />
+          {bottomNav}
+        </>
+      );
+    }
+    return (
+      <>
+        <PermittedVsDeclaredScreen
           dark={dark}
           onBack={() => setScreen("inspection-info-details")}
         />
