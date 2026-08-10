@@ -7409,6 +7409,7 @@ interface DamagedLoadedLog {
   scannedAt: string;
   damageType: string;
   notes: string;
+  evidenceCount: number;
 }
 
 interface PendingDamageScan {
@@ -7464,11 +7465,82 @@ function DamageReportDialog({
   pending: PendingDamageScan;
   overlayBox: { top: number; left: number; width: number; height: number };
   onCancel: () => void;
-  onSave: (damageType: string, notes: string) => void;
+  onSave: (damageType: string, notes: string, evidenceCount: number) => void;
 }) {
   const [damageType, setDamageType] = useState("");
   const [notes, setNotes] = useState("");
+  const [evidencePhotos, setEvidencePhotos] = useState<EvidencePhoto[]>([]);
+  const [evidenceError, setEvidenceError] = useState<string | null>(null);
+  const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
+  const evidencePhotosRef = useRef(evidencePhotos);
+  evidencePhotosRef.current = evidencePhotos;
   const canSave = Boolean(damageType.trim());
+
+  useEffect(() => {
+    return () => {
+      evidencePhotosRef.current.forEach(photo => URL.revokeObjectURL(photo.previewUrl));
+    };
+  }, []);
+
+  const clearEvidencePhotos = () => {
+    setEvidencePhotos(prev => {
+      prev.forEach(photo => URL.revokeObjectURL(photo.previewUrl));
+      return [];
+    });
+    setEvidenceError(null);
+  };
+
+  const removeEvidencePhoto = (id: string) => {
+    setEvidencePhotos(prev => {
+      const target = prev.find(photo => photo.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter(photo => photo.id !== id);
+    });
+  };
+
+  const handleEvidencePicked = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    event.target.value = "";
+    setPhotoSheetOpen(false);
+    if (!files?.length) return;
+
+    const accepted: EvidencePhoto[] = [];
+    let error: string | null = null;
+    Array.from(files).forEach(file => {
+      const ext = file.name.includes(".")
+        ? file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase()
+        : "";
+      const isImage = file.type.startsWith("image/") || ACCEPTED_EVIDENCE_EXTS.includes(ext);
+      if (!isImage) {
+        error = "Unsupported file type. Choose a JPG, PNG, or WEBP image.";
+        return;
+      }
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        error = `${file.name || "That photo"} is ${formatAttachmentSize(file.size)}. The limit is 10 MB.`;
+        return;
+      }
+      accepted.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name: file.name || `Photo ${accepted.length + 1}.jpg`,
+        previewUrl: URL.createObjectURL(file),
+        size: formatAttachmentSize(file.size),
+      });
+    });
+
+    if (error) setEvidenceError(error);
+    else setEvidenceError(null);
+    if (accepted.length) setEvidencePhotos(prev => [...prev, ...accepted]);
+  };
+
+  const handleCancel = () => {
+    clearEvidencePhotos();
+    onCancel();
+  };
+
+  const handleSave = () => {
+    const count = evidencePhotos.length;
+    onSave(damageType.trim(), notes.trim(), count);
+  };
 
   return createPortal(
     <div
@@ -7490,7 +7562,7 @@ function DamageReportDialog({
           WebkitBackdropFilter: "blur(8px)",
         }}
         aria-label="Close"
-        onClick={onCancel}
+        onClick={handleCancel}
       />
       <div
         className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-4 animate-riseIn max-h-[88%] overflow-y-auto"
@@ -7513,7 +7585,7 @@ function DamageReportDialog({
             </div>
             <button
               type="button"
-              onClick={onCancel}
+              onClick={handleCancel}
               className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none flex-shrink-0"
               style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
               aria-label="Close"
@@ -7572,10 +7644,94 @@ function DamageReportDialog({
           />
         </div>
 
+        <div className="flex flex-col gap-2.5">
+          <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+            Evidence Photos
+          </p>
+          <button
+            type="button"
+            onClick={() => setPhotoSheetOpen(true)}
+            className="rounded-2xl px-4 py-5 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
+            style={{
+              background: "#ffffff",
+              border: "2px dashed rgba(15,47,143,0.22)",
+              boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+            }}
+          >
+            <span
+              className="w-11 h-11 rounded-2xl flex items-center justify-center"
+              style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+            >
+              <Camera size={20} />
+            </span>
+            <span className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+              Add Evidence Photo
+            </span>
+            <span className="text-[11px] font-medium text-center" style={{ color: "#5a6a99" }}>
+              Take a photo or upload from gallery
+            </span>
+          </button>
+
+          {evidenceError && (
+            <p className="text-[11px] font-medium px-0.5" style={{ color: "#d4183d" }} role="alert">
+              {evidenceError}
+            </p>
+          )}
+
+          {evidencePhotos.length > 0 && (
+            <div className="flex flex-col gap-2 animate-riseIn">
+              <div className="flex items-center justify-between px-0.5">
+                <p className="text-[11px] font-semibold" style={{ color: "#5a6a99" }}>
+                  {evidencePhotos.length} photo{evidencePhotos.length === 1 ? "" : "s"} attached
+                </p>
+                <button
+                  type="button"
+                  onClick={clearEvidencePhotos}
+                  className="text-[11px] font-semibold focus:outline-none active:opacity-70"
+                  style={{ color: "#0f2f8f" }}
+                >
+                  Clear all
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {evidencePhotos.map((photo, i) => (
+                  <div
+                    key={photo.id}
+                    className="relative aspect-square rounded-xl overflow-hidden animate-riseIn"
+                    style={{
+                      ["--rise-delay" as string]: `${40 + i * 40}ms`,
+                      background: "#ffffff",
+                      border: "1px solid rgba(15,47,143,0.12)",
+                      boxShadow: "0 2px 8px rgba(15,47,143,0.06)",
+                    }}
+                  >
+                    <img src={photo.previewUrl} alt={photo.name} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeEvidencePhoto(photo.id)}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center focus:outline-none active:scale-95"
+                      style={{ background: "rgba(10,26,74,0.72)", color: "#ffffff" }}
+                      aria-label={`Remove ${photo.name}`}
+                    >
+                      <X size={12} strokeWidth={2.5} />
+                    </button>
+                    <div
+                      className="absolute inset-x-0 bottom-0 px-1.5 py-1"
+                      style={{ background: "linear-gradient(180deg, transparent, rgba(10,26,74,0.72))" }}
+                    >
+                      <p className="text-[9px] font-medium text-white truncate">{photo.size}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={onCancel}
+            onClick={handleCancel}
             className="flex-1 h-12 rounded-xl text-sm font-semibold focus:outline-none active:scale-[0.98]"
             style={{ background: "#ffffff", color: "#0a1a4a", border: "1px solid rgba(15,47,143,0.22)" }}
           >
@@ -7584,7 +7740,7 @@ function DamageReportDialog({
           <button
             type="button"
             disabled={!canSave}
-            onClick={() => onSave(damageType.trim(), notes.trim())}
+            onClick={handleSave}
             className="flex-1 h-12 rounded-xl text-sm font-bold text-white focus:outline-none active:scale-[0.98] disabled:opacity-45"
             style={{ background: GRADIENT, boxShadow: canSave ? "0 4px 16px rgba(15,47,143,0.32)" : "none" }}
           >
@@ -7592,6 +7748,112 @@ function DamageReportDialog({
           </button>
         </div>
       </div>
+
+      {photoSheetOpen && (
+        <div
+          className="absolute inset-0 z-20 flex flex-col justify-end"
+          style={{ pointerEvents: "auto" }}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 border-0 p-0 cursor-default"
+            style={{
+              background: "rgba(10,22,70,0.45)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+            }}
+            aria-label="Close"
+            onClick={() => setPhotoSheetOpen(false)}
+          />
+          <div
+            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-riseIn"
+            style={{
+              background: "#ffffff",
+              boxShadow: "0 -12px 40px rgba(15,47,143,0.18)",
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add evidence photo"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
+              <div className="w-full flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+                  Add Evidence Photo
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPhotoSheetOpen(false)}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
+                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  aria-label="Close"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                Source
+              </p>
+              <label
+                className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left focus-within:outline-none active:scale-[0.99] transition-all cursor-pointer"
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid rgba(15,47,143,0.12)",
+                  boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleEvidencePicked}
+                  className="sr-only"
+                />
+                <span
+                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                >
+                  <Camera size={16} />
+                </span>
+                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: "#0a1a4a" }}>
+                  Take Photo
+                </span>
+                <ChevronRight size={16} style={{ color: "#5a6a99" }} />
+              </label>
+              <label
+                className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left focus-within:outline-none active:scale-[0.99] transition-all cursor-pointer"
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid rgba(15,47,143,0.12)",
+                  boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleEvidencePicked}
+                  className="sr-only"
+                />
+                <span
+                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                >
+                  <ImageIcon size={16} />
+                </span>
+                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: "#0a1a4a" }}>
+                  Upload from Gallery
+                </span>
+                <ChevronRight size={16} style={{ color: "#5a6a99" }} />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body,
   );
@@ -7749,6 +8011,7 @@ function LoadingLogsScanScreen({
   const [evidencePhotos, setEvidencePhotos] = useState<EvidencePhoto[]>([]);
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
   const [evidenceSheetOpen, setEvidenceSheetOpen] = useState(false);
+  const [photoSheetPurpose, setPhotoSheetPurpose] = useState<"evidence" | "attachment">("evidence");
   const [evidenceSheetBox, setEvidenceSheetBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [attachments, setAttachments] = useState<AttachmentFile[]>(ATTACHMENT_FILES);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
@@ -7761,7 +8024,6 @@ function LoadingLogsScanScreen({
   const [newBargeLoadType, setNewBargeLoadType] = useState("");
   const [newBargeCapacity, setNewBargeCapacity] = useState("");
   const [loadTypeOpen, setLoadTypeOpen] = useState(false);
-  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const evidencePhotosRef = useRef(evidencePhotos);
   evidencePhotosRef.current = evidencePhotos;
   const handledDetection = useRef(false);
@@ -7926,7 +8188,7 @@ function LoadingLogsScanScreen({
     setPhase("idle");
   };
 
-  const saveDamage = (damageType: string, notes: string) => {
+  const saveDamage = (damageType: string, notes: string, evidenceCount: number) => {
     if (!pendingDamage) return;
     onDamageSaved({
       id: `${pendingDamage.code}-${Date.now()}`,
@@ -7937,6 +8199,7 @@ function LoadingLogsScanScreen({
       scannedAt: pendingDamage.scannedAt,
       damageType,
       notes,
+      evidenceCount,
     });
     setToast(`${pendingDamage.code} excluded from loaded volume`);
     setPendingDamage(null);
@@ -7951,10 +8214,59 @@ function LoadingLogsScanScreen({
     setEvidenceError(null);
   };
 
+  const openEvidenceSheet = () => {
+    setPhotoSheetPurpose("evidence");
+    syncEvidenceSheetBox();
+    setEvidenceSheetOpen(true);
+  };
+
+  const openAttachmentSheet = () => {
+    setPhotoSheetPurpose("attachment");
+    syncEvidenceSheetBox();
+    setEvidenceSheetOpen(true);
+  };
+
+  const closeEvidenceSheet = () => setEvidenceSheetOpen(false);
+
+  const handleAttachmentPicked = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    closeEvidenceSheet();
+    if (!file) return;
+    const rawExt = file.name.includes(".")
+      ? file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase()
+      : "";
+    const ext =
+      rawExt ||
+      (file.type === "image/png" ? "png" : file.type.startsWith("image/") ? "jpg" : "");
+    if (!ACCEPTED_ATTACHMENT_EXTS.includes(ext)) {
+      setAttachmentError("Unsupported file type. Choose a JPG, PNG, or PDF.");
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      setAttachmentError(`That file is ${formatAttachmentSize(file.size)}. The limit is 10 MB.`);
+      return;
+    }
+    setAttachmentError(null);
+    setAttachments(prev => [
+      ...prev,
+      {
+        fileName: file.name || `Photo ${prev.length + 1}.${ext}`,
+        category: ext === "pdf" ? "DOCUMENT" : "PHOTO",
+        uploaded: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
+        size: formatAttachmentSize(file.size),
+      },
+    ]);
+  };
+
   const handleEvidencePicked = (event: ChangeEvent<HTMLInputElement>) => {
+    if (photoSheetPurpose === "attachment") {
+      handleAttachmentPicked(event);
+      return;
+    }
     const files = event.target.files;
     event.target.value = "";
-    setEvidenceSheetOpen(false);
+    closeEvidenceSheet();
     if (!files?.length) return;
 
     const accepted: EvidencePhoto[] = [];
@@ -7990,31 +8302,6 @@ function LoadingLogsScanScreen({
       if (target) URL.revokeObjectURL(target.previewUrl);
       return prev.filter(photo => photo.id !== id);
     });
-  };
-
-  const handleAttachmentPicked = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    const ext = file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase();
-    if (!ACCEPTED_ATTACHMENT_EXTS.includes(ext)) {
-      setAttachmentError("Unsupported file type. Choose a JPG, PNG, or PDF.");
-      return;
-    }
-    if (file.size > MAX_ATTACHMENT_BYTES) {
-      setAttachmentError(`That file is ${formatAttachmentSize(file.size)}. The limit is 10 MB.`);
-      return;
-    }
-    setAttachmentError(null);
-    setAttachments(prev => [
-      ...prev,
-      {
-        fileName: file.name,
-        category: ext === "pdf" ? "DOCUMENT" : "PHOTO",
-        uploaded: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
-        size: formatAttachmentSize(file.size),
-      },
-    ]);
   };
 
   const handleBack = () => {
@@ -8610,6 +8897,11 @@ function LoadingLogsScanScreen({
                         {item.notes ? (
                           <p className="text-[12px] leading-snug" style={{ color: "#5a6a99" }}>{item.notes}</p>
                         ) : null}
+                        {item.evidenceCount > 0 ? (
+                          <p className="text-[11px] font-semibold" style={{ color: "#0f2f8f" }}>
+                            {item.evidenceCount} evidence photo{item.evidenceCount === 1 ? "" : "s"}
+                          </p>
+                        ) : null}
                         <p className="text-[10px] font-medium" style={{ color: "#94a3b8" }}>{item.scannedAt}</p>
                       </div>
                     ))
@@ -8778,10 +9070,7 @@ function LoadingLogsScanScreen({
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    syncEvidenceSheetBox();
-                    setEvidenceSheetOpen(true);
-                  }}
+                  onClick={openEvidenceSheet}
                   className="rounded-2xl px-4 py-5 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
                   style={{
                     background: "#ffffff",
@@ -8882,17 +9171,9 @@ function LoadingLogsScanScreen({
 
           {activeTab === "attachments" && (
             <div className="flex flex-col gap-4">
-              <input
-                ref={attachmentInputRef}
-                type="file"
-                accept={ACCEPTED_ATTACHMENT_MIME}
-                onChange={handleAttachmentPicked}
-                className="hidden"
-              />
-
               <button
                 type="button"
-                onClick={() => attachmentInputRef.current?.click()}
+                onClick={openAttachmentSheet}
                 className="rounded-2xl p-6 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
                 style={{
                   background: "#ffffff",
@@ -8962,24 +9243,27 @@ function LoadingLogsScanScreen({
               WebkitBackdropFilter: "blur(8px)",
             }}
             aria-label="Close"
-            onClick={() => setEvidenceSheetOpen(false)}
+            onClick={closeEvidenceSheet}
           />
           <div
             className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-riseIn"
-            style={{ background: "#ffffff", boxShadow: "0 -12px 40px rgba(15,47,143,0.18)" }}
+            style={{
+              background: "#ffffff",
+              boxShadow: "0 -12px 40px rgba(15,47,143,0.18)",
+            }}
             role="dialog"
             aria-modal="true"
-            aria-label="Add evidence photo"
+            aria-label={photoSheetPurpose === "attachment" ? "Add photo" : "Add evidence photo"}
           >
             <div className="flex flex-col items-center gap-3">
               <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
               <div className="w-full flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
-                  Add Evidence Photo
+                  {photoSheetPurpose === "attachment" ? "Add Photo" : "Add Evidence Photo"}
                 </p>
                 <button
                   type="button"
-                  onClick={() => setEvidenceSheetOpen(false)}
+                  onClick={closeEvidenceSheet}
                   className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
                   style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
                   aria-label="Close"
@@ -8988,27 +9272,61 @@ function LoadingLogsScanScreen({
                 </button>
               </div>
             </div>
+
             <div className="flex flex-col gap-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                Source
+              </p>
               <label
-                className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left cursor-pointer"
-                style={{ background: "#ffffff", border: "1.5px solid rgba(15,47,143,0.12)" }}
+                className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left focus-within:outline-none active:scale-[0.99] transition-all cursor-pointer"
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid rgba(15,47,143,0.12)",
+                  boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+                }}
               >
-                <input type="file" accept="image/*" capture="environment" onChange={handleEvidencePicked} className="sr-only" />
-                <span className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleEvidencePicked}
+                  className="sr-only"
+                />
+                <span
+                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                >
                   <Camera size={16} />
                 </span>
-                <span className="flex-1 text-sm font-semibold" style={{ color: "#0a1a4a" }}>Take Photo</span>
+                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: "#0a1a4a" }}>
+                  Take Photo
+                </span>
                 <ChevronRight size={16} style={{ color: "#5a6a99" }} />
               </label>
               <label
-                className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left cursor-pointer"
-                style={{ background: "#ffffff", border: "1.5px solid rgba(15,47,143,0.12)" }}
+                className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left focus-within:outline-none active:scale-[0.99] transition-all cursor-pointer"
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid rgba(15,47,143,0.12)",
+                  boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+                }}
               >
-                <input type="file" accept="image/*" multiple onChange={handleEvidencePicked} className="sr-only" />
-                <span className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}>
+                <input
+                  type="file"
+                  accept={photoSheetPurpose === "attachment" ? ACCEPTED_ATTACHMENT_MIME : "image/*"}
+                  multiple={photoSheetPurpose === "evidence"}
+                  onChange={handleEvidencePicked}
+                  className="sr-only"
+                />
+                <span
+                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                >
                   <ImageIcon size={16} />
                 </span>
-                <span className="flex-1 text-sm font-semibold" style={{ color: "#0a1a4a" }}>Upload from Gallery</span>
+                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: "#0a1a4a" }}>
+                  Upload from Gallery
+                </span>
                 <ChevronRight size={16} style={{ color: "#5a6a99" }} />
               </label>
             </div>
