@@ -5,7 +5,7 @@ import {
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
   ScanLine, QrCode, Calendar, Search, ListFilter, X, Truck, CheckCircle2, ArrowRight,
   Ship, Anchor, CircleDollarSign, Layers, Container, Paperclip, Scale, FileText,
-  Clock, Plus, Camera, Upload, Home, Image as ImageIcon, Trash2,
+  Clock, Plus, Camera, Upload, Home, Image as ImageIcon, Trash2, AlertTriangle,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
 import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
@@ -18,7 +18,7 @@ import logEntryPhoto from "../imports/timber.png";
 
 type LoginTab = "client" | "cu";
 type UserType = "client" | "cu";
-type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details" | "approved-price-endorsement" | "declared-log-details" | "permitted-vs-declared" | "physical-verification" | "sample-verification-scan" | "sample-verification-log";
+type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details" | "approved-price-endorsement" | "declared-log-details" | "permitted-vs-declared" | "physical-verification" | "sample-verification-scan" | "sample-verification-log" | "loading-logs-scan";
 type InventoryTab = "all" | "modified";
 type InspectionDay = "today" | "tomorrow" | "later";
 type InspectionStatus = "pending" | "inprogress" | "complete";
@@ -97,12 +97,12 @@ interface AppSession {
 
 const AUTHENTICATED_SCREENS: Screen[] = [
   "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection", "inspection-details", "inspection-info-details", "approved-price-endorsement", "declared-log-details", "permitted-vs-declared", "physical-verification",
-  "sample-verification-scan", "sample-verification-log",
+  "sample-verification-scan", "sample-verification-log", "loading-logs-scan",
 ];
 
 const INSPECTION_TASK_SCREENS: Screen[] = [
   "inspection-details", "inspection-info-details", "approved-price-endorsement", "declared-log-details", "permitted-vs-declared", "physical-verification",
-  "sample-verification-scan", "sample-verification-log",
+  "sample-verification-scan", "sample-verification-log", "loading-logs-scan",
 ];
 
 /** Primary hubs where the persistent bottom nav is shown. */
@@ -119,6 +119,7 @@ const SCHEDULE_MODULE_SCREENS: Screen[] = [
   "physical-verification",
   "sample-verification-scan",
   "sample-verification-log",
+  "loading-logs-scan",
 ];
 
 const BOTTOM_NAV_VISIBLE_SCREENS: Screen[] = Array.from(
@@ -7353,6 +7354,1540 @@ function LogInventoryScreen({ dark, onBack, exporter, concession }: {
   );
 }
 
+// ─── Loading Inspection — Allocate + Damage (BR-06 / BR-07) ───────────────────
+
+/** Overall shipment ±10% volume tolerance (FR-07.3). */
+const LOADING_VOLUME_TOLERANCE = 0.1;
+
+/** Demo declared/permitted volume for the active loading shipment (m³). */
+const LOADING_DECLARED_VOLUME_M3 = 12;
+
+const LOADING_DAMAGE_TYPES = [
+  "Split end",
+  "Crack / check",
+  "Insect damage",
+  "Rot / decay",
+  "Surface damage",
+  "Broken / crushed",
+  "Other",
+] as const;
+
+interface LoadingPoolLog {
+  code: string;
+  serialNo: string;
+  productName: string;
+  volume: number;
+}
+
+interface AllocatedLoadedLog {
+  id: string;
+  code: string;
+  serialNo: string;
+  productName: string;
+  volume: number;
+  scannedAt: string;
+  /** True when reported damaged and excluded from loaded volume (FR-07.2). */
+  excluded: boolean;
+}
+
+interface DamagedLoadedLog {
+  id: string;
+  code: string;
+  serialNo: string;
+  productName: string;
+  volume: number;
+  scannedAt: string;
+  damageType: string;
+  notes: string;
+}
+
+interface PendingDamageScan {
+  code: string;
+  serialNo: string;
+  productName: string;
+  volume: number;
+  scannedAt: string;
+}
+
+interface LoadingDamageNc {
+  raised: boolean;
+  variancePct: number;
+  loadedVolume: number;
+  declaredVolume: number;
+  excludedVolume: number;
+  notifiedClient: boolean;
+}
+
+type LoadingScanMode = "allocate" | "damage";
+
+const LOADING_QR_POOL: LoadingPoolLog[] = [
+  { code: "SSC-LD-0000000101", serialNo: "151-651RN-0000000101", productName: "Taun", volume: 2.45 },
+  { code: "SSC-LD-0000000102", serialNo: "151-651RN-0000000102", productName: "Kwila", volume: 2.16 },
+  { code: "SSC-LD-0000000103", serialNo: "151-651RN-0000000103", productName: "Erima", volume: 1.98 },
+  { code: "SSC-LD-0000000104", serialNo: "151-651RN-0000000104", productName: "Calophyllum", volume: 2.28 },
+  { code: "SSC-LD-0000000105", serialNo: "151-651RN-0000000105", productName: "Burckella", volume: 2.12 },
+  { code: "SSC-LD-0000000106", serialNo: "151-651RN-0000000106", productName: "Malas", volume: 1.81 },
+];
+
+function formatVolumeM3(value: number): string {
+  return `${value.toFixed(3)} m³`;
+}
+
+function calcLoadingVolumeStats(
+  allocated: AllocatedLoadedLog[],
+  damaged: DamagedLoadedLog[],
+  declaredVolume: number,
+) {
+  const loadedVolume = allocated.filter(l => !l.excluded).reduce((sum, l) => sum + l.volume, 0);
+  const excludedVolume = damaged.reduce((sum, l) => sum + l.volume, 0);
+  const variancePct = declaredVolume > 0 ? ((loadedVolume - declaredVolume) / declaredVolume) * 100 : 0;
+  const outsideTolerance = Math.abs(variancePct) > LOADING_VOLUME_TOLERANCE * 100;
+  return { loadedVolume, excludedVolume, variancePct, outsideTolerance };
+}
+
+function DamageReportDialog({
+  pending,
+  overlayBox,
+  onCancel,
+  onSave,
+}: {
+  pending: PendingDamageScan;
+  overlayBox: { top: number; left: number; width: number; height: number };
+  onCancel: () => void;
+  onSave: (damageType: string, notes: string) => void;
+}) {
+  const [damageType, setDamageType] = useState("");
+  const [notes, setNotes] = useState("");
+  const [typeOpen, setTypeOpen] = useState(false);
+  const canSave = Boolean(damageType);
+
+  return createPortal(
+    <div
+      className="z-[70] flex flex-col justify-end"
+      style={{
+        position: "fixed",
+        top: overlayBox.top,
+        left: overlayBox.left,
+        width: overlayBox.width,
+        height: overlayBox.height,
+      }}
+    >
+      <button
+        type="button"
+        className="absolute inset-0 border-0 p-0 cursor-default"
+        style={{
+          background: "rgba(10,22,70,0.45)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+        }}
+        aria-label="Close"
+        onClick={onCancel}
+      />
+      <div
+        className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-4 animate-riseIn max-h-[88%] overflow-y-auto"
+        style={{ background: "#ffffff", boxShadow: "0 -12px 40px rgba(15,47,143,0.18)" }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Report damaged log"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
+          <div className="w-full flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#d4183d" }}>
+                Damage report
+              </p>
+              <p className="text-[16px] font-bold mt-0.5" style={{ color: "#0a1a4a" }}>
+                What happened to this log?
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none flex-shrink-0"
+              style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div
+          className="rounded-2xl px-3.5 py-3 flex flex-col gap-1"
+          style={{ background: "rgba(212,24,61,0.06)", border: "1px solid rgba(212,24,61,0.16)" }}
+        >
+          <p className="text-[12px] font-bold truncate" style={{ color: "#0a1a4a" }}>{pending.code}</p>
+          <p className="text-[11px] truncate" style={{ color: "#5a6a99" }}>
+            {pending.serialNo} · {pending.productName}
+          </p>
+          <p className="text-[11px] font-semibold tabular-nums" style={{ color: "#d4183d" }}>
+            Won&apos;t count toward loaded total · {formatVolumeM3(pending.volume)}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+            Damage reason <span style={{ color: "#d4183d" }}>*</span>
+          </label>
+          <button
+            type="button"
+            onClick={() => setTypeOpen(v => !v)}
+            className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-sm text-left focus:outline-none"
+            style={{
+              background: "#f8faff",
+              border: `1.5px solid ${typeOpen ? "rgba(15,47,143,0.45)" : "rgba(15,47,143,0.14)"}`,
+              color: damageType ? "#0a1a4a" : "#5a6a99",
+            }}
+          >
+            <span className="truncate font-medium">{damageType || "Choose damage type…"}</span>
+            <ChevronDown
+              size={16}
+              style={{
+                color: "#5a6a99",
+                transform: typeOpen ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.2s",
+                flexShrink: 0,
+              }}
+            />
+          </button>
+          {typeOpen && (
+            <div
+              className="rounded-2xl overflow-hidden"
+              style={{
+                background: "#ffffff",
+                border: "1px solid rgba(15,47,143,0.12)",
+                maxHeight: 180,
+                overflowY: "auto",
+              }}
+            >
+              {LOADING_DAMAGE_TYPES.map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    setDamageType(type);
+                    setTypeOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm font-medium focus:outline-none"
+                  style={{
+                    color: damageType === type ? "#0f2f8f" : "#0a1a4a",
+                    background: damageType === type ? "rgba(15,47,143,0.08)" : "transparent",
+                    borderBottom: "1px solid rgba(15,47,143,0.08)",
+                  }}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+            Notes
+          </label>
+          <textarea
+            rows={3}
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Describe the damage…"
+            className="w-full p-3 text-[13px] rounded-xl focus:outline-none resize-none"
+            style={{
+              background: "#f8faff",
+              border: "1px solid rgba(15,47,143,0.14)",
+              color: "#0a1a4a",
+            }}
+          />
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 h-12 rounded-xl text-sm font-semibold focus:outline-none active:scale-[0.98]"
+            style={{ background: "#ffffff", color: "#0a1a4a", border: "1px solid rgba(15,47,143,0.22)" }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!canSave}
+            onClick={() => onSave(damageType, notes.trim())}
+            className="flex-1 h-12 rounded-xl text-sm font-bold text-white focus:outline-none active:scale-[0.98] disabled:opacity-45"
+            style={{ background: GRADIENT, boxShadow: canSave ? "0 4px 16px rgba(15,47,143,0.32)" : "none" }}
+          >
+            Save & remove
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function LoadingVerifyStepper({
+  activeStep,
+  allocateComplete,
+  damageComplete,
+  onStepSelect,
+}: {
+  activeStep: LoadingScanMode;
+  allocateComplete: boolean;
+  damageComplete: boolean;
+  onStepSelect: (step: LoadingScanMode) => void;
+}) {
+  const steps = [
+    { id: "allocate" as const, label: "Load logs", hint: "Scan each log as it is loaded" },
+    { id: "damage" as const, label: "Damaged logs", hint: "Scan and report any damaged logs" },
+  ];
+  const activeIndex = activeStep === "allocate" ? 0 : 1;
+  const stepComplete = [allocateComplete, damageComplete];
+  const doneCount = stepComplete.filter(Boolean).length;
+  const allDone = allocateComplete && damageComplete;
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl px-3.5 sm:px-4 py-4 flex flex-col gap-3"
+      style={{ background: GRADIENT, boxShadow: "0 10px 26px rgba(15,47,143,0.30)" }}
+    >
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.00) 58%)" }}
+        aria-hidden="true"
+      />
+
+      <div className="relative z-10 flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.78)" }}>
+          {allDone ? "Completed" : "Current Step"}
+        </p>
+        <span
+          className="text-[11px] font-semibold rounded-full px-2.5 py-1 flex-shrink-0"
+          style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}
+        >
+          {allDone ? "2 / 2" : `${activeIndex + 1} / 2`}
+        </span>
+      </div>
+
+      <p className="relative z-10 text-[14px] font-bold leading-snug" style={{ color: "#ffffff" }}>
+        {allDone ? "All steps done" : steps[activeIndex].label}
+      </p>
+      {!allDone && (
+        <p className="relative z-10 text-[12px] leading-snug" style={{ color: "rgba(255,255,255,0.85)" }}>
+          {steps[activeIndex].hint}
+        </p>
+      )}
+
+      <div className="relative z-10 flex gap-2" role="tablist" aria-label="Loading steps">
+        {steps.map((step, i) => {
+          const done = stepComplete[i];
+          const active = activeIndex === i;
+          const filled = done || active;
+          return (
+            <button
+              key={step.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-label={`${step.label}${done ? ", completed" : ""}`}
+              onClick={() => onStepSelect(step.id)}
+              className="h-2 flex-1 rounded-full transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              style={{
+                background: filled ? "#ffffff" : "rgba(255,255,255,0.28)",
+                boxShadow: active && !done ? "0 2px 10px rgba(255,255,255,0.38)" : done ? "0 0 0 1px rgba(255,255,255,0.35)" : "none",
+              }}
+            />
+          );
+        })}
+      </div>
+
+      <div className="relative z-10 grid grid-cols-2 gap-2">
+        {steps.map((step, i) => {
+          const done = stepComplete[i];
+          const active = activeIndex === i;
+          return (
+            <button
+              key={step.id}
+              type="button"
+              onClick={() => onStepSelect(step.id)}
+              className={`text-[9px] sm:text-[10px] font-semibold truncate focus:outline-none transition-colors ${i === 1 ? "text-right" : "text-left"}`}
+              style={{ color: active || done ? "#ffffff" : "rgba(255,255,255,0.72)" }}
+            >
+              {done ? `✓ ${step.label}` : step.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {!allDone && doneCount > 0 && (
+        <p className="relative z-10 text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.72)" }}>
+          {allocateComplete && !damageComplete
+            ? "Step 1 done — tap Step 2 when you need to report damage"
+            : `${doneCount} of 2 steps done`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const LOADING_NON_COMPLIANCE_TYPES = [
+  "Damaged logs pushed loaded volume outside ±10%",
+  "Loaded volume outside permitted shipment tolerance",
+  "Incorrect barge/stack allocation",
+  "Log details discrepancy during loading",
+  "Undeclared / shutout logs",
+  "Other",
+];
+
+type LoadingInspectionTab = "loading" | "non-compliance" | "attachments";
+
+interface FiledLoadingNc {
+  id: string;
+  description: string;
+  types: string[];
+  auto: boolean;
+  createdAt: string;
+}
+
+function LoadingLogsScanScreen({
+  scanCount,
+  allocatedLogs,
+  damagedLogs,
+  damageNc,
+  declaredVolume,
+  autoStart,
+  onBack,
+  onAllocated,
+  onDamageSaved,
+  onScanConsumed,
+  onComplete,
+}: {
+  scanCount: number;
+  allocatedLogs: AllocatedLoadedLog[];
+  damagedLogs: DamagedLoadedLog[];
+  damageNc: LoadingDamageNc | null;
+  declaredVolume: number;
+  autoStart: boolean;
+  onBack: () => void;
+  onAllocated: (entry: AllocatedLoadedLog) => void;
+  onDamageSaved: (entry: DamagedLoadedLog) => void;
+  onScanConsumed: () => void;
+  onComplete: () => void;
+}) {
+  const [activeTab, setActiveTab] = useState<LoadingInspectionTab>("loading");
+  const [mode, setMode] = useState<LoadingScanMode>("allocate");
+  const [damageStepVisited, setDamageStepVisited] = useState(false);
+  const [phase, setPhase] = useState<ScannerPhase>(autoStart ? "scanning" : "idle");
+  const [pendingDamage, setPendingDamage] = useState<PendingDamageScan | null>(null);
+  const [overlayBox, setOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [ncView, setNcView] = useState<NonComplianceView>("list");
+  const [selectedNcTypes, setSelectedNcTypes] = useState<string[]>([]);
+  const [ncDescription, setNcDescription] = useState("");
+  const [evidencePhotos, setEvidencePhotos] = useState<EvidencePhoto[]>([]);
+  const [evidenceError, setEvidenceError] = useState<string | null>(null);
+  const [evidenceSheetOpen, setEvidenceSheetOpen] = useState(false);
+  const [evidenceSheetBox, setEvidenceSheetBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [filedNcs, setFiledNcs] = useState<FiledLoadingNc[]>([]);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const evidencePhotosRef = useRef(evidencePhotos);
+  evidencePhotosRef.current = evidencePhotos;
+  const handledDetection = useRef(false);
+  const autoNcSeeded = useRef(false);
+
+  const next = LOADING_QR_POOL[scanCount % LOADING_QR_POOL.length];
+  const stats = calcLoadingVolumeStats(allocatedLogs, damagedLogs, declaredVolume);
+  const activeCount = allocatedLogs.filter(l => !l.excluded).length;
+  const isDamageMode = mode === "damage";
+  const allocateComplete = allocatedLogs.length > 0;
+  const damageComplete = damageStepVisited || damagedLogs.length > 0;
+  const scanningActive = activeTab === "loading";
+
+  const syncOverlayBox = () => {
+    const device = document.querySelector(".mobile-device");
+    if (device) {
+      const r = device.getBoundingClientRect();
+      setOverlayBox({ top: r.top, left: r.left, width: r.width, height: r.height });
+    } else {
+      setOverlayBox({ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight });
+    }
+  };
+
+  const syncEvidenceSheetBox = () => {
+    const device = document.querySelector(".mobile-device");
+    if (device) {
+      const r = device.getBoundingClientRect();
+      setEvidenceSheetBox({ top: r.top, left: r.left, width: r.width, height: r.height });
+    } else {
+      setEvidenceSheetBox({ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight });
+    }
+  };
+
+  useEffect(() => {
+    if (!damageNc?.raised || autoNcSeeded.current) return;
+    autoNcSeeded.current = true;
+    setFiledNcs(prev => {
+      if (prev.some(n => n.auto)) return prev;
+      return [
+        {
+          id: `auto-nc-${Date.now()}`,
+          description: `Loaded volume dropped below the allowed limit after removing damaged logs. Client notified.`,
+          types: ["Damaged logs pushed loaded volume outside ±10%"],
+          auto: true,
+          createdAt: formatScanTime(new Date()),
+        },
+        ...prev,
+      ];
+    });
+  }, [damageNc]);
+
+  useEffect(() => {
+    if (!scanningActive || phase !== "scanning" || pendingDamage) return;
+    handledDetection.current = false;
+    const timer = setTimeout(() => setPhase("detected"), 2400);
+    return () => clearTimeout(timer);
+  }, [phase, pendingDamage, scanCount, mode, scanningActive]);
+
+  useEffect(() => {
+    if (!scanningActive || phase !== "detected" || pendingDamage) return;
+    if (handledDetection.current) return;
+    handledDetection.current = true;
+    const timer = setTimeout(() => {
+      const scannedAt = formatScanTime(new Date());
+      if (isDamageMode) {
+        if (damagedLogs.some(d => d.code === next.code)) {
+          setToast(`${next.code} already reported as damaged`);
+          onScanConsumed();
+          setPhase("scanning");
+          return;
+        }
+        syncOverlayBox();
+        setPendingDamage({
+          code: next.code,
+          serialNo: next.serialNo,
+          productName: next.productName,
+          volume: next.volume,
+          scannedAt,
+        });
+        onScanConsumed();
+        setPhase("idle");
+        return;
+      }
+
+      if (allocatedLogs.some(l => l.code === next.code) || damagedLogs.some(d => d.code === next.code)) {
+        setToast(damagedLogs.some(d => d.code === next.code)
+          ? `${next.code} excluded (damaged)`
+          : `${next.code} already allocated`);
+        onScanConsumed();
+        setPhase("scanning");
+        return;
+      }
+
+      onAllocated({
+        id: `${next.code}-${Date.now()}`,
+        code: next.code,
+        serialNo: next.serialNo,
+        productName: next.productName,
+        volume: next.volume,
+        scannedAt,
+        excluded: false,
+      });
+      setToast(`${next.code} allocated · ${formatVolumeM3(next.volume)}`);
+      setPhase("scanning");
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [phase, pendingDamage, next, isDamageMode, allocatedLogs, damagedLogs, onAllocated, onScanConsumed, scanningActive]);
+
+  useEffect(() => {
+    if (!pendingDamage) return;
+    syncOverlayBox();
+    window.addEventListener("resize", syncOverlayBox);
+    return () => window.removeEventListener("resize", syncOverlayBox);
+  }, [pendingDamage]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 2200);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  useEffect(() => {
+    if (!evidenceSheetOpen) return;
+    syncEvidenceSheetBox();
+    window.addEventListener("resize", syncEvidenceSheetBox);
+    return () => window.removeEventListener("resize", syncEvidenceSheetBox);
+  }, [evidenceSheetOpen]);
+
+  useEffect(() => {
+    return () => {
+      evidencePhotosRef.current.forEach(photo => URL.revokeObjectURL(photo.previewUrl));
+    };
+  }, []);
+
+  const switchMode = (nextMode: LoadingScanMode) => {
+    if (nextMode === "damage") setDamageStepVisited(true);
+    if (nextMode === mode) return;
+    setPendingDamage(null);
+    setMode(nextMode);
+    setPhase("scanning");
+  };
+
+  const closeDamage = () => {
+    setPendingDamage(null);
+    setPhase("scanning");
+  };
+
+  const saveDamage = (damageType: string, notes: string) => {
+    if (!pendingDamage) return;
+    onDamageSaved({
+      id: `${pendingDamage.code}-${Date.now()}`,
+      code: pendingDamage.code,
+      serialNo: pendingDamage.serialNo,
+      productName: pendingDamage.productName,
+      volume: pendingDamage.volume,
+      scannedAt: pendingDamage.scannedAt,
+      damageType,
+      notes,
+    });
+    setToast(`${pendingDamage.code} excluded from loaded volume`);
+    setPendingDamage(null);
+    setPhase("scanning");
+  };
+
+  const clearEvidencePhotos = () => {
+    setEvidencePhotos(prev => {
+      prev.forEach(photo => URL.revokeObjectURL(photo.previewUrl));
+      return [];
+    });
+    setEvidenceError(null);
+  };
+
+  const handleEvidencePicked = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    event.target.value = "";
+    setEvidenceSheetOpen(false);
+    if (!files?.length) return;
+
+    const accepted: EvidencePhoto[] = [];
+    let error: string | null = null;
+    Array.from(files).forEach(file => {
+      const ext = file.name.includes(".")
+        ? file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase()
+        : "";
+      const isImage = file.type.startsWith("image/") || ACCEPTED_EVIDENCE_EXTS.includes(ext);
+      if (!isImage) {
+        error = "Unsupported file type. Choose a JPG, PNG, or WEBP image.";
+        return;
+      }
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        error = `${file.name || "That photo"} is ${formatAttachmentSize(file.size)}. The limit is 10 MB.`;
+        return;
+      }
+      accepted.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name: file.name || `Photo ${accepted.length + 1}.jpg`,
+        previewUrl: URL.createObjectURL(file),
+        size: formatAttachmentSize(file.size),
+      });
+    });
+    if (error) setEvidenceError(error);
+    else setEvidenceError(null);
+    if (accepted.length) setEvidencePhotos(prev => [...prev, ...accepted]);
+  };
+
+  const removeEvidencePhoto = (id: string) => {
+    setEvidencePhotos(prev => {
+      const target = prev.find(photo => photo.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter(photo => photo.id !== id);
+    });
+  };
+
+  const handleAttachmentPicked = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const ext = file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase();
+    if (!ACCEPTED_ATTACHMENT_EXTS.includes(ext)) {
+      setAttachmentError("Unsupported file type. Choose a JPG, PNG, or PDF.");
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      setAttachmentError(`That file is ${formatAttachmentSize(file.size)}. The limit is 10 MB.`);
+      return;
+    }
+    setAttachmentError(null);
+    setAttachments(prev => [
+      ...prev,
+      {
+        fileName: file.name,
+        category: ext === "pdf" ? "DOCUMENT" : "PHOTO",
+        uploaded: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
+        size: formatAttachmentSize(file.size),
+      },
+    ]);
+  };
+
+  const handleBack = () => {
+    if (activeTab === "non-compliance" && ncView === "create") {
+      setNcView("list");
+      return;
+    }
+    onBack();
+  };
+
+  const detected = phase === "detected";
+  const scanning = phase === "scanning";
+  const frameColor = detected
+    ? (isDamageMode ? "#d4183d" : "#16a34a")
+    : scanning
+      ? "#0f2f8f"
+      : "#c3cee6";
+  const swipe = useSwipeBack(handleBack);
+
+  const tabs: { id: LoadingInspectionTab; label: string; short: string; badge?: number }[] = [
+    { id: "loading", label: "Scan logs", short: "Scan" },
+    { id: "non-compliance", label: "Issues", short: "Issues", badge: filedNcs.length || undefined },
+    { id: "attachments", label: "Photos & files", short: "Files", badge: attachments.length || undefined },
+  ];
+
+  const loadedLogs = allocatedLogs.filter(l => !l.excluded);
+  const stepHint = isDamageMode
+    ? "Point your camera at a damaged log’s QR code"
+    : "Point your camera at each log’s QR code as it loads";
+  const volumeStatus = stats.outsideTolerance
+    ? { label: "Outside limit — review needed", color: "#d4183d", bg: "rgba(212,24,61,0.08)" }
+    : activeCount > 0
+      ? { label: "On track", color: "#16a34a", bg: "rgba(22,163,74,0.08)" }
+      : { label: "Start scanning logs", color: "#5a6a99", bg: "rgba(15,47,143,0.06)" };
+
+  return (
+    <div
+      className="h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn"
+      style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
+    >
+      <AppHeaderBar>
+        <div className="flex items-center gap-3 min-w-0">
+          <BackCardButton onClick={handleBack} />
+          <div className="min-w-0">
+            <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
+              Loading Inspection
+            </h1>
+            {activeTab === "loading" && (
+              <p className="text-[11px] truncate mt-0.5" style={{ color: "#5a6a99" }}>
+                {isDamageMode ? "Step 2 · Report damaged logs" : "Step 1 · Scan loaded logs"}
+              </p>
+            )}
+          </div>
+        </div>
+      </AppHeaderBar>
+
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div
+          className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-4 sm:pt-5 gap-4"
+          style={{ paddingBottom: BOTTOM_NAV_PAD }}
+        >
+          <div
+            className="flex p-1 rounded-2xl gap-0.5"
+            style={{
+              background: "rgba(255,255,255,0.88)",
+              border: "1px solid rgba(15,47,143,0.10)",
+              boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
+            }}
+            role="tablist"
+            aria-label="Loading sections"
+          >
+            {tabs.map(tab => {
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    if (tab.id !== "non-compliance") setNcView("list");
+                    if (tab.id !== "loading") {
+                      setPendingDamage(null);
+                      setPhase("idle");
+                    } else {
+                      setPhase("scanning");
+                    }
+                  }}
+                  className="flex-1 min-w-0 h-10 rounded-xl text-[11px] sm:text-[12px] font-semibold focus:outline-none transition-all duration-200 active:scale-[0.98] px-1 relative"
+                  style={{
+                    background: active ? GRADIENT : "transparent",
+                    color: active ? "#ffffff" : "#5a6a99",
+                    boxShadow: active ? "0 4px 12px rgba(15,47,143,0.25)" : "none",
+                  }}
+                >
+                  <span className="sm:hidden truncate block">{tab.short}</span>
+                  <span className="hidden sm:inline truncate">{tab.label}</span>
+                  {tab.badge ? (
+                    <span
+                      className="absolute -top-1 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center"
+                      style={{
+                        background: active ? "#ffffff" : "#0f2f8f",
+                        color: active ? "#0f2f8f" : "#ffffff",
+                      }}
+                    >
+                      {tab.badge}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+
+          {activeTab === "loading" && (
+            <>
+              <LoadingVerifyStepper
+                activeStep={mode}
+                allocateComplete={allocateComplete}
+                damageComplete={damageComplete}
+                onStepSelect={switchMode}
+              />
+
+              <div
+                className="rounded-2xl p-3.5 sm:p-4 flex flex-col gap-3"
+                style={{
+                  background: "#ffffff",
+                  border: `1px solid ${stats.outsideTolerance ? "rgba(212,24,61,0.28)" : "rgba(15,47,143,0.12)"}`,
+                  boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
+                }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+                    Loaded volume
+                  </p>
+                  <span
+                    className="text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0"
+                    style={{ background: volumeStatus.bg, color: volumeStatus.color }}
+                  >
+                    {volumeStatus.label}
+                  </span>
+                </div>
+
+                <div className="flex items-end gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[22px] font-bold leading-none tabular-nums" style={{ color: "#0a1a4a" }}>
+                      {formatVolumeM3(stats.loadedVolume)}
+                    </p>
+                    <p className="text-[11px] mt-1.5" style={{ color: "#5a6a99" }}>loaded so far</p>
+                  </div>
+                  <ArrowRight size={16} className="mb-3 flex-shrink-0" style={{ color: "#94a3b8" }} />
+                  <div className="flex-1 min-w-0 text-right">
+                    <p className="text-[22px] font-bold leading-none tabular-nums" style={{ color: "#5a6a99" }}>
+                      {formatVolumeM3(declaredVolume)}
+                    </p>
+                    <p className="text-[11px] mt-1.5" style={{ color: "#5a6a99" }}>expected total</p>
+                  </div>
+                </div>
+
+                <div
+                  className="grid grid-cols-2 gap-2 rounded-xl px-3 py-2.5"
+                  style={{ background: "#f8faff", border: "1px solid rgba(15,47,143,0.08)" }}
+                >
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>Logs scanned</p>
+                    <p className="text-[15px] font-bold tabular-nums mt-0.5" style={{ color: "#0a1a4a" }}>{activeCount}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>Damaged</p>
+                    <p className="text-[15px] font-bold tabular-nums mt-0.5" style={{ color: damagedLogs.length ? "#d4183d" : "#0a1a4a" }}>
+                      {damagedLogs.length}
+                    </p>
+                  </div>
+                </div>
+
+                {stats.outsideTolerance ? (
+                  <p className="text-[11px] leading-snug" style={{ color: "#d4183d" }}>
+                    Loaded volume is more than ±10% off expected. Check the Issues tab.
+                  </p>
+                ) : null}
+              </div>
+
+              {damageNc?.raised ? (
+                <div
+                  className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-2.5 animate-riseIn"
+                  style={{
+                    background: "rgba(212,24,61,0.07)",
+                    border: "1px solid rgba(212,24,61,0.28)",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={16} style={{ color: "#d4183d", flexShrink: 0 }} />
+                    <p className="text-[13px] font-bold" style={{ color: "#d4183d" }}>
+                      Volume issue detected
+                    </p>
+                  </div>
+                  <p className="text-[12px] leading-snug" style={{ color: "#5a6a99" }}>
+                    Too many damaged logs were removed. The client has been notified.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("non-compliance");
+                      setNcView("list");
+                    }}
+                    className="w-full h-10 rounded-xl text-[12px] font-bold focus:outline-none active:scale-[0.98]"
+                    style={{ background: "#ffffff", color: "#d4183d", border: "1px solid rgba(212,24,61,0.25)" }}
+                  >
+                    View issue details
+                  </button>
+                </div>
+              ) : null}
+
+              {toast ? (
+                <div
+                  className="rounded-xl px-3.5 py-2.5 text-[12px] font-semibold text-center animate-riseIn"
+                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                >
+                  {toast}
+                </div>
+              ) : null}
+
+              <section className="flex flex-col items-center gap-3">
+                <p className="text-[12px] font-medium text-center px-2" style={{ color: "#5a6a99" }}>
+                  {stepHint}
+                </p>
+
+                <div className="relative flex items-center justify-center" style={{ width: "min(260px, 70vw)", aspectRatio: "1 / 1" }}>
+                  <div
+                    className="absolute rounded-full pointer-events-none"
+                    style={{
+                      inset: "-18%",
+                      background: detected
+                        ? isDamageMode
+                          ? "radial-gradient(circle, rgba(212,24,61,0.18) 0%, transparent 68%)"
+                          : "radial-gradient(circle, rgba(22,163,74,0.18) 0%, transparent 68%)"
+                        : scanning
+                          ? "radial-gradient(circle, rgba(26,69,181,0.16) 0%, transparent 68%)"
+                          : "radial-gradient(circle, rgba(15,47,143,0.08) 0%, transparent 68%)",
+                    }}
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="absolute inset-0 rounded-[1.75rem] overflow-hidden"
+                    style={{
+                      background: "rgba(255,255,255,0.28)",
+                      border: `1px solid ${detected ? (isDamageMode ? "rgba(212,24,61,0.40)" : "rgba(22,163,74,0.40)") : "rgba(15,47,143,0.12)"}`,
+                      boxShadow: "0 12px 36px rgba(15,47,143,0.10)",
+                      backdropFilter: "blur(10px)",
+                      WebkitBackdropFilter: "blur(10px)",
+                    }}
+                  >
+                    <img
+                      src={qrCode}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 w-full h-full object-contain p-9"
+                      style={{ opacity: detected ? 0.92 : scanning ? 0.34 : 0.16 }}
+                    />
+                    {scanning && (
+                      <div
+                        className="absolute left-0 right-0 h-[2px] animate-qrSweep"
+                        style={{
+                          background: "linear-gradient(90deg, rgba(26,69,181,0) 0%, #1a45b5 50%, rgba(26,69,181,0) 100%)",
+                          boxShadow: "0 0 12px rgba(26,69,181,0.65)",
+                        }}
+                        aria-hidden="true"
+                      />
+                    )}
+                    {detected && (
+                      <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(240,244,255,0.55)" }}>
+                        <span
+                          className="w-14 h-14 rounded-full flex items-center justify-center"
+                          style={{
+                            background: isDamageMode ? "#d4183d" : "#16a34a",
+                            boxShadow: isDamageMode
+                              ? "0 8px 24px rgba(212,24,61,0.40)"
+                              : "0 8px 24px rgba(22,163,74,0.40)",
+                          }}
+                        >
+                          {isDamageMode
+                            ? <AlertTriangle size={28} style={{ color: "#ffffff" }} />
+                            : <CheckCircle2 size={30} style={{ color: "#ffffff" }} />}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {CORNER_BRACKETS.map(corner => (
+                    <span
+                      key={corner.key}
+                      aria-hidden="true"
+                      className={`absolute w-8 h-8 ${corner.className}`}
+                      style={{ borderColor: frameColor, borderRadius: corner.radius }}
+                    />
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-center gap-2 min-h-[22px]">
+                  {detected ? (
+                    <>
+                      {isDamageMode
+                        ? <AlertTriangle size={14} style={{ color: "#d4183d" }} />
+                        : <CheckCircle2 size={14} style={{ color: "#16a34a" }} />}
+                      <p className="text-[12px] font-bold truncate" style={{ color: isDamageMode ? "#d4183d" : "#16a34a" }}>
+                        {isDamageMode ? `${next.code} — tap to report` : `${next.code} added`}
+                      </p>
+                    </>
+                  ) : scanning ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#0f2f8f" }} />
+                      <p className="text-[12px] font-semibold" style={{ color: "#5a6a99" }}>
+                        Looking for QR code…
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[12px] font-semibold" style={{ color: "#94a3b8" }}>
+                      Tap below to start scanning
+                    </p>
+                  )}
+                </div>
+
+                {phase === "idle" && !pendingDamage ? (
+                  <button
+                    type="button"
+                    onClick={() => setPhase("scanning")}
+                    className="w-full min-h-[50px] rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
+                    style={{ background: GRADIENT, boxShadow: "0 8px 22px rgba(15,47,143,0.32)" }}
+                  >
+                    <ScanLine size={16} />
+                    Start Scanning
+                  </button>
+                ) : scanning ? (
+                  <button
+                    type="button"
+                    onClick={() => setPhase("idle")}
+                    className="w-full h-10 rounded-xl text-[12px] font-semibold focus:outline-none active:scale-[0.98]"
+                    style={{ background: "#ffffff", color: "#5a6a99", border: "1px solid rgba(15,47,143,0.14)" }}
+                  >
+                    Pause scanner
+                  </button>
+                ) : null}
+              </section>
+
+              {!isDamageMode && loadedLogs.length > 0 ? (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-baseline justify-between gap-2 px-0.5">
+                    <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+                      Recently loaded
+                    </p>
+                    <span className="text-[11px] font-semibold" style={{ color: "#94a3b8" }}>
+                      {loadedLogs.length} log{loadedLogs.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  {loadedLogs.slice(0, 4).map((item, i) => (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl px-3.5 py-3 flex items-center justify-between gap-3 animate-riseIn"
+                      style={{
+                        ...SCAN_GLASS,
+                        ["--rise-delay" as string]: `${40 + i * 40}ms`,
+                      }}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-bold truncate" style={{ color: "#0a1a4a" }}>{item.code}</p>
+                        <p className="text-[11px] truncate" style={{ color: "#5a6a99" }}>
+                          {item.productName} · {formatVolumeM3(item.volume)}
+                        </p>
+                      </div>
+                      <CheckCircle2 size={18} style={{ color: "#16a34a", flexShrink: 0 }} />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {isDamageMode ? (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-baseline justify-between gap-2 px-0.5">
+                    <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+                      Damaged logs
+                    </p>
+                    <span className="text-[11px] font-semibold" style={{ color: "#94a3b8" }}>
+                      {damagedLogs.length} removed
+                    </span>
+                  </div>
+
+                  {damagedLogs.length === 0 ? (
+                    <div className="rounded-2xl px-4 py-7 flex flex-col items-center gap-2 text-center" style={SCAN_GLASS}>
+                      <span
+                        className="w-11 h-11 rounded-2xl flex items-center justify-center"
+                        style={{ background: "rgba(212,24,61,0.08)", color: "#d4183d" }}
+                      >
+                        <AlertTriangle size={20} />
+                      </span>
+                      <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>No damaged logs</p>
+                      <p className="text-[11px] leading-relaxed max-w-[260px]" style={{ color: "#5a6a99" }}>
+                        Only scan here if a log is damaged. Good logs are scanned in Step 1.
+                      </p>
+                    </div>
+                  ) : (
+                    damagedLogs.map((item, i) => (
+                      <div
+                        key={item.id}
+                        className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-1.5 animate-riseIn"
+                        style={{
+                          ...SCAN_GLASS,
+                          ["--rise-delay" as string]: `${40 + i * 40}ms`,
+                          border: "1px solid rgba(212,24,61,0.18)",
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[14px] font-bold truncate" style={{ color: "#0a1a4a" }}>{item.code}</p>
+                            <p className="text-[11px] mt-0.5 truncate" style={{ color: "#5a6a99" }}>
+                              {item.serialNo} · {item.productName}
+                            </p>
+                          </div>
+                          <span
+                            className="inline-flex items-center h-6 px-2 rounded-md text-[10px] font-bold flex-shrink-0"
+                            style={{ background: "rgba(212,24,61,0.12)", color: "#d4183d" }}
+                          >
+                            {item.damageType}
+                          </span>
+                        </div>
+                        <p className="text-[12px] font-semibold tabular-nums" style={{ color: "#d4183d" }}>
+                          Excluded {formatVolumeM3(item.volume)}
+                        </p>
+                        {item.notes ? (
+                          <p className="text-[12px] leading-snug" style={{ color: "#5a6a99" }}>{item.notes}</p>
+                        ) : null}
+                        <p className="text-[10px] font-medium" style={{ color: "#94a3b8" }}>{item.scannedAt}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : null}
+
+              <div className="flex flex-col gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={onComplete}
+                  disabled={activeCount === 0}
+                  className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-45"
+                  style={{ background: GRADIENT, boxShadow: activeCount > 0 ? "0 6px 18px rgba(15,47,143,0.30)" : "none" }}
+                >
+                  Finish Loading Inspection
+                  <CheckCircle2 size={16} />
+                </button>
+                <p className="text-[10px] text-center leading-snug px-2" style={{ color: "#94a3b8" }}>
+                  Need to report an issue or add photos? Use the Issues or Files tabs above anytime.
+                </p>
+              </div>
+            </>
+          )}
+
+          {activeTab === "non-compliance" && ncView === "list" && (
+            <div className="flex flex-col gap-4">
+              <button
+                type="button"
+                onClick={() => setNcView("create")}
+                className="w-full h-11 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
+                style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
+              >
+                <Plus size={16} />
+                New issue report
+              </button>
+
+              {filedNcs.length === 0 ? (
+                <div
+                  className="rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-2"
+                  style={{
+                    background: "#ffffff",
+                    border: "2px dashed rgba(15,47,143,0.18)",
+                    boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+                  }}
+                >
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-1"
+                    style={{ background: "rgba(15,47,143,0.06)", color: "#94a3b8" }}
+                  >
+                    <ClipboardList size={22} />
+                  </div>
+                  <p className="text-[12px] font-medium" style={{ color: "#94a3b8" }}>
+                    No issues reported yet.
+                  </p>
+                </div>
+              ) : (
+                filedNcs.map((nc, i) => (
+                  <div
+                    key={nc.id}
+                    className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-2 animate-riseIn"
+                    style={{
+                      background: "#ffffff",
+                      border: nc.auto ? "1px solid rgba(212,24,61,0.22)" : "1px solid rgba(15,47,143,0.12)",
+                      boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
+                      ["--rise-delay" as string]: `${40 + i * 40}ms`,
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+                        {nc.auto ? "Auto-raised NC" : "Notice of Discrepancy"}
+                      </p>
+                      {nc.auto ? (
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-md flex-shrink-0"
+                          style={{ background: "rgba(212,24,61,0.12)", color: "#d4183d" }}
+                        >
+                          AUTO
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-[12px] leading-snug" style={{ color: "#5a6a99" }}>{nc.description}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {nc.types.map(type => (
+                        <span
+                          key={type}
+                          className="text-[10px] font-semibold px-2 py-1 rounded-md"
+                          style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                        >
+                          {type}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-[10px] font-medium" style={{ color: "#94a3b8" }}>{nc.createdAt}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeTab === "non-compliance" && ncView === "create" && (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
+                  Non-Compliance Description <span style={{ color: "#d4183d" }}>*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  value={ncDescription}
+                  onChange={e => setNcDescription(e.target.value)}
+                  placeholder="Describe the discrepancy observed..."
+                  className="w-full p-3 text-[12px] rounded-xl focus:outline-none resize-none"
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid rgba(15,47,143,0.16)",
+                    color: "#0a1a4a",
+                    boxShadow: "0 2px 8px rgba(15,47,143,0.04)",
+                  }}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                  Type of Non-Compliance
+                </label>
+                <div
+                  className="rounded-2xl overflow-hidden flex flex-col"
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid rgba(15,47,143,0.12)",
+                    boxShadow: "0 2px 12px rgba(15,47,143,0.05)",
+                  }}
+                >
+                  <div className="px-3 pb-3 pt-3 flex flex-col gap-2 max-h-56 overflow-y-auto overscroll-contain">
+                    {LOADING_NON_COMPLIANCE_TYPES.map(type => {
+                      const checked = selectedNcTypes.includes(type);
+                      return (
+                        <label
+                          key={type}
+                          className="flex items-center gap-3 cursor-pointer rounded-full px-3 py-2.5 transition-all active:scale-[0.99]"
+                          style={{
+                            background: checked ? "rgba(15,47,143,0.06)" : "#ffffff",
+                            border: checked
+                              ? "1.5px solid rgba(15,47,143,0.35)"
+                              : "1.5px solid rgba(15,47,143,0.12)",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setSelectedNcTypes(prev =>
+                                prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type],
+                              )
+                            }
+                            className="w-4 h-4 flex-shrink-0 rounded accent-[#0f2f8f]"
+                          />
+                          <span className="text-[14px] font-medium leading-snug" style={{ color: "#0a1a4a" }}>
+                            {type}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                  Evidence Photos
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    syncEvidenceSheetBox();
+                    setEvidenceSheetOpen(true);
+                  }}
+                  className="rounded-2xl px-4 py-5 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
+                  style={{
+                    background: "#ffffff",
+                    border: "2px dashed rgba(15,47,143,0.22)",
+                    boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+                  }}
+                >
+                  <span
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center"
+                    style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  >
+                    <Camera size={20} />
+                  </span>
+                  <span className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+                    Add Evidence Photo
+                  </span>
+                  <span className="text-[11px] font-medium text-center" style={{ color: "#5a6a99" }}>
+                    Take a photo or upload from gallery
+                  </span>
+                </button>
+
+                {evidenceError && (
+                  <p className="text-[11px] font-medium px-0.5" style={{ color: "#d4183d" }} role="alert">
+                    {evidenceError}
+                  </p>
+                )}
+
+                {evidencePhotos.length > 0 && (
+                  <div className="flex flex-col gap-2 animate-riseIn">
+                    <div className="flex items-center justify-between px-0.5">
+                      <p className="text-[11px] font-semibold" style={{ color: "#5a6a99" }}>
+                        {evidencePhotos.length} photo{evidencePhotos.length === 1 ? "" : "s"} attached
+                      </p>
+                      <button
+                        type="button"
+                        onClick={clearEvidencePhotos}
+                        className="text-[11px] font-semibold focus:outline-none active:opacity-70"
+                        style={{ color: "#0f2f8f" }}
+                      >
+                        Clear all
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {evidencePhotos.map((photo, i) => (
+                        <div
+                          key={photo.id}
+                          className="relative aspect-square rounded-xl overflow-hidden animate-riseIn"
+                          style={{
+                            ["--rise-delay" as string]: `${40 + i * 40}ms`,
+                            background: "#ffffff",
+                            border: "1px solid rgba(15,47,143,0.12)",
+                            boxShadow: "0 2px 8px rgba(15,47,143,0.06)",
+                          }}
+                        >
+                          <img src={photo.previewUrl} alt={photo.name} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeEvidencePhoto(photo.id)}
+                            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center focus:outline-none active:scale-95"
+                            style={{ background: "rgba(10,26,74,0.72)", color: "#ffffff" }}
+                            aria-label={`Remove ${photo.name}`}
+                          >
+                            <X size={12} strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                disabled={!ncDescription.trim() || selectedNcTypes.length === 0}
+                onClick={() => {
+                  setFiledNcs(prev => [
+                    {
+                      id: `nc-${Date.now()}`,
+                      description: ncDescription.trim(),
+                      types: selectedNcTypes,
+                      auto: false,
+                      createdAt: formatScanTime(new Date()),
+                    },
+                    ...prev,
+                  ]);
+                  setNcView("list");
+                  setNcDescription("");
+                  setSelectedNcTypes([]);
+                  clearEvidencePhotos();
+                }}
+                className="w-full h-12 rounded-xl text-[12px] font-bold uppercase tracking-wider text-white flex items-center justify-center focus:outline-none active:scale-[0.98] disabled:opacity-45"
+                style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
+              >
+                Submit Notice of Discrepancy
+              </button>
+            </div>
+          )}
+
+          {activeTab === "attachments" && (
+            <div className="flex flex-col gap-4">
+              <input
+                ref={attachmentInputRef}
+                type="file"
+                accept={ACCEPTED_ATTACHMENT_MIME}
+                onChange={handleAttachmentPicked}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => attachmentInputRef.current?.click()}
+                className="rounded-2xl p-6 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
+                style={{
+                  background: "#ffffff",
+                  border: "2px dashed rgba(15,47,143,0.22)",
+                  boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+                }}
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ background: "#e8edf9", color: "#5a6a99" }}
+                >
+                  <Upload size={18} />
+                </div>
+                <p className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>+ Add Photo or Document</p>
+                <p className="text-[10px]" style={{ color: "#94a3b8" }}>JPG, PNG, or PDF up to 10MB</p>
+              </button>
+
+              {attachmentError && (
+                <p
+                  role="alert"
+                  className="text-[11px] font-semibold rounded-xl px-3 py-2.5"
+                  style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid rgba(220,38,38,0.18)" }}
+                >
+                  {attachmentError}
+                </p>
+              )}
+
+              {attachments.length === 0 ? (
+                <div
+                  className="rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-2"
+                  style={{
+                    background: "#ffffff",
+                    border: "2px dashed rgba(15,47,143,0.14)",
+                  }}
+                >
+                  <p className="text-[12px] font-medium" style={{ color: "#94a3b8" }}>
+                    No attachments uploaded yet.
+                  </p>
+                </div>
+              ) : (
+                attachments.map((file, i) => (
+                  <AttachmentFileCard
+                    key={`${file.fileName}-${i}`}
+                    file={file}
+                    index={i}
+                    onDelete={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
+                  />
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {pendingDamage && overlayBox && (
+        <DamageReportDialog
+          pending={pendingDamage}
+          overlayBox={overlayBox}
+          onCancel={closeDamage}
+          onSave={saveDamage}
+        />
+      )}
+
+      {evidenceSheetOpen && evidenceSheetBox && createPortal(
+        <div
+          className="z-[60] flex flex-col justify-end"
+          style={{
+            position: "fixed",
+            top: evidenceSheetBox.top,
+            left: evidenceSheetBox.left,
+            width: evidenceSheetBox.width,
+            height: evidenceSheetBox.height,
+          }}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 border-0 p-0 cursor-default"
+            style={{
+              background: "rgba(10,22,70,0.45)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+            }}
+            aria-label="Close"
+            onClick={() => setEvidenceSheetOpen(false)}
+          />
+          <div
+            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-riseIn"
+            style={{ background: "#ffffff", boxShadow: "0 -12px 40px rgba(15,47,143,0.18)" }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add evidence photo"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
+              <div className="w-full flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+                  Add Evidence Photo
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEvidenceSheetOpen(false)}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
+                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  aria-label="Close"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <label
+                className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left cursor-pointer"
+                style={{ background: "#ffffff", border: "1.5px solid rgba(15,47,143,0.12)" }}
+              >
+                <input type="file" accept="image/*" capture="environment" onChange={handleEvidencePicked} className="sr-only" />
+                <span className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}>
+                  <Camera size={16} />
+                </span>
+                <span className="flex-1 text-sm font-semibold" style={{ color: "#0a1a4a" }}>Take Photo</span>
+                <ChevronRight size={16} style={{ color: "#5a6a99" }} />
+              </label>
+              <label
+                className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left cursor-pointer"
+                style={{ background: "#ffffff", border: "1.5px solid rgba(15,47,143,0.12)" }}
+              >
+                <input type="file" accept="image/*" multiple onChange={handleEvidencePicked} className="sr-only" />
+                <span className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}>
+                  <ImageIcon size={16} />
+                </span>
+                <span className="flex-1 text-sm font-semibold" style={{ color: "#0a1a4a" }}>Upload from Gallery</span>
+                <ChevronRight size={16} style={{ color: "#5a6a99" }} />
+              </label>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -7374,6 +8909,11 @@ export default function App() {
   const [physicalVerificationById, setPhysicalVerificationById] = useState<Record<string, PhysicalVerificationDraft>>({});
   // Which sub-inspection (Pre-Shipment vs Loading) the physical/sample flow is currently working on.
   const [activeInspectionStep, setActiveInspectionStep] = useState<"preShipment" | "loading">("preShipment");
+  const [loadingScanCount, setLoadingScanCount] = useState(0);
+  const [allocatedLoadedLogs, setAllocatedLoadedLogs] = useState<AllocatedLoadedLog[]>([]);
+  const [damagedLoadedLogs, setDamagedLoadedLogs] = useState<DamagedLoadedLog[]>([]);
+  const [loadingDamageNc, setLoadingDamageNc] = useState<LoadingDamageNc | null>(null);
+  const [autoStartLoadingScanner, setAutoStartLoadingScanner] = useState(true);
 
   const isCU = userType === "cu";
 
@@ -7628,7 +9168,102 @@ export default function App() {
               }));
             }
             setActiveInspectionStep(key);
+            if (key === "loading") {
+              if (current === "not-started") {
+                setLoadingScanCount(0);
+                setAllocatedLoadedLogs([]);
+                setDamagedLoadedLogs([]);
+                setLoadingDamageNc(null);
+              }
+              setAutoStartLoadingScanner(true);
+              setScreen("loading-logs-scan");
+              return;
+            }
             setScreen("physical-verification");
+          }}
+        />
+        {bottomNav}
+      </>
+    );
+  }
+  if (screen === "loading-logs-scan") {
+    const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
+    if (!task) {
+      return (
+        <>
+          <ScheduleInspectionScreen {...scheduleScreenProps} />
+          {bottomNav}
+        </>
+      );
+    }
+    return (
+      <>
+        <LoadingLogsScanScreen
+          scanCount={loadingScanCount}
+          allocatedLogs={allocatedLoadedLogs}
+          damagedLogs={damagedLoadedLogs}
+          damageNc={loadingDamageNc}
+          declaredVolume={LOADING_DECLARED_VOLUME_M3}
+          autoStart={autoStartLoadingScanner}
+          onBack={() => {
+            setAutoStartLoadingScanner(false);
+            setScreen("inspection-details");
+          }}
+          onAllocated={entry => {
+            setAllocatedLoadedLogs(prev => [entry, ...prev]);
+            setLoadingScanCount(n => n + 1);
+          }}
+          onDamageSaved={entry => {
+            setDamagedLoadedLogs(prev => {
+              if (prev.some(d => d.code === entry.code)) return prev;
+              return [entry, ...prev];
+            });
+            setAllocatedLoadedLogs(prev => {
+              const exists = prev.some(l => l.code === entry.code);
+              const next = exists
+                ? prev.map(l => (l.code === entry.code ? { ...l, excluded: true } : l))
+                : [
+                    {
+                      id: `alloc-${entry.code}`,
+                      code: entry.code,
+                      serialNo: entry.serialNo,
+                      productName: entry.productName,
+                      volume: entry.volume,
+                      scannedAt: entry.scannedAt,
+                      excluded: true,
+                    },
+                    ...prev,
+                  ];
+              const damagedNext = [entry, ...damagedLoadedLogs.filter(d => d.code !== entry.code)];
+              const stats = calcLoadingVolumeStats(next, damagedNext, LOADING_DECLARED_VOLUME_M3);
+              if (stats.outsideTolerance) {
+                setLoadingDamageNc({
+                  raised: true,
+                  variancePct: stats.variancePct,
+                  loadedVolume: stats.loadedVolume,
+                  declaredVolume: LOADING_DECLARED_VOLUME_M3,
+                  excludedVolume: stats.excludedVolume,
+                  notifiedClient: true,
+                });
+              }
+              return next;
+            });
+          }}
+          onScanConsumed={() => setLoadingScanCount(n => n + 1)}
+          onComplete={() => {
+            setActiveInspectionStep("loading");
+            const current = getInspectionProgress(task.id);
+            const today = todayISODate();
+            setInspectionProgressById(prev => ({
+              ...prev,
+              [task.id]: {
+                ...current,
+                loading: "completed",
+                loadingStartDate: current.loadingStartDate ?? today,
+                loadingEndDate: current.loadingEndDate ?? today,
+              },
+            }));
+            setScreen(current.preShipment === "completed" ? "schedule-inspection" : "inspection-details");
           }}
         />
         {bottomNav}
