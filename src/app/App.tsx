@@ -869,7 +869,7 @@ function LogInventoryScopeSheet({
         onClick={onClose}
       />
       <div
-        className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-riseIn"
+        className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-sheetUp"
         style={{
           background: sheetBg,
           boxShadow: "0 -12px 40px rgba(15,47,143,0.18)",
@@ -2161,11 +2161,25 @@ function ScheduleInspectionScreen({
     upcoming: SCHEDULED_INSPECTIONS.filter(t => t.day === "tomorrow" || t.day === "later").length,
   };
 
+  const qNorm = query.trim().toLowerCase();
+  const searchSuggestions = qNorm
+    ? SCHEDULED_INSPECTIONS.filter(task => {
+        const haystack = `${task.shipment} ${task.location} ${task.exporter}`.toLowerCase();
+        return haystack.includes(qNorm);
+      }).slice(0, 5)
+    : [];
+  const showSuggestions = searchFocused && qNorm.length > 0;
+
   const ctaLabel = (task: InspectionTask) => {
     const status = resolveInspectionStatus(task, getProgress(task.id));
     if (status === "complete") return "View Inspection";
     if (status === "inprogress") return "Continue Inspection";
     return "Start Inspection";
+  };
+
+  const applySuggestion = (task: InspectionTask) => {
+    setQuery(task.shipment);
+    setSearchFocused(false);
   };
 
   const swipe = useSwipeBack(onBack);
@@ -2211,71 +2225,187 @@ function ScheduleInspectionScreen({
 
         <div className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-4 pb-3 gap-3.5">
           {/* Search & Filter Controls */}
-          <div className="flex items-center gap-2.5 animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }}>
-            <div
-              className="flex-1 min-w-0 flex items-center gap-3 h-12 px-3.5 rounded-2xl transition-[box-shadow,border-color,background] duration-200"
-              style={{
-                background: searchFocused
-                  ? (dark ? "rgba(30, 41, 59, 0.95)" : "#ffffff")
-                  : glassSurface,
-                border: `1.5px solid ${searchFocused
-                  ? (dark ? "rgba(96,165,250,0.45)" : "rgba(15,47,143,0.35)")
-                  : glassBorder}`,
-                boxShadow: searchFocused
-                  ? (dark
-                    ? "0 0 0 4px rgba(59,130,246,0.16), 0 8px 24px rgba(0,0,0,0.28)"
-                    : "0 0 0 4px rgba(15,47,143,0.10), 0 8px 24px rgba(15,47,143,0.08)")
-                  : (dark ? "0 2px 12px rgba(0,0,0,0.22)" : "0 2px 10px rgba(15,47,143,0.05)"),
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-              }}
-            >
-              <Search size={17} style={{ color: searchFocused ? (dark ? "#93c5fd" : "#0f2f8f") : textMuted, flexShrink: 0 }} />
-              <input
-                type="search"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                placeholder="Search inspection ID or location"
-                className={`flex-1 min-w-0 bg-transparent text-sm outline-none ${dark ? "placeholder:text-white/40" : "placeholder:text-[#5a6a99]/70"}`}
-                style={{ color: textPrimary }}
-              />
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => setQuery("")}
-                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 focus:outline-none"
-                  style={{ background: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.10)", color: textMuted }}
-                  aria-label="Clear search"
+          <div className="relative z-30 animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }}>
+            <div className="flex items-center gap-2.5">
+              <div
+                className="relative min-w-0 transition-[flex-grow,flex-basis,max-width] duration-300 ease-in-out"
+                style={{
+                  flexGrow: 1,
+                  flexBasis: searchFocused ? "100%" : "0%",
+                  maxWidth: searchFocused ? "100%" : "calc(100% - 3.25rem)",
+                }}
+              >
+                <div
+                  className="flex items-center gap-3 h-12 px-3.5 rounded-2xl transition-all duration-300 ease-in-out"
+                  style={{
+                    background: searchFocused
+                      ? (dark ? "rgba(30, 41, 59, 0.98)" : "#ffffff")
+                      : glassSurface,
+                    border: `1.5px solid ${searchFocused
+                      ? (dark ? "rgba(96,165,250,0.55)" : "rgba(15,47,143,0.42)")
+                      : glassBorder}`,
+                    boxShadow: searchFocused
+                      ? (dark
+                        ? "0 0 0 4px rgba(59,130,246,0.18), 0 10px 28px rgba(0,0,0,0.32), 0 0 24px rgba(59,130,246,0.18)"
+                        : "0 0 0 4px rgba(15,47,143,0.12), 0 10px 28px rgba(15,47,143,0.12), 0 0 22px rgba(26,69,181,0.14)")
+                      : (dark ? "0 2px 12px rgba(0,0,0,0.22)" : "0 2px 10px rgba(15,47,143,0.05)"),
+                    backdropFilter: "blur(12px)",
+                    WebkitBackdropFilter: "blur(12px)",
+                    transform: searchFocused ? "translateY(-1px)" : "translateY(0)",
+                  }}
                 >
-                  <X size={12} />
-                </button>
-              )}
+                  <Search
+                    size={17}
+                    className="transition-colors duration-300 ease-in-out flex-shrink-0"
+                    style={{ color: searchFocused ? (dark ? "#93c5fd" : "#0f2f8f") : textMuted }}
+                  />
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    onFocus={() => setSearchFocused(true)}
+                    onBlur={() => {
+                      // Allow suggestion tap to register before closing.
+                      window.setTimeout(() => setSearchFocused(false), 140);
+                    }}
+                    placeholder="Search inspection ID or location"
+                    className={`flex-1 min-w-0 bg-transparent text-sm outline-none transition-colors duration-300 ease-in-out ${dark ? "placeholder:text-white/40" : "placeholder:text-[#5a6a99]/70"}`}
+                    style={{ color: textPrimary }}
+                    aria-autocomplete="list"
+                    aria-expanded={showSuggestions}
+                    aria-controls="inspection-search-suggestions"
+                  />
+                  {query && (
+                    <button
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => setQuery("")}
+                      className="pressable w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 focus:outline-none"
+                      style={{
+                        background: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.10)",
+                        color: textMuted,
+                      }}
+                      aria-label="Clear search"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={openFilters}
+                className="pressable relative h-12 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none overflow-hidden"
+                style={{
+                  width: searchFocused ? 0 : 48,
+                  minWidth: searchFocused ? 0 : 48,
+                  opacity: searchFocused ? 0 : 1,
+                  marginLeft: searchFocused ? -10 : 0,
+                  pointerEvents: searchFocused ? "none" : "auto",
+                  background: filtersActive ? GRADIENT : glassSurface,
+                  color: filtersActive ? "#ffffff" : (dark ? "#ffffff" : "#0f2f8f"),
+                  border: searchFocused
+                    ? "0 solid transparent"
+                    : `1.5px solid ${filtersActive ? "transparent" : glassBorder}`,
+                  boxShadow: filtersActive
+                    ? "0 6px 18px rgba(15,47,143,0.28)"
+                    : (dark ? "0 2px 12px rgba(0,0,0,0.22)" : "0 2px 10px rgba(15,47,143,0.05)"),
+                  transition:
+                    "width 0.3s ease-in-out, min-width 0.3s ease-in-out, opacity 0.25s ease-in-out, margin 0.3s ease-in-out, box-shadow 0.3s ease-in-out, background 0.25s ease-in-out",
+                }}
+                aria-label="Open filters"
+                aria-expanded={filterOpen}
+                tabIndex={searchFocused ? -1 : 0}
+              >
+                <ListFilter size={19} />
+                {filtersActive && !searchFocused && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
+                    style={{ background: "#d4183d", boxShadow: dark ? "0 0 0 2px #0f172a" : "0 0 0 2px #ffffff" }}
+                  />
+                )}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={openFilters}
-              className="relative w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-95 transition-all duration-200"
-              style={{
-                background: filtersActive ? GRADIENT : glassSurface,
-                color: filtersActive ? "#ffffff" : (dark ? "#ffffff" : "#0f2f8f"),
-                border: `1.5px solid ${filtersActive ? "transparent" : glassBorder}`,
-                boxShadow: filtersActive
-                  ? "0 6px 18px rgba(15,47,143,0.28)"
-                  : (dark ? "0 2px 12px rgba(0,0,0,0.22)" : "0 2px 10px rgba(15,47,143,0.05)"),
-              }}
-              aria-label="Open filters"
-              aria-expanded={filterOpen}
-            >
-              <ListFilter size={19} />
-              {filtersActive && (
-                <span
-                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
-                  style={{ background: "#d4183d", boxShadow: dark ? "0 0 0 2px #0f172a" : "0 0 0 2px #ffffff" }}
-                />
-              )}
-            </button>
+
+            {showSuggestions && (
+              <div
+                id="inspection-search-suggestions"
+                role="listbox"
+                aria-label="Search suggestions"
+                className="search-suggest-panel absolute left-0 right-0 mt-2 rounded-2xl overflow-hidden z-40"
+                style={{
+                  background: dark ? "rgba(15, 23, 42, 0.96)" : "#ffffff",
+                  border: `1px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)"}`,
+                  boxShadow: dark
+                    ? "0 16px 40px rgba(0,0,0,0.45)"
+                    : "0 16px 36px rgba(15,47,143,0.14), 0 2px 8px rgba(15,47,143,0.06)",
+                  backdropFilter: "blur(16px)",
+                  WebkitBackdropFilter: "blur(16px)",
+                }}
+              >
+                {searchSuggestions.length === 0 ? (
+                  <div className="px-4 py-3.5">
+                    <p className="text-[12px] font-medium" style={{ color: textMuted }}>
+                      No matches for “{query.trim()}”
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="flex flex-col py-1.5 max-h-[240px] overflow-y-auto">
+                    {searchSuggestions.map((task, i) => {
+                      const status = resolveInspectionStatus(task, getProgress(task.id));
+                      const tone = statusTone(status);
+                      return (
+                        <li key={task.id} role="option" className="search-suggest-enter" style={{ ["--suggest-delay" as string]: `${40 + i * 45}ms` }}>
+                          <button
+                            type="button"
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => applySuggestion(task)}
+                            className="w-full px-3.5 py-2.5 flex items-center gap-3 text-left focus:outline-none transition-colors duration-200 ease-in-out"
+                            style={{
+                              background: "transparent",
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = dark
+                                ? "rgba(255,255,255,0.06)"
+                                : "rgba(15,47,143,0.05)";
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = "transparent";
+                            }}
+                          >
+                            <span
+                              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                              style={{
+                                background: dark ? "rgba(59,130,246,0.16)" : "rgba(15,47,143,0.08)",
+                                color: dark ? "#93c5fd" : "#0f2f8f",
+                              }}
+                            >
+                              <Search size={15} />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-[13px] font-bold truncate" style={{ color: textPrimary }}>
+                                {task.shipment}
+                              </span>
+                              <span className="mt-0.5 flex items-center gap-1 text-[11px] truncate" style={{ color: textMuted }}>
+                                <MapPin size={11} className="flex-shrink-0" />
+                                {task.location}
+                              </span>
+                            </span>
+                            <span
+                              className="text-[9px] font-bold uppercase tracking-wide px-2 py-1 rounded-md flex-shrink-0"
+                              style={{ background: tone.bg, color: tone.color }}
+                            >
+                              {INSPECTION_STATUS_META[status].label}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 4. Time Tabs */}
@@ -2496,7 +2626,7 @@ function ScheduleInspectionScreen({
             onClick={closeFilters}
           />
           <div
-            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-riseIn"
+            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-sheetUp"
             style={{
               background: sheetBg,
               boxShadow: dark ? "0 -12px 40px rgba(0,0,0,0.45)" : "0 -12px 40px rgba(15,47,143,0.18)",
@@ -5257,8 +5387,8 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
 
   return (
     <div
-      className="relative min-h-screen w-full animate-fadeIn"
-      style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
+      className="relative min-h-screen w-full animate-fadeIn inspection-surface"
+      style={{ fontFamily: "'Inter', sans-serif" }}
       {...swipe}
     >
       <AppHeaderBar>
@@ -5276,21 +5406,23 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
       >
 
         {/* Inspection Info — read only, tap to view full details */}
-        <GradientInfoHeroCard
-          icon={<ClipboardList size={17} style={{ color: "#ffffff" }} />}
-          title="Inspection Info"
-          subtitle={task.exporter}
-          onClick={onViewFullInfo}
-          ariaLabel="View full inspection info"
-          stats={[
-            { label: "Request No.", value: `#${info.referenceNo}` },
-            { label: "Concession", value: info.projectSite },
-          ]}
-        />
+        <div className="animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }}>
+          <GradientInfoHeroCard
+            icon={<ClipboardList size={17} style={{ color: "#ffffff" }} />}
+            title="Inspection Info"
+            subtitle={task.border}
+            onClick={onViewFullInfo}
+            ariaLabel="View full inspection info"
+            stats={[
+              { label: "Request No.", value: `#${info.referenceNo}` },
+              { label: "Concession", value: info.projectSite },
+            ]}
+          />
+        </div>
 
         <p
-          className="mb-2 text-xs font-bold uppercase tracking-wider"
-          style={{ color: "#5a6a99" }}
+          className="mb-2 text-xs font-bold uppercase tracking-wider animate-riseIn"
+          style={{ color: "#5a6a99", ["--rise-delay" as string]: "90ms" }}
         >
           Inspection Type
         </p>
@@ -5312,11 +5444,15 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                 : `Start ${step.shortLabel}`;
 
             return (
-              <div key={step.key}>
+              <div
+                key={step.key}
+                className="animate-riseIn"
+                style={{ ["--rise-delay" as string]: `${140 + idx * 90}ms` }}
+              >
                 <div className="relative flex gap-4">
                   <div className="flex flex-col items-center flex-shrink-0" style={{ width: 48 }}>
                     <div
-                      className="relative z-10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+                      className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${isActive ? "animate-softPulse" : ""}`}
                       style={{
                         background: "#ffffff",
                         color: isDone ? "#059669" : "#0f2f8f",
@@ -5338,8 +5474,14 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                   </div>
 
                   <div
-                    className="flex-1 min-w-0 rounded-2xl p-4 flex flex-col gap-2"
-                    style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)", boxShadow: "0 1px 4px rgba(15,47,143,0.06)" }}
+                    className="flex-1 min-w-0 rounded-2xl p-4 flex flex-col gap-2 transition-shadow duration-300"
+                    style={{
+                      background: "#ffffff",
+                      border: `1px solid ${isActive ? "rgba(15,47,143,0.22)" : "rgba(15,47,143,0.14)"}`,
+                      boxShadow: isActive
+                        ? "0 8px 24px rgba(15,47,143,0.12)"
+                        : "0 1px 4px rgba(15,47,143,0.06)",
+                    }}
                   >
                     <div className="flex items-start justify-between gap-2 flex-wrap">
                       <h3 className="text-[15px] font-bold" style={{ color: "#0a1a4a" }}>
@@ -5397,7 +5539,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                       type="button"
                       onClick={() => handleStepAction(step.key, isActive, isDisabled)}
                       disabled={isDisabled}
-                      className="w-full h-12 mt-1 rounded-xl text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all duration-200 hover:brightness-110 disabled:active:scale-100 disabled:hover:brightness-100 disabled:cursor-not-allowed"
+                      className="pressable w-full h-12 mt-1 rounded-xl text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2 focus:outline-none hover:brightness-110 disabled:hover:brightness-100 disabled:cursor-not-allowed"
                       style={{
                         background: isDone || isLocked ? "#eef1f6" : GRADIENT,
                         color: isDone || isLocked ? "#94a3b8" : "#ffffff",
@@ -5476,8 +5618,8 @@ function PreShipmentVerifyStepper({
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl px-3.5 sm:px-4 py-4 flex flex-col gap-3"
-      style={{ background: GRADIENT, boxShadow: "0 10px 26px rgba(15,47,143,0.30)" }}
+      className="relative overflow-hidden rounded-2xl px-3.5 sm:px-4 py-4 flex flex-col gap-3 animate-riseIn"
+      style={{ background: GRADIENT, boxShadow: "0 10px 26px rgba(15,47,143,0.30)", ["--rise-delay" as string]: "60ms" }}
     >
       <div
         className="absolute inset-0 pointer-events-none"
@@ -5767,8 +5909,8 @@ function PhysicalVerificationScreen({
 
   return (
     <div
-      className="h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn"
-      style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
+      className="h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn inspection-surface"
+      style={{ fontFamily: "'Inter', sans-serif" }}
       {...swipe}
     >
       <AppHeaderBar>
@@ -5789,11 +5931,14 @@ function PhysicalVerificationScreen({
       >
         {/* Tabs — above stepper */}
         <div
-          className="flex p-1 rounded-2xl gap-0.5"
+          className="flex p-1 rounded-2xl gap-0.5 animate-riseIn"
           style={{
             background: "rgba(255,255,255,0.88)",
             border: "1px solid rgba(15,47,143,0.10)",
             boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
+            ["--rise-delay" as string]: "40ms",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
           }}
           role="tablist"
           aria-label="Pre-shipment sections"
@@ -5810,7 +5955,7 @@ function PhysicalVerificationScreen({
                   setActiveTab(tab.id);
                   if (tab.id !== "non-compliance") setNcView("list");
                 }}
-                className="flex-1 min-w-0 h-10 rounded-xl text-[11px] sm:text-[12px] font-semibold focus:outline-none transition-all duration-200 active:scale-[0.98] px-1"
+                className="pressable flex-1 min-w-0 h-10 rounded-xl text-[11px] sm:text-[12px] font-semibold focus:outline-none px-1"
                 style={{
                   background: active ? GRADIENT : "transparent",
                   color: active ? "#ffffff" : "#5a6a99",
@@ -5825,7 +5970,7 @@ function PhysicalVerificationScreen({
         </div>
 
         {activeTab === "verification" && (
-        <>
+        <div key="verification" className="flex flex-col gap-4 animate-panelIn">
         <PreShipmentVerifyStepper
           activeStep="physical"
           physicalComplete={physicalStepComplete}
@@ -6035,11 +6180,11 @@ function PhysicalVerificationScreen({
           Finish Pre-Shipment Inspection
           <CheckCircle2 size={16} />
         </button>
-        </>
+        </div>
         )}
 
         {activeTab === "non-compliance" && ncView === "list" && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 animate-panelIn">
             <button
               type="button"
               onClick={() => setNcView("create")}
@@ -6072,7 +6217,7 @@ function PhysicalVerificationScreen({
         )}
 
         {activeTab === "non-compliance" && ncView === "create" && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 animate-panelIn">
             <div className="flex flex-col gap-1.5">
               <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
                 Non-Compliance Description <span style={{ color: "#d4183d" }}>*</span>
@@ -6265,7 +6410,7 @@ function PhysicalVerificationScreen({
         )}
 
         {activeTab === "attachments" && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 animate-panelIn">
             <input
               ref={attachmentInputRef}
               type="file"
@@ -6340,7 +6485,7 @@ function PhysicalVerificationScreen({
             onClick={closeEvidenceSheet}
           />
           <div
-            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-riseIn"
+            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-sheetUp"
             style={{
               background: "#ffffff",
               boxShadow: "0 -12px 40px rgba(15,47,143,0.18)",
@@ -7565,7 +7710,7 @@ function DamageReportDialog({
         onClick={handleCancel}
       />
       <div
-        className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-4 animate-riseIn max-h-[88%] overflow-y-auto"
+        className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-4 animate-sheetUp max-h-[88%] overflow-y-auto"
         style={{ background: "#ffffff", boxShadow: "0 -12px 40px rgba(15,47,143,0.18)" }}
         role="dialog"
         aria-modal="true"
@@ -7766,7 +7911,7 @@ function DamageReportDialog({
             onClick={() => setPhotoSheetOpen(false)}
           />
           <div
-            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-riseIn"
+            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-sheetUp"
             style={{
               background: "#ffffff",
               boxShadow: "0 -12px 40px rgba(15,47,143,0.18)",
@@ -7880,8 +8025,8 @@ function LoadingVerifyStepper({
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl px-3.5 sm:px-4 py-4 flex flex-col gap-3"
-      style={{ background: GRADIENT, boxShadow: "0 10px 26px rgba(15,47,143,0.30)" }}
+      className="relative overflow-hidden rounded-2xl px-3.5 sm:px-4 py-4 flex flex-col gap-3 animate-riseIn"
+      style={{ background: GRADIENT, boxShadow: "0 10px 26px rgba(15,47,143,0.30)", ["--rise-delay" as string]: "60ms" }}
     >
       <div
         className="absolute inset-0 pointer-events-none"
@@ -8379,8 +8524,8 @@ function LoadingLogsScanScreen({
 
   return (
     <div
-      className="h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn"
-      style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
+      className="h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn inspection-surface"
+      style={{ fontFamily: "'Inter', sans-serif" }}
       {...swipe}
     >
       <AppHeaderBar>
@@ -8405,11 +8550,14 @@ function LoadingLogsScanScreen({
           style={{ paddingBottom: BOTTOM_NAV_PAD }}
         >
           <div
-            className="flex p-1 rounded-2xl gap-0.5"
+            className="flex p-1 rounded-2xl gap-0.5 animate-riseIn"
             style={{
               background: "rgba(255,255,255,0.88)",
               border: "1px solid rgba(15,47,143,0.10)",
               boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
+              ["--rise-delay" as string]: "40ms",
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)",
             }}
             role="tablist"
             aria-label="Loading sections"
@@ -8432,7 +8580,7 @@ function LoadingLogsScanScreen({
                       setPhase("idle");
                     }
                   }}
-                  className="flex-1 min-w-0 h-10 rounded-xl text-[11px] sm:text-[12px] font-semibold focus:outline-none transition-all duration-200 active:scale-[0.98] px-1 relative"
+                  className="pressable flex-1 min-w-0 h-10 rounded-xl text-[11px] sm:text-[12px] font-semibold focus:outline-none px-1 relative"
                   style={{
                     background: active ? GRADIENT : "transparent",
                     color: active ? "#ffffff" : "#5a6a99",
@@ -8458,7 +8606,7 @@ function LoadingLogsScanScreen({
           </div>
 
           {activeTab === "loading" && (
-            <>
+            <div key="loading" className="flex flex-col gap-4 animate-panelIn">
               <LoadingVerifyStepper
                 activeStep={mode}
                 allocateComplete={allocateComplete}
@@ -8919,11 +9067,11 @@ function LoadingLogsScanScreen({
                 Finish Loading Inspection
                 <CheckCircle2 size={16} />
               </button>
-            </>
+            </div>
           )}
 
           {activeTab === "non-compliance" && ncView === "list" && (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 animate-panelIn">
               <button
                 type="button"
                 onClick={() => setNcView("create")}
@@ -8998,7 +9146,7 @@ function LoadingLogsScanScreen({
           )}
 
           {activeTab === "non-compliance" && ncView === "create" && (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 animate-panelIn">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
                   Non-Compliance Description <span style={{ color: "#d4183d" }}>*</span>
@@ -9170,7 +9318,7 @@ function LoadingLogsScanScreen({
           )}
 
           {activeTab === "attachments" && (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 animate-panelIn">
               <button
                 type="button"
                 onClick={openAttachmentSheet}
@@ -9246,7 +9394,7 @@ function LoadingLogsScanScreen({
             onClick={closeEvidenceSheet}
           />
           <div
-            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-riseIn"
+            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-sheetUp"
             style={{
               background: "#ffffff",
               boxShadow: "0 -12px 40px rgba(15,47,143,0.18)",
@@ -9361,7 +9509,7 @@ function LoadingLogsScanScreen({
             }}
           />
           <div
-            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-4 animate-riseIn max-h-[88%] overflow-y-auto"
+            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-4 animate-sheetUp max-h-[88%] overflow-y-auto"
             style={{ background: "#ffffff", boxShadow: "0 -12px 40px rgba(15,47,143,0.18)" }}
             role="dialog"
             aria-modal="true"
