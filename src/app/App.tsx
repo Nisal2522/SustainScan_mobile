@@ -7364,16 +7364,6 @@ const LOADING_VOLUME_TOLERANCE = 0.1;
 /** Demo declared/permitted volume for the active loading shipment (m³). */
 const LOADING_DECLARED_VOLUME_M3 = 12;
 
-const LOADING_DAMAGE_TYPES = [
-  "Split end",
-  "Crack / check",
-  "Insect damage",
-  "Rot / decay",
-  "Surface damage",
-  "Broken / crushed",
-  "Other",
-] as const;
-
 interface LoadingPoolLog {
   code: string;
   serialNo: string;
@@ -7402,13 +7392,13 @@ interface BargeStack {
 }
 
 const DEFAULT_BARGE_STACKS: BargeStack[] = [
-  { id: "barge-b-204", label: "Barge B-204 (Deck Load)", loadType: "Deck Load", capacity: "120" },
-  { id: "barge-b-205", label: "Barge B-205 (Hold A)", loadType: "Hold", capacity: "180" },
+  { id: "barge-b-204", label: "Barge B-204 (Deck Load)", loadType: "Barge", capacity: "120" },
+  { id: "barge-b-205", label: "Barge B-205 (Hold A)", loadType: "Barge", capacity: "180" },
   { id: "stack-s-12", label: "Stack S-12 (Port side)", loadType: "Stack", capacity: "80" },
   { id: "stack-s-08", label: "Stack S-08 (Starboard)", loadType: "Stack", capacity: "75" },
 ];
 
-const BARGE_LOAD_TYPES = ["Deck Load", "Hold", "Stack", "Other"] as const;
+const BARGE_LOAD_TYPES = ["Barge", "Stack"] as const;
 
 interface DamagedLoadedLog {
   id: string;
@@ -7478,8 +7468,7 @@ function DamageReportDialog({
 }) {
   const [damageType, setDamageType] = useState("");
   const [notes, setNotes] = useState("");
-  const [typeOpen, setTypeOpen] = useState(false);
-  const canSave = Boolean(damageType);
+  const canSave = Boolean(damageType.trim());
 
   return createPortal(
     <div
@@ -7551,57 +7540,18 @@ function DamageReportDialog({
           <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
             Damage reason <span style={{ color: "#d4183d" }}>*</span>
           </label>
-          <button
-            type="button"
-            onClick={() => setTypeOpen(v => !v)}
-            className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-sm text-left focus:outline-none"
+          <input
+            type="text"
+            value={damageType}
+            onChange={e => setDamageType(e.target.value)}
+            placeholder="e.g. Split end, crack, insect damage…"
+            className="w-full px-4 py-3.5 text-sm rounded-xl focus:outline-none"
             style={{
               background: "#f8faff",
-              border: `1.5px solid ${typeOpen ? "rgba(15,47,143,0.45)" : "rgba(15,47,143,0.14)"}`,
-              color: damageType ? "#0a1a4a" : "#5a6a99",
+              border: "1.5px solid rgba(15,47,143,0.14)",
+              color: "#0a1a4a",
             }}
-          >
-            <span className="truncate font-medium">{damageType || "Choose damage type…"}</span>
-            <ChevronDown
-              size={16}
-              style={{
-                color: "#5a6a99",
-                transform: typeOpen ? "rotate(180deg)" : "rotate(0deg)",
-                transition: "transform 0.2s",
-                flexShrink: 0,
-              }}
-            />
-          </button>
-          {typeOpen && (
-            <div
-              className="rounded-2xl overflow-hidden"
-              style={{
-                background: "#ffffff",
-                border: "1px solid rgba(15,47,143,0.12)",
-                maxHeight: 180,
-                overflowY: "auto",
-              }}
-            >
-              {LOADING_DAMAGE_TYPES.map(type => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => {
-                    setDamageType(type);
-                    setTypeOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-3 text-sm font-medium focus:outline-none"
-                  style={{
-                    color: damageType === type ? "#0f2f8f" : "#0a1a4a",
-                    background: damageType === type ? "rgba(15,47,143,0.08)" : "transparent",
-                    borderBottom: "1px solid rgba(15,47,143,0.08)",
-                  }}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          )}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -7634,7 +7584,7 @@ function DamageReportDialog({
           <button
             type="button"
             disabled={!canSave}
-            onClick={() => onSave(damageType, notes.trim())}
+            onClick={() => onSave(damageType.trim(), notes.trim())}
             className="flex-1 h-12 rounded-xl text-sm font-bold text-white focus:outline-none active:scale-[0.98] disabled:opacity-45"
             style={{ background: GRADIENT, boxShadow: canSave ? "0 4px 16px rgba(15,47,143,0.32)" : "none" }}
           >
@@ -7664,7 +7614,6 @@ function LoadingVerifyStepper({
   ];
   const activeIndex = activeStep === "allocate" ? 0 : 1;
   const stepComplete = [allocateComplete, damageComplete];
-  const doneCount = stepComplete.filter(Boolean).length;
   const allDone = allocateComplete && damageComplete;
 
   return (
@@ -7739,14 +7688,6 @@ function LoadingVerifyStepper({
           );
         })}
       </div>
-
-      {!allDone && doneCount > 0 && (
-        <p className="relative z-10 text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.72)" }}>
-          {allocateComplete && !damageComplete
-            ? "Step 1 done — tap Step 2 when you need to report damage"
-            : `${doneCount} of 2 steps done`}
-        </p>
-      )}
     </div>
   );
 }
@@ -7809,7 +7750,7 @@ function LoadingLogsScanScreen({
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
   const [evidenceSheetOpen, setEvidenceSheetOpen] = useState(false);
   const [evidenceSheetBox, setEvidenceSheetBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
-  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentFile[]>(ATTACHMENT_FILES);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [filedNcs, setFiledNcs] = useState<FiledLoadingNc[]>([]);
   const [bargeStacks, setBargeStacks] = useState<BargeStack[]>(DEFAULT_BARGE_STACKS);
@@ -8129,8 +8070,8 @@ function LoadingLogsScanScreen({
 
   const tabs: { id: LoadingInspectionTab; label: string; short: string; badge?: number }[] = [
     { id: "loading", label: "Scan logs", short: "Scan" },
-    { id: "non-compliance", label: "Issues", short: "Issues", badge: filedNcs.length || undefined },
-    { id: "attachments", label: "Photos & files", short: "Files", badge: attachments.length || undefined },
+    { id: "non-compliance", label: "NC", short: "NC", badge: filedNcs.length || undefined },
+    { id: "attachments", label: "Files", short: "Files", badge: attachments.length || undefined },
   ];
 
   const loadedLogs = allocatedLogs.filter(l => !l.excluded);
@@ -8292,7 +8233,7 @@ function LoadingLogsScanScreen({
 
                 {stats.outsideTolerance ? (
                   <p className="text-[11px] leading-snug" style={{ color: "#d4183d" }}>
-                    Loaded volume is more than ±10% off expected. Check the Issues tab.
+                    Loaded volume is more than ±10% off expected. Check the NC tab.
                   </p>
                 ) : null}
               </div>
@@ -8979,28 +8920,14 @@ function LoadingLogsScanScreen({
                 </p>
               )}
 
-              {attachments.length === 0 ? (
-                <div
-                  className="rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-2"
-                  style={{
-                    background: "#ffffff",
-                    border: "2px dashed rgba(15,47,143,0.14)",
-                  }}
-                >
-                  <p className="text-[12px] font-medium" style={{ color: "#94a3b8" }}>
-                    No attachments uploaded yet.
-                  </p>
-                </div>
-              ) : (
-                attachments.map((file, i) => (
-                  <AttachmentFileCard
-                    key={`${file.fileName}-${i}`}
-                    file={file}
-                    index={i}
-                    onDelete={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
-                  />
-                ))
-              )}
+              {attachments.map((file, i) => (
+                <AttachmentFileCard
+                  key={`${file.fileName}-${i}`}
+                  file={file}
+                  index={i}
+                  onDelete={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -9120,13 +9047,13 @@ function LoadingLogsScanScreen({
             style={{ background: "#ffffff", boxShadow: "0 -12px 40px rgba(15,47,143,0.18)" }}
             role="dialog"
             aria-modal="true"
-            aria-label="Add barge or stack"
+            aria-label="New allocation"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex flex-col items-center gap-3">
               <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
               <div className="w-full flex items-center justify-between gap-3">
-                <p className="text-[16px] font-bold" style={{ color: "#0a1a4a" }}>Add Barge / Stack</p>
+                <p className="text-[16px] font-bold" style={{ color: "#0a1a4a" }}>New Allocation</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -9144,7 +9071,7 @@ function LoadingLogsScanScreen({
 
             <div className="flex flex-col gap-1.5">
               <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
-                Barge / Stack Name <span style={{ color: "#d4183d" }}>*</span>
+                Name <span style={{ color: "#d4183d" }}>*</span>
               </label>
               <input
                 type="text"
