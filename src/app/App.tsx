@@ -5812,6 +5812,7 @@ function PhysicalVerificationScreen({
   const [evidenceSheetBox, setEvidenceSheetBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [attachments, setAttachments] = useState<AttachmentFile[]>(ATTACHMENT_FILES);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [finishPulse, setFinishPulse] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const evidencePhotosRef = useRef(evidencePhotos);
   evidencePhotosRef.current = evidencePhotos;
@@ -5968,6 +5969,12 @@ function PhysicalVerificationScreen({
   const thresholdM3 = declaredM3 * 0.95;
   const declaredAnim = useCountUp(declaredM3, 760, task.id);
   const thresholdAnim = useCountUp(thresholdM3, 820, task.id);
+
+  const runFinish = () => {
+    if (finishPulse || volumeOk === null) return;
+    setFinishPulse(true);
+    window.setTimeout(() => onFinish(), 420);
+  };
   const formatVol = (n: number) =>
     n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
@@ -6087,7 +6094,7 @@ function PhysicalVerificationScreen({
             <button
               type="button"
               onClick={() => onDraftChange({ volumeOk: volumeOk === "yes" ? null : "yes" })}
-              className="rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none"
+              className={`rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "yes" ? "animate-selectSpring" : ""}`}
               style={{
                 background: volumeOk === "yes" ? "rgba(22,163,74,0.10)" : "#f8fafc",
                 borderColor: volumeOk === "yes" ? "rgba(22,163,74,0.55)" : "rgba(15,47,143,0.14)",
@@ -6096,7 +6103,7 @@ function PhysicalVerificationScreen({
               aria-pressed={volumeOk === "yes"}
             >
               <span
-                className="h-5 w-5 rounded-md border flex items-center justify-center text-[12px] font-black leading-none transition-all duration-200"
+                className={`h-5 w-5 rounded-md border flex items-center justify-center text-[12px] font-black leading-none transition-all duration-200 ${volumeOk === "yes" ? "animate-checkPop" : ""}`}
                 style={{
                   background: volumeOk === "yes" ? "#16a34a" : "#ffffff",
                   borderColor: volumeOk === "yes" ? "#16a34a" : "rgba(15,47,143,0.25)",
@@ -6113,7 +6120,7 @@ function PhysicalVerificationScreen({
             <button
               type="button"
               onClick={() => onDraftChange({ volumeOk: volumeOk === "no" ? null : "no" })}
-              className="rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none"
+              className={`rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "no" ? "animate-selectSpring" : ""}`}
               style={{
                 background: volumeOk === "no" ? "rgba(212,24,61,0.08)" : "#f8fafc",
                 borderColor: volumeOk === "no" ? "rgba(212,24,61,0.45)" : "rgba(15,47,143,0.14)",
@@ -6122,7 +6129,7 @@ function PhysicalVerificationScreen({
               aria-pressed={volumeOk === "no"}
             >
               <span
-                className="h-5 w-5 rounded-md border flex items-center justify-center text-[12px] font-black leading-none transition-all duration-200"
+                className={`h-5 w-5 rounded-md border flex items-center justify-center text-[12px] font-black leading-none transition-all duration-200 ${volumeOk === "no" ? "animate-checkPop" : ""}`}
                 style={{
                   background: volumeOk === "no" ? "#d4183d" : "#ffffff",
                   borderColor: volumeOk === "no" ? "#d4183d" : "rgba(15,47,143,0.25)",
@@ -6230,13 +6237,13 @@ function PhysicalVerificationScreen({
 
         <button
           type="button"
-          onClick={onFinish}
-          disabled={volumeOk === null}
-          className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-45"
+          onClick={runFinish}
+          disabled={volumeOk === null || finishPulse}
+          className={`w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-45 ${finishPulse ? "animate-finishSuccess" : ""}`}
           style={{ background: GRADIENT, boxShadow: volumeOk !== null ? "0 6px 18px rgba(15,47,143,0.30)" : "none" }}
         >
-          Finish Pre-Shipment Inspection
-          <CheckCircle2 size={16} />
+          {finishPulse ? "Completed" : "Finish Pre-Shipment Inspection"}
+          <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />
         </button>
         </div>
         )}
@@ -6959,6 +6966,7 @@ function SampleVerificationScanScreen({
 }) {
   // Arms itself when the user arrived here to scan; otherwise it waits so the history stays browsable.
   const [phase, setPhase] = useState<ScannerPhase>("scanning");
+  const [finishPulse, setFinishPulse] = useState(false);
   const next = SAMPLE_QR_POOL[scanCount % SAMPLE_QR_POOL.length];
 
   // Simulated capture: the frame "finds" a code, shows a confirmation beat, then advances.
@@ -6987,6 +6995,12 @@ function SampleVerificationScanScreen({
   const scanning = phase === "scanning";
   const frameColor = detected ? "#16a34a" : scanning ? "#0f2f8f" : "#c3cee6";
   const swipe = useSwipeBack(onBack);
+
+  const runFinishInspection = () => {
+    if (finishPulse) return;
+    setFinishPulse(true);
+    window.setTimeout(() => onFinishInspection(), 420);
+  };
 
   return (
     <div
@@ -7114,12 +7128,13 @@ function SampleVerificationScanScreen({
 
         <button
           type="button"
-          onClick={onFinishInspection}
-          className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
+          onClick={runFinishInspection}
+          disabled={finishPulse}
+          className={`w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-70 ${finishPulse ? "animate-finishSuccess" : ""}`}
           style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
         >
-          Finish Pre-Shipment Inspection
-          <CheckCircle2 size={16} />
+          {finishPulse ? "Completed" : "Finish Pre-Shipment Inspection"}
+          <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />
         </button>
       </div>
     </div>
@@ -7779,7 +7794,7 @@ function DamageReportDialog({
         aria-label="Report damaged log"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-3 animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }}>
           <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
           <div className="w-full flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -7803,8 +7818,12 @@ function DamageReportDialog({
         </div>
 
         <div
-          className="rounded-2xl px-3.5 py-3 flex flex-col gap-1"
-          style={{ background: "rgba(212,24,61,0.06)", border: "1px solid rgba(212,24,61,0.16)" }}
+          className="rounded-2xl px-3.5 py-3 flex flex-col gap-1 animate-riseIn"
+          style={{
+            background: "rgba(212,24,61,0.06)",
+            border: "1px solid rgba(212,24,61,0.16)",
+            ["--rise-delay" as string]: "90ms",
+          }}
         >
           <p className="text-[12px] font-bold truncate" style={{ color: "#0a1a4a" }}>{pending.code}</p>
           <p className="text-[11px] truncate" style={{ color: "#5a6a99" }}>
@@ -7815,7 +7834,7 @@ function DamageReportDialog({
           </p>
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 animate-riseIn" style={{ ["--rise-delay" as string]: "140ms" }}>
           <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
             Damage reason <span style={{ color: "#d4183d" }}>*</span>
           </label>
@@ -7833,7 +7852,7 @@ function DamageReportDialog({
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 animate-riseIn" style={{ ["--rise-delay" as string]: "190ms" }}>
           <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
             Notes
           </label>
@@ -7851,7 +7870,7 @@ function DamageReportDialog({
           />
         </div>
 
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2.5 animate-riseIn" style={{ ["--rise-delay" as string]: "240ms" }}>
           <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
             Evidence Photos
           </p>
@@ -7935,7 +7954,7 @@ function DamageReportDialog({
           )}
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 animate-riseIn" style={{ ["--rise-delay" as string]: "290ms" }}>
           <button
             type="button"
             onClick={handleCancel}
@@ -8231,6 +8250,8 @@ function LoadingLogsScanScreen({
   const [newBargeLoadType, setNewBargeLoadType] = useState("");
   const [newBargeCapacity, setNewBargeCapacity] = useState("");
   const [loadTypeOpen, setLoadTypeOpen] = useState(false);
+  const [volumeFlash, setVolumeFlash] = useState(false);
+  const [finishPulse, setFinishPulse] = useState(false);
   const evidencePhotosRef = useRef(evidencePhotos);
   evidencePhotosRef.current = evidencePhotos;
   const handledDetection = useRef(false);
@@ -8411,6 +8432,16 @@ function LoadingLogsScanScreen({
     setToast(`${pendingDamage.code} excluded from loaded volume`);
     setPendingDamage(null);
     setPhase("idle");
+    setVolumeFlash(true);
+    window.setTimeout(() => setVolumeFlash(false), 950);
+  };
+
+  const runFinishComplete = () => {
+    if (finishPulse || activeCount === 0) return;
+    setFinishPulse(true);
+    window.setTimeout(() => {
+      onComplete();
+    }, 420);
   };
 
   const clearEvidencePhotos = () => {
@@ -8659,10 +8690,10 @@ function LoadingLogsScanScreen({
               />
 
               <div
-                className="rounded-2xl p-3.5 sm:p-4 flex flex-col gap-3"
+                className={`rounded-2xl p-3.5 sm:p-4 flex flex-col gap-3 ${volumeFlash ? "animate-volumeFlash" : ""}`}
                 style={{
                   background: "#ffffff",
-                  border: `1px solid ${stats.outsideTolerance ? "rgba(212,24,61,0.28)" : "rgba(15,47,143,0.12)"}`,
+                  border: `1px solid ${stats.outsideTolerance || volumeFlash ? "rgba(212,24,61,0.28)" : "rgba(15,47,143,0.12)"}`,
                   boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
                 }}
               >
@@ -8804,14 +8835,20 @@ function LoadingLogsScanScreen({
                                 setPhase("idle");
                                 setToast(`Selected ${stack.label} — tap Start Scanning`);
                               }}
-                              className="w-full text-left px-4 py-3 text-sm font-medium focus:outline-none"
+                              className={`chip-settle w-full text-left px-4 py-3 text-sm font-medium focus:outline-none ${active ? "is-active animate-selectSpring" : ""}`}
                               style={{
                                 color: active ? "#0f2f8f" : "#0a1a4a",
                                 background: active ? "rgba(15,47,143,0.08)" : "transparent",
                                 borderBottom: "1px solid rgba(15,47,143,0.08)",
+                                boxShadow: active ? "inset 3px 0 0 #0f2f8f" : "none",
                               }}
                             >
-                              {stack.label}
+                              <span className="inline-flex items-center gap-2">
+                                {active ? (
+                                  <span className="animate-checkPop text-[12px] font-black" style={{ color: "#0f2f8f" }}>✓</span>
+                                ) : null}
+                                {stack.label}
+                              </span>
                             </button>
                           );
                         })}
@@ -9129,13 +9166,13 @@ function LoadingLogsScanScreen({
 
               <button
                 type="button"
-                onClick={onComplete}
-                disabled={activeCount === 0}
-                className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-45"
+                onClick={runFinishComplete}
+                disabled={activeCount === 0 || finishPulse}
+                className={`w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-45 ${finishPulse ? "animate-finishSuccess" : ""}`}
                 style={{ background: GRADIENT, boxShadow: activeCount > 0 ? "0 6px 18px rgba(15,47,143,0.30)" : "none" }}
               >
-                Finish Loading Inspection
-                <CheckCircle2 size={16} />
+                {finishPulse ? "Completed" : "Finish Loading Inspection"}
+                <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />
               </button>
             </div>
           )}

@@ -450,6 +450,88 @@
     animation: emptyFloat 2.8s ease-in-out infinite;
   }
 
+  @keyframes selectSpring {
+    0% {
+      transform: scale(0.94);
+    }
+    55% {
+      transform: scale(1.035);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  .animate-selectSpring {
+    animation: selectSpring 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes checkPop {
+    0% {
+      transform: scale(0.4);
+      opacity: 0;
+    }
+    70% {
+      transform: scale(1.15);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-checkPop {
+    animation: checkPop 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes volumeFlash {
+    0% {
+      box-shadow: 0 0 0 0 rgba(212, 24, 61, 0);
+      border-color: rgba(15, 47, 143, 0.12);
+    }
+    35% {
+      box-shadow: 0 0 0 4px rgba(212, 24, 61, 0.16), 0 8px 24px rgba(212, 24, 61, 0.12);
+      border-color: rgba(212, 24, 61, 0.45);
+    }
+    100% {
+      box-shadow: 0 2px 10px rgba(15, 47, 143, 0.05);
+      border-color: rgba(15, 47, 143, 0.12);
+    }
+  }
+
+  .animate-volumeFlash {
+    animation: volumeFlash 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes finishSuccess {
+    0% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(0.97);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  .animate-finishSuccess {
+    animation: finishSuccess 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .chip-settle {
+    transition:
+      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 0.25s ease,
+      color 0.25s ease,
+      box-shadow 0.28s ease;
+  }
+
+  .chip-settle.is-active {
+    transform: scale(1.02);
+  }
+
   @keyframes shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
@@ -551,7 +633,11 @@
     .animate-unlockPop,
     .detect-success-ring,
     .animate-toastIn,
-    .animate-emptyFloat {
+    .animate-emptyFloat,
+    .animate-selectSpring,
+    .animate-checkPop,
+    .animate-volumeFlash,
+    .animate-finishSuccess {
       animation: none !important;
     }
 
@@ -559,8 +645,13 @@
       transition: none !important;
     }
 
-    .volume-meter-fill {
+    .volume-meter-fill,
+    .chip-settle {
       transition: none !important;
+    }
+
+    .chip-settle.is-active {
+      transform: none;
     }
 
     .pressable:active:not(:disabled) {
