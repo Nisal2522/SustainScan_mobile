@@ -18,7 +18,7 @@ import logEntryPhoto from "../imports/timber.png";
 
 type LoginTab = "client" | "cu";
 type UserType = "client" | "cu";
-type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details" | "physical-verification" | "sample-verification-scan" | "sample-verification-log";
+type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details" | "approved-price-endorsement" | "declared-log-details" | "physical-verification" | "sample-verification-scan" | "sample-verification-log";
 type InventoryTab = "all" | "modified";
 type InspectionDay = "today" | "tomorrow" | "later";
 type InspectionStatus = "pending" | "inprogress" | "complete";
@@ -96,12 +96,12 @@ interface AppSession {
 }
 
 const AUTHENTICATED_SCREENS: Screen[] = [
-  "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection", "inspection-details", "inspection-info-details", "physical-verification",
+  "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection", "inspection-details", "inspection-info-details", "approved-price-endorsement", "declared-log-details", "physical-verification",
   "sample-verification-scan", "sample-verification-log",
 ];
 
 const INSPECTION_TASK_SCREENS: Screen[] = [
-  "inspection-details", "inspection-info-details", "physical-verification",
+  "inspection-details", "inspection-info-details", "approved-price-endorsement", "declared-log-details", "physical-verification",
   "sample-verification-scan", "sample-verification-log",
 ];
 
@@ -113,6 +113,8 @@ const SCHEDULE_MODULE_SCREENS: Screen[] = [
   "schedule-inspection",
   "inspection-details",
   "inspection-info-details",
+  "approved-price-endorsement",
+  "declared-log-details",
   "physical-verification",
   "sample-verification-scan",
   "sample-verification-log",
@@ -2689,7 +2691,7 @@ function getInspectionInfoSections(task: InspectionTask): InspectionInfoSection[
     },
     {
       id: "ape",
-      title: "Exporter Approved Price Endorsement",
+      title: "Approved Price Endorsement",
       description: "Permitted volume and FOB pricing per species and group, as approved on the APE.",
       badge: "11 ROWS",
       icon: <CircleDollarSign size={18} />,
@@ -2756,15 +2758,13 @@ function getInspectionInfoSectionFields(sectionId: InspectionInfoSectionId, task
         ["Status", INSPECTION_STATUS_META[task.status].label],
       ];
     case "ape":
+      // Rendered by ApprovedPriceEndorsementPanel — keep a short fallback list for safety.
       return [
-        ["APE Reference", "APE-2026-118"],
-        ["Species Groups", "4 groups"],
-        ["Price Rows", "11 rows"],
-        ["Currency", "USD"],
-        ["Total Permitted Vol.", `${(task.logs * 2.1).toFixed(2)} m³`],
-        ["Avg. FOB", "$420.00 / m³"],
-        ["Approved On", "22 Jan 2026"],
-        ["Valid Until", "22 Jul 2026"],
+        ["APE Reference", "APE-2026-0417"],
+        ["Product Category", "SAW/VENEER"],
+        ["Permit Volume", "10,134.000 m³"],
+        ["Endorsed Value", "USD 758,701.00"],
+        ["Endorsed Lines", "11"],
       ];
     case "vessel":
       return [
@@ -2816,6 +2816,636 @@ function getInspectionInfoSectionFields(sectionId: InspectionInfoSectionId, task
         ["Last Checked", "01 Feb 2026"],
       ];
   }
+}
+
+interface ApeLineItem {
+  id: string;
+  group: string;
+  code: string;
+  species: string;
+  productType: string;
+  permitVolume: string;
+  unitPrice: string;
+  totalPrice: string;
+}
+
+const APE_SUMMARY = {
+  reference: "APE-2026-0417",
+  category: "SAW/VENEER",
+  permitVolume: "10,134.000 m³",
+  endorsedValue: "USD 758,701.00",
+  endorsedLines: "11",
+} as const;
+
+const APE_LINE_ITEMS: ApeLineItem[] = [
+  {
+    id: "1",
+    group: "Group 1",
+    code: "BUR",
+    species: "Burckella",
+    productType: "Saw / Veneer",
+    permitVolume: "153.000 m³",
+    unitPrice: "USD 88.00",
+    totalPrice: "USD 13,464.00",
+  },
+  {
+    id: "2",
+    group: "Group 1",
+    code: "CAL",
+    species: "Calophyllum",
+    productType: "Saw / Veneer",
+    permitVolume: "210.000 m³",
+    unitPrice: "USD 95.00",
+    totalPrice: "USD 19,950.00",
+  },
+  {
+    id: "3",
+    group: "Group 1",
+    code: "DIL",
+    species: "Dillenia",
+    productType: "Saw / Veneer",
+    permitVolume: "178.500 m³",
+    unitPrice: "USD 82.00",
+    totalPrice: "USD 14,637.00",
+  },
+  {
+    id: "4",
+    group: "Group 2",
+    code: "KWI",
+    species: "Kwila",
+    productType: "Saw / Veneer",
+    permitVolume: "320.000 m³",
+    unitPrice: "USD 120.00",
+    totalPrice: "USD 38,400.00",
+  },
+  {
+    id: "5",
+    group: "Group 2",
+    code: "TAU",
+    species: "Taun",
+    productType: "Saw / Veneer",
+    permitVolume: "265.000 m³",
+    unitPrice: "USD 102.00",
+    totalPrice: "USD 27,030.00",
+  },
+  {
+    id: "6",
+    group: "Group 2",
+    code: "MAL",
+    species: "Malas",
+    productType: "Saw / Veneer",
+    permitVolume: "198.000 m³",
+    unitPrice: "USD 76.00",
+    totalPrice: "USD 15,048.00",
+  },
+  {
+    id: "7",
+    group: "Group 3",
+    code: "PNG",
+    species: "PNG Walnut",
+    productType: "Saw / Veneer",
+    permitVolume: "145.000 m³",
+    unitPrice: "USD 140.00",
+    totalPrice: "USD 20,300.00",
+  },
+  {
+    id: "8",
+    group: "Group 3",
+    code: "ERI",
+    species: "Erima",
+    productType: "Saw / Veneer",
+    permitVolume: "240.000 m³",
+    unitPrice: "USD 68.00",
+    totalPrice: "USD 16,320.00",
+  },
+  {
+    id: "9",
+    group: "Group 3",
+    code: "TER",
+    species: "Terminalia",
+    productType: "Saw / Veneer",
+    permitVolume: "186.000 m³",
+    unitPrice: "USD 91.00",
+    totalPrice: "USD 16,926.00",
+  },
+  {
+    id: "10",
+    group: "Group 4",
+    code: "HOP",
+    species: "Hopea Light",
+    productType: "Saw / Veneer",
+    permitVolume: "412.000 m³",
+    unitPrice: "USD 110.00",
+    totalPrice: "USD 45,320.00",
+  },
+  {
+    id: "11",
+    group: "Group 4",
+    code: "VIT",
+    species: "Vitex",
+    productType: "Saw / Veneer",
+    permitVolume: "355.000 m³",
+    unitPrice: "USD 98.00",
+    totalPrice: "USD 34,790.00",
+  },
+];
+
+const APE_SUMMARY_BY_PRODUCT = [
+  {
+    productType: "Saw / Veneer",
+    lines: "11 LINES",
+    permitVolume: "10,134.000 m³",
+    unitPrice: "USD 74.87",
+    total: "USD 758,701.00",
+  },
+] as const;
+
+/** Shared blue-gradient info hero — Inspection Info + APE summary cards. */
+function GradientInfoHeroCard({
+  icon,
+  title,
+  subtitle,
+  stats,
+  onClick,
+  showArrow = Boolean(onClick),
+  ariaLabel,
+}: {
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+  stats: { label: string; value: string }[];
+  onClick?: () => void;
+  showArrow?: boolean;
+  ariaLabel?: string;
+}) {
+  const twoCol = stats.length === 2;
+  const inner = (
+    <>
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 55%)" }}
+        aria-hidden="true"
+      />
+
+      <div className="relative z-10 flex flex-col gap-3.5">
+        <div className="flex items-start gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.18)" }}
+          >
+            {icon}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[15px] font-bold text-white tracking-tight">{title}</h2>
+            <p className="text-[13px] font-medium mt-1 leading-snug truncate" style={{ color: "rgba(255,255,255,0.78)" }}>
+              {subtitle}
+            </p>
+          </div>
+
+          {showArrow && (
+            <span
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: "#ffffff", color: "#0f2f8f" }}
+            >
+              <ArrowRight size={15} />
+            </span>
+          )}
+        </div>
+
+        <div
+          className={twoCol ? "rounded-xl px-3.5 py-3 grid grid-cols-2 gap-3" : "rounded-xl px-3.5 py-3 flex flex-col gap-2.5"}
+          style={{
+            background: "rgba(255,255,255,0.10)",
+            border: "1px solid rgba(255,255,255,0.14)",
+          }}
+        >
+          {stats.map((stat, i) => (
+            <div
+              key={stat.label}
+              className={twoCol && i === 1 ? "min-w-0 pl-2.5 sm:pl-3" : twoCol ? "min-w-0" : "min-w-0 flex items-baseline justify-between gap-3"}
+              style={twoCol && i === 1 ? { borderLeft: "1px solid rgba(255,255,255,0.16)" } : undefined}
+            >
+              {twoCol ? (
+                <>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.58)" }}>
+                    {stat.label}
+                  </p>
+                  <p className="text-[13px] sm:text-[15px] font-bold text-white mt-1 tabular-nums tracking-tight leading-snug break-words">
+                    {stat.value}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.58)" }}>
+                    {stat.label}
+                  </p>
+                  <p className="text-[14px] font-bold text-white text-right tabular-nums tracking-tight">{stat.value}</p>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+
+  const shellClass =
+    "relative overflow-hidden w-full rounded-2xl p-3.5 sm:p-4 text-left focus:outline-none transition-all duration-200";
+  const shellStyle = { background: GRADIENT, boxShadow: "0 10px 28px rgba(15,47,143,0.28)" };
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`${shellClass} active:scale-[0.99]`}
+        style={shellStyle}
+        aria-label={ariaLabel ?? title}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <div className={shellClass} style={shellStyle} aria-label={ariaLabel}>
+      {inner}
+    </div>
+  );
+}
+
+function ApprovedPriceEndorsementPanel({ dark }: { dark: boolean }) {
+  const [view, setView] = useState<"detailed" | "summary">("detailed");
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#5a6a99";
+  const cardBg = dark ? "rgba(30,41,59,0.72)" : "#ffffff";
+  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.10)";
+  const summaryAccent = dark ? "#93c5fd" : "#0f2f8f";
+  const rowBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)";
+  const groupBadgeBg = dark ? "#0f2f8f" : "#0f2f8f";
+
+  return (
+    <div className="flex flex-col gap-4">
+      <GradientInfoHeroCard
+        icon={<CircleDollarSign size={17} style={{ color: "#ffffff" }} />}
+        title={APE_SUMMARY.reference}
+        subtitle={APE_SUMMARY.category}
+        showArrow={false}
+        stats={[
+          { label: "Permit Volume", value: APE_SUMMARY.permitVolume },
+          { label: "Endorsed Value", value: APE_SUMMARY.endorsedValue },
+          { label: "Endorsed Lines", value: APE_SUMMARY.endorsedLines },
+        ]}
+      />
+
+      {/* Detailed / Summary tabs — same pattern as Log Inventory / Schedule */}
+      <div
+        className="flex gap-0.5 p-1 rounded-2xl w-full"
+        style={{
+          background: dark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.88)",
+          border: `1px solid ${cardBorder}`,
+          boxShadow: dark ? "none" : "0 2px 10px rgba(15,47,143,0.05)",
+        }}
+        role="tablist"
+        aria-label="APE view"
+      >
+        {(["detailed", "summary"] as const).map(tab => {
+          const active = view === tab;
+          return (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setView(tab)}
+              className="flex-1 h-10 rounded-xl text-sm font-semibold focus:outline-none transition-all duration-200 active:scale-[0.98]"
+              style={{
+                background: active ? GRADIENT : "transparent",
+                color: active ? "#ffffff" : textMuted,
+                boxShadow: active ? "0 4px 12px rgba(15,47,143,0.25)" : "none",
+              }}
+            >
+              {tab === "detailed" ? "Detailed" : "Summary"}
+            </button>
+          );
+        })}
+      </div>
+
+      {view === "detailed" ? (
+        <div className="flex flex-col gap-2.5">
+          {APE_LINE_ITEMS.map(item => (
+            <div
+              key={item.id}
+              className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-2.5"
+              style={{
+                background: cardBg,
+                border: `1px solid ${cardBorder}`,
+                boxShadow: dark ? "none" : "0 2px 10px rgba(15,47,143,0.05)",
+              }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className="inline-flex items-center h-6 px-2.5 rounded-md text-[11px] font-bold"
+                  style={{ background: groupBadgeBg, color: "#ffffff" }}
+                >
+                  {item.group}
+                </span>
+                <span
+                  className="inline-flex items-center h-6 px-2.5 rounded-md text-[11px] font-bold tracking-wide"
+                  style={{
+                    background: dark ? "rgba(255,255,255,0.06)" : "rgba(15,47,143,0.06)",
+                    color: summaryAccent,
+                    border: `1px solid ${cardBorder}`,
+                  }}
+                >
+                  {item.code}
+                </span>
+              </div>
+
+              <p className="text-[17px] font-bold tracking-tight leading-tight" style={{ color: textPrimary }}>
+                {item.species}
+              </p>
+
+              <div className="flex flex-col gap-1.5">
+                {([
+                  ["Product Type", item.productType, false],
+                  ["Permit Volume", item.permitVolume, false],
+                  ["Unit Price (FOB/m³)", item.unitPrice, false],
+                  ["Total Price", item.totalPrice, true],
+                ] as const).map(([label, value, bold], i) => (
+                  <div
+                    key={label}
+                    className="flex items-baseline justify-between gap-3 pt-1.5"
+                    style={{ borderTop: i === 0 ? undefined : `1px solid ${rowBorder}` }}
+                  >
+                    <p className="text-[12px] font-medium" style={{ color: textMuted }}>{label}</p>
+                    <p
+                      className={`text-[13px] text-right tabular-nums ${bold ? "font-bold" : "font-semibold"}`}
+                      style={{ color: textPrimary }}
+                    >
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {APE_SUMMARY_BY_PRODUCT.map(row => (
+            <div
+              key={row.productType}
+              className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-2.5"
+              style={{
+                background: cardBg,
+                border: `1px solid ${cardBorder}`,
+                boxShadow: dark ? "none" : "0 2px 10px rgba(15,47,143,0.05)",
+              }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className="inline-flex items-center h-6 px-2.5 rounded-md text-[11px] font-bold"
+                  style={{ background: groupBadgeBg, color: "#ffffff" }}
+                >
+                  {row.productType}
+                </span>
+                <span
+                  className="inline-flex items-center h-6 px-2.5 rounded-md text-[11px] font-bold tracking-wide"
+                  style={{
+                    background: dark ? "rgba(255,255,255,0.06)" : "rgba(15,47,143,0.06)",
+                    color: summaryAccent,
+                    border: `1px solid ${cardBorder}`,
+                  }}
+                >
+                  {row.lines}
+                </span>
+              </div>
+              {([
+                ["Permit Volume", row.permitVolume, true],
+                ["Unit Price (FOB/m³)", row.unitPrice, false],
+                ["Total", row.total, true],
+              ] as const).map(([label, value, bold]) => (
+                <div
+                  key={label}
+                  className="flex items-baseline justify-between gap-3 pt-1.5"
+                  style={{ borderTop: `1px solid ${rowBorder}` }}
+                >
+                  <p className="text-[12px] font-medium" style={{ color: textMuted }}>{label}</p>
+                  <p
+                    className={`text-[13px] text-right tabular-nums ${bold ? "font-bold" : "font-semibold"}`}
+                    style={{ color: textPrimary }}
+                  >
+                    {value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ApprovedPriceEndorsementScreen({
+  dark,
+  onBack,
+}: {
+  dark: boolean;
+  onBack: () => void;
+}) {
+  const t = useInspectionInfoTheme(dark);
+  const swipe = useSwipeBack(onBack);
+
+  return (
+    <div
+      className="min-h-screen w-full transition-colors duration-300 animate-fadeIn"
+      style={{ background: t.bg, fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
+    >
+      <AppHeaderBar dark={dark}>
+        <div className="flex items-center gap-3">
+          <BackCardButton onClick={onBack} dark={dark} />
+          <div className="min-w-0">
+            <h1 className="text-[18px] font-bold tracking-tight leading-snug" style={{ color: t.textPrimary }}>
+              Approved Price Endorsement
+            </h1>
+          </div>
+        </div>
+      </AppHeaderBar>
+
+      <div
+        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 gap-4"
+        style={{ paddingBottom: BOTTOM_NAV_PAD }}
+      >
+        <ApprovedPriceEndorsementPanel dark={dark} />
+      </div>
+    </div>
+  );
+}
+
+interface DeclaredLogItem {
+  id: string;
+  group: string;
+  speciesCode: string;
+  serialNo: string;
+  productName: string;
+  logSize: string;
+  permitVolume: string;
+}
+
+const DECLARED_LOG_ITEMS: DeclaredLogItem[] = [
+  {
+    id: "1",
+    group: "Group 2",
+    speciesCode: "PNG-NGW-001",
+    serialNo: "151-651RN-0000000003",
+    productName: "New Guinea Walnut",
+    logSize: "L 48.00 / D 28.00",
+    permitVolume: "2.956 m³",
+  },
+  {
+    id: "2",
+    group: "Group 1",
+    speciesCode: "PNG-KWI-002",
+    serialNo: "151-651RN-0000000004",
+    productName: "Kwila",
+    logSize: "L 44.00 / D 25.00",
+    permitVolume: "2.160 m³",
+  },
+  {
+    id: "3",
+    group: "Group 1",
+    speciesCode: "PNG-MAL-003",
+    serialNo: "151-651RN-0000000005",
+    productName: "Malas",
+    logSize: "L 40.00 / D 24.00",
+    permitVolume: "1.810 m³",
+  },
+  {
+    id: "4",
+    group: "Group 3",
+    speciesCode: "PNG-BUR-004",
+    serialNo: "151-651RN-0000000006",
+    productName: "Burckella",
+    logSize: "L 42.00 / D 26.00",
+    permitVolume: "2.236 m³",
+  },
+];
+
+function DeclaredLogDetailsScreen({
+  task,
+  dark,
+  onBack,
+}: {
+  task: InspectionTask;
+  dark: boolean;
+  onBack: () => void;
+}) {
+  const t = useInspectionInfoTheme(dark);
+  const swipe = useSwipeBack(onBack);
+  const logs = DECLARED_LOG_ITEMS;
+  const shipmentRef = task.shipment.replace(/^#/, "") || "SHP-992831-TX";
+  const totalVolume = "13.488 m³";
+  const summaryAccent = dark ? "#93c5fd" : "#0f2f8f";
+  const cardBg = dark ? "rgba(30,41,59,0.72)" : "#ffffff";
+  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.10)";
+  const rowBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)";
+
+  return (
+    <div
+      className="min-h-screen w-full transition-colors duration-300 animate-fadeIn"
+      style={{ background: t.bg, fontFamily: "'Inter', sans-serif" }}
+      {...swipe}
+    >
+      <AppHeaderBar dark={dark}>
+        <div className="flex items-center gap-3">
+          <BackCardButton onClick={onBack} dark={dark} />
+          <div className="min-w-0">
+            <h1 className="text-[18px] font-bold tracking-tight leading-snug" style={{ color: t.textPrimary }}>
+              Declared Log Details
+            </h1>
+          </div>
+        </div>
+      </AppHeaderBar>
+
+      <div
+        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 gap-3"
+        style={{ paddingBottom: BOTTOM_NAV_PAD }}
+      >
+        <GradientInfoHeroCard
+          icon={<Layers size={17} style={{ color: "#ffffff" }} />}
+          title="Declared Logs"
+          subtitle={shipmentRef}
+          showArrow={false}
+          stats={[
+            { label: "Logs Declared", value: String(logs.length) },
+            { label: "Total Permit Volume", value: totalVolume },
+          ]}
+        />
+
+        {/* Log cards */}
+        {logs.map(item => (
+          <div
+            key={item.id}
+            className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-2.5"
+            style={{
+              background: cardBg,
+              border: `1px solid ${cardBorder}`,
+              boxShadow: dark ? "none" : "0 2px 10px rgba(15,47,143,0.05)",
+            }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className="inline-flex items-center h-6 px-2.5 rounded-md text-[11px] font-bold"
+                style={{ background: "#0f2f8f", color: "#ffffff" }}
+              >
+                {item.group}
+              </span>
+              <span
+                className="inline-flex items-center h-6 px-2.5 rounded-md text-[11px] font-bold tracking-wide"
+                style={{
+                  background: dark ? "rgba(255,255,255,0.06)" : "rgba(15,47,143,0.06)",
+                  color: summaryAccent,
+                  border: `1px solid ${cardBorder}`,
+                }}
+              >
+                {item.speciesCode}
+              </span>
+            </div>
+
+            <p className="text-[15px] font-bold tracking-tight leading-snug break-all" style={{ color: t.textPrimary }}>
+              {item.serialNo}
+            </p>
+
+            <div className="flex flex-col gap-1.5">
+              {([
+                ["Product Name", item.productName, false],
+                ["Log Size (L / D)", item.logSize, false],
+                ["Permit Volume", item.permitVolume, true],
+              ] as const).map(([label, value, bold], i) => (
+                <div
+                  key={label}
+                  className="flex items-baseline justify-between gap-3 pt-1.5"
+                  style={{ borderTop: i === 0 ? undefined : `1px solid ${rowBorder}` }}
+                >
+                  <p className="text-[12px] font-medium" style={{ color: t.textMuted }}>{label}</p>
+                  <p
+                    className={`text-[13px] text-right ${bold ? "font-bold tabular-nums" : "font-semibold"}`}
+                    style={{ color: t.textPrimary }}
+                  >
+                    {value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function useInspectionInfoTheme(dark: boolean) {
@@ -3974,10 +4604,14 @@ function InspectionInfoDetailsScreen({
   task,
   dark,
   onBack,
+  onOpenApe,
+  onOpenDeclaredLogs,
 }: {
   task: InspectionTask;
   dark: boolean;
   onBack: () => void;
+  onOpenApe: () => void;
+  onOpenDeclaredLogs: () => void;
 }) {
   const [expandedSectionId, setExpandedSectionId] = useState<InspectionInfoSectionId | null>(null);
   const [loading, setLoading] = useState(true);
@@ -3992,7 +4626,17 @@ function InspectionInfoDetailsScreen({
     return () => window.clearTimeout(id);
   }, [task.id]);
 
+  const navigateSections = new Set<InspectionInfoSectionId>(["ape", "declared-logs"]);
+
   const toggleSection = (id: InspectionInfoSectionId) => {
+    if (id === "ape") {
+      onOpenApe();
+      return;
+    }
+    if (id === "declared-logs") {
+      onOpenDeclaredLogs();
+      return;
+    }
     setExpandedSectionId(prev => (prev === id ? null : id));
   };
 
@@ -4031,7 +4675,8 @@ function InspectionInfoDetailsScreen({
                   style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, boxShadow: t.cardShadow }}
                 >
                   {rows.map((section, index) => {
-                    const expanded = expandedSectionId === section.id;
+                    const isNavigate = navigateSections.has(section.id);
+                    const expanded = !isNavigate && expandedSectionId === section.id;
                     const fields = getInspectionInfoSectionFields(section.id, task);
                     return (
                       <div
@@ -4042,9 +4687,10 @@ function InspectionInfoDetailsScreen({
                           type="button"
                           onClick={() => toggleSection(section.id)}
                           className="w-full px-3.5 py-3.5 flex items-center gap-3 text-left focus:outline-none active:opacity-70 transition-opacity"
-                          aria-expanded={expanded}
-                          aria-controls={`info-panel-${section.id}`}
+                          aria-expanded={isNavigate ? undefined : expanded}
+                          aria-controls={isNavigate ? undefined : `info-panel-${section.id}`}
                           id={`info-trigger-${section.id}`}
+                          aria-label={isNavigate ? `Open ${section.title}` : undefined}
                         >
                           <div
                             className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
@@ -4059,47 +4705,49 @@ function InspectionInfoDetailsScreen({
                             <p className="text-[15px] font-semibold leading-snug" style={{ color: t.textPrimary }}>{section.title}</p>
                           </div>
                           <span
-                            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-transform duration-200"
+                            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isNavigate ? "animate-nudgeRight" : "transition-transform duration-200"}`}
                             style={{
-                              background: expanded ? GRADIENT : t.iconBg,
-                              color: expanded ? "#ffffff" : t.iconColor,
-                              boxShadow: expanded ? "0 2px 8px rgba(15,47,143,0.28)" : "none",
-                              transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                              background: isNavigate || expanded ? GRADIENT : t.iconBg,
+                              color: isNavigate || expanded ? "#ffffff" : t.iconColor,
+                              boxShadow: isNavigate || expanded ? "0 2px 8px rgba(15,47,143,0.28)" : "none",
+                              transform: !isNavigate && expanded ? "rotate(180deg)" : "rotate(0deg)",
                             }}
                             aria-hidden
                           >
-                            <ChevronDown size={16} />
+                            {isNavigate ? <ArrowRight size={14} /> : <ChevronDown size={16} />}
                           </span>
                         </button>
 
-                        <div
-                          id={`info-panel-${section.id}`}
-                          role="region"
-                          aria-labelledby={`info-trigger-${section.id}`}
-                          className="grid transition-[grid-template-rows] duration-200 ease-out"
-                          style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
-                        >
-                          <div className="overflow-hidden">
-                            <div
-                              className="px-3.5 pb-3.5 pt-0.5 flex flex-col gap-0"
-                              style={{
-                                background: dark ? "rgba(15,23,42,0.35)" : "rgba(240,244,255,0.85)",
-                                borderTop: expanded ? `1px solid ${t.rowDivider}` : undefined,
-                              }}
-                            >
-                              {fields.map(([label, val], i) => (
-                                <div
-                                  key={label}
-                                  className="py-2.5 flex items-start justify-between gap-4"
-                                  style={{ borderTop: i === 0 ? undefined : `1px solid ${t.rowDivider}` }}
-                                >
-                                  <p className="text-[12px] font-medium flex-shrink-0 pt-0.5" style={{ color: t.textMuted }}>{label}</p>
-                                  <p className="text-[13px] font-semibold text-right break-words leading-snug" style={{ color: t.textPrimary }}>{val}</p>
-                                </div>
-                              ))}
+                        {!isNavigate && (
+                          <div
+                            id={`info-panel-${section.id}`}
+                            role="region"
+                            aria-labelledby={`info-trigger-${section.id}`}
+                            className="grid transition-[grid-template-rows] duration-200 ease-out"
+                            style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
+                          >
+                            <div className="overflow-hidden">
+                              <div
+                                className="px-3.5 pb-3.5 pt-0.5 flex flex-col gap-0"
+                                style={{
+                                  background: dark ? "rgba(15,23,42,0.35)" : "rgba(240,244,255,0.85)",
+                                  borderTop: expanded ? `1px solid ${t.rowDivider}` : undefined,
+                                }}
+                              >
+                                {fields.map(([label, val], i) => (
+                                  <div
+                                    key={label}
+                                    className="py-2.5 flex items-start justify-between gap-4"
+                                    style={{ borderTop: i === 0 ? undefined : `1px solid ${t.rowDivider}` }}
+                                  >
+                                    <p className="text-[12px] font-medium flex-shrink-0 pt-0.5" style={{ color: t.textMuted }}>{label}</p>
+                                    <p className="text-[13px] font-semibold text-right break-words leading-snug" style={{ color: t.textPrimary }}>{val}</p>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     );
                   })}
@@ -4424,65 +5072,17 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
       >
 
         {/* Inspection Info — read only, tap to view full details */}
-        <button
-          type="button"
+        <GradientInfoHeroCard
+          icon={<ClipboardList size={17} style={{ color: "#ffffff" }} />}
+          title="Inspection Info"
+          subtitle={task.exporter}
           onClick={onViewFullInfo}
-          className="relative overflow-hidden w-full rounded-2xl p-3.5 sm:p-4 text-left focus:outline-none transition-all duration-200 active:scale-[0.99]"
-          style={{ background: GRADIENT, boxShadow: "0 10px 28px rgba(15,47,143,0.28)" }}
-          aria-label="View full inspection info"
-        >
-          <div
-            className="pointer-events-none absolute inset-0"
-            style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 55%)" }}
-            aria-hidden="true"
-          />
-
-          <div className="relative z-10 flex flex-col gap-3.5">
-            <div className="flex items-start gap-3">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.18)" }}
-              >
-                <ClipboardList size={17} style={{ color: "#ffffff" }} />
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <h2 className="text-[15px] font-bold text-white tracking-tight">Inspection Info</h2>
-                <p className="text-[13px] font-medium mt-1 leading-snug truncate" style={{ color: "rgba(255,255,255,0.78)" }}>
-                  {task.exporter}
-                </p>
-              </div>
-
-              <span
-                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                style={{ background: "#ffffff", color: "#0f2f8f" }}
-              >
-                <ArrowRight size={15} />
-              </span>
-            </div>
-
-            <div
-              className="rounded-xl px-3.5 py-3 grid grid-cols-2 gap-3"
-              style={{
-                background: "rgba(255,255,255,0.10)",
-                border: "1px solid rgba(255,255,255,0.14)",
-              }}
-            >
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.58)" }}>
-                  Request No.
-                </p>
-                <p className="text-[15px] font-bold text-white mt-1 tabular-nums tracking-tight">#{info.referenceNo}</p>
-              </div>
-              <div className="min-w-0 pl-2.5 sm:pl-3" style={{ borderLeft: "1px solid rgba(255,255,255,0.16)" }}>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.58)" }}>
-                  Concession
-                </p>
-                <p className="text-[12px] sm:text-[13px] font-semibold text-white mt-1 leading-snug break-words">{info.projectSite}</p>
-              </div>
-            </div>
-          </div>
-        </button>
+          ariaLabel="View full inspection info"
+          stats={[
+            { label: "Request No.", value: `#${info.referenceNo}` },
+            { label: "Concession", value: info.projectSite },
+          ]}
+        />
 
         <p
           className="mb-2 text-xs font-bold uppercase tracking-wider"
@@ -6938,6 +7538,49 @@ export default function App() {
           task={task}
           dark={dark}
           onBack={() => setScreen("inspection-details")}
+          onOpenApe={() => setScreen("approved-price-endorsement")}
+          onOpenDeclaredLogs={() => setScreen("declared-log-details")}
+        />
+        {bottomNav}
+      </>
+    );
+  }
+  if (screen === "approved-price-endorsement") {
+    const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
+    if (!task) {
+      return (
+        <>
+          <ScheduleInspectionScreen {...scheduleScreenProps} />
+          {bottomNav}
+        </>
+      );
+    }
+    return (
+      <>
+        <ApprovedPriceEndorsementScreen
+          dark={dark}
+          onBack={() => setScreen("inspection-info-details")}
+        />
+        {bottomNav}
+      </>
+    );
+  }
+  if (screen === "declared-log-details") {
+    const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
+    if (!task) {
+      return (
+        <>
+          <ScheduleInspectionScreen {...scheduleScreenProps} />
+          {bottomNav}
+        </>
+      );
+    }
+    return (
+      <>
+        <DeclaredLogDetailsScreen
+          task={task}
+          dark={dark}
+          onBack={() => setScreen("inspection-info-details")}
         />
         {bottomNav}
       </>
