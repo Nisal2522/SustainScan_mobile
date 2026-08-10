@@ -5116,6 +5116,7 @@ function StartSubInspectionDialog({
   onCancel,
   onConfirm,
   overlayBox,
+  mode = "start",
 }: {
   stepKey: "preShipment" | "loading";
   date: string;
@@ -5123,14 +5124,15 @@ function StartSubInspectionDialog({
   onCancel: () => void;
   onConfirm: () => void;
   overlayBox: { top: number; left: number; width: number; height: number };
+  mode?: "start" | "continue";
 }) {
-  const title = stepKey === "preShipment"
-    ? "Start Pre-Shipment Inspection"
-    : "Start Loading Inspection";
+  const stepLabel = stepKey === "preShipment" ? "Pre-Shipment Inspection" : "Loading Inspection";
+  const title = mode === "continue" ? `Continue ${stepLabel}` : `Start ${stepLabel}`;
+  const confirmLabel = mode === "continue" ? "Continue" : "Start";
 
   return createPortal(
     <div
-      className="z-50 flex items-center justify-center px-5"
+      className="z-[70] flex items-center justify-center px-5"
       style={{
         position: "fixed",
         top: overlayBox.top,
@@ -5171,7 +5173,7 @@ function StartSubInspectionDialog({
             type="button"
             onClick={onCancel}
             className="flex-1 h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-gray-50 focus:outline-none active:scale-[0.98]"
-            style={{ background: "#f0f4ff", color: "#0f2f8f", border: "1px solid #dce4f5" }}
+            style={{ background: "#ffffff", color: "#0a1a4a", border: "1px solid rgba(15,47,143,0.22)" }}
           >
             Cancel
           </button>
@@ -5182,7 +5184,7 @@ function StartSubInspectionDialog({
             className="flex-1 h-12 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: GRADIENT, boxShadow: "0 4px 16px rgba(15,47,143,0.35)" }}
           >
-            Start
+            {confirmLabel}
           </button>
         </div>
       </div>
@@ -5229,15 +5231,18 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
   }, [startDialogKey]);
 
   const openStartDialog = (key: "preShipment" | "loading") => {
-    setStartDate(todayISODate());
+    const existing = key === "preShipment"
+      ? progress.preShipmentStartDate
+      : progress.loadingStartDate;
+    setStartDate(existing ?? todayISODate());
     syncOverlayBox();
     setStartDialogKey(key);
   };
 
-  const handleStepAction = (key: "preShipment" | "loading", isActive: boolean, isDisabled: boolean) => {
+  const handleStepAction = (key: "preShipment" | "loading", _isActive: boolean, isDisabled: boolean) => {
     if (isDisabled) return;
-    if (isActive) onStartSession(key, progress[key === "preShipment" ? "preShipmentStartDate" : "loadingStartDate"] ?? todayISODate());
-    else openStartDialog(key);
+    // Always confirm date via popup before entering Pre-Shipment or Loading.
+    openStartDialog(key);
   };
 
   const confirmStart = () => {
@@ -5433,6 +5438,9 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
           onCancel={() => setStartDialogKey(null)}
           onConfirm={confirmStart}
           overlayBox={overlayBox}
+          mode={
+            progress[startDialogKey] === "in-progress" ? "continue" : "start"
+          }
         />
       )}
     </div>
