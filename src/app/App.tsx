@@ -1256,7 +1256,7 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
   isCU?: boolean;
 }) {
   const [registeredDialogOpen, setRegisteredDialogOpen] = useState(false);
-  const [phase, setPhase] = useState<ScannerPhase>("scanning");
+  const [phase, setPhase] = useState<ScannerPhase>("idle");
 
   const bg = dark ? "#0f172a" : "#f0f4ff";
   const surface = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.42)";
@@ -5571,6 +5571,7 @@ function PhysicalVerificationScreen({
   onBack,
   onProceed,
   onGoToSample,
+  onFinish,
 }: {
   task: InspectionTask;
   draft: PhysicalVerificationDraft;
@@ -5578,6 +5579,7 @@ function PhysicalVerificationScreen({
   onBack: () => void;
   onProceed: () => void;
   onGoToSample: () => void;
+  onFinish: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<PreShipmentTab>("verification");
   const { volumeOk, photoAdded, nonConformanceReason, physicalStepComplete, sampleStepComplete } = draft;
@@ -6022,6 +6024,17 @@ function PhysicalVerificationScreen({
             </div>
           )}
         </div>
+
+        <button
+          type="button"
+          onClick={onFinish}
+          disabled={volumeOk === null}
+          className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-45"
+          style={{ background: GRADIENT, boxShadow: volumeOk !== null ? "0 6px 18px rgba(15,47,143,0.30)" : "none" }}
+        >
+          Finish Pre-Shipment Inspection
+          <CheckCircle2 size={16} />
+        </button>
         </>
         )}
 
@@ -6730,6 +6743,7 @@ function SampleVerificationScanScreen({
   onBack,
   onScanned,
   onOpenRecord,
+  onFinishInspection,
 }: {
   scanCount: number;
   records: ScannedSampleLog[];
@@ -6738,6 +6752,7 @@ function SampleVerificationScanScreen({
   onBack: () => void;
   onScanned: (record: ScannedSampleLog) => void;
   onOpenRecord: (code: string) => void;
+  onFinishInspection: () => void;
 }) {
   // Arms itself when the user arrived here to scan; otherwise it waits so the history stays browsable.
   const [phase, setPhase] = useState<ScannerPhase>("scanning");
@@ -6889,6 +6904,16 @@ function SampleVerificationScanScreen({
 
         {/* Scanned history — stays below the scanner and grows with every capture */}
         <ScannedHistoryList records={records} targetVolumeM3={targetVolumeM3} onSelect={onOpenRecord} />
+
+        <button
+          type="button"
+          onClick={onFinishInspection}
+          className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
+          style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
+        >
+          Finish Pre-Shipment Inspection
+          <CheckCircle2 size={16} />
+        </button>
       </div>
     </div>
   );
@@ -7363,9 +7388,27 @@ interface AllocatedLoadedLog {
   productName: string;
   volume: number;
   scannedAt: string;
+  bargeStackId: string;
+  bargeStackLabel: string;
   /** True when reported damaged and excluded from loaded volume (FR-07.2). */
   excluded: boolean;
 }
+
+interface BargeStack {
+  id: string;
+  label: string;
+  loadType?: string;
+  capacity?: string;
+}
+
+const DEFAULT_BARGE_STACKS: BargeStack[] = [
+  { id: "barge-b-204", label: "Barge B-204 (Deck Load)", loadType: "Deck Load", capacity: "120" },
+  { id: "barge-b-205", label: "Barge B-205 (Hold A)", loadType: "Hold", capacity: "180" },
+  { id: "stack-s-12", label: "Stack S-12 (Port side)", loadType: "Stack", capacity: "80" },
+  { id: "stack-s-08", label: "Stack S-08 (Starboard)", loadType: "Stack", capacity: "75" },
+];
+
+const BARGE_LOAD_TYPES = ["Deck Load", "Hold", "Stack", "Other"] as const;
 
 interface DamagedLoadedLog {
   id: string;
@@ -7755,7 +7798,7 @@ function LoadingLogsScanScreen({
   const [activeTab, setActiveTab] = useState<LoadingInspectionTab>("loading");
   const [mode, setMode] = useState<LoadingScanMode>("allocate");
   const [damageStepVisited, setDamageStepVisited] = useState(false);
-  const [phase, setPhase] = useState<ScannerPhase>("scanning");
+  const [phase, setPhase] = useState<ScannerPhase>("idle");
   const [pendingDamage, setPendingDamage] = useState<PendingDamageScan | null>(null);
   const [overlayBox, setOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -7769,6 +7812,14 @@ function LoadingLogsScanScreen({
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [filedNcs, setFiledNcs] = useState<FiledLoadingNc[]>([]);
+  const [bargeStacks, setBargeStacks] = useState<BargeStack[]>(DEFAULT_BARGE_STACKS);
+  const [selectedBargeId, setSelectedBargeId] = useState<string | null>(null);
+  const [bargePickerOpen, setBargePickerOpen] = useState(false);
+  const [newBargeOpen, setNewBargeOpen] = useState(false);
+  const [newBargeName, setNewBargeName] = useState("");
+  const [newBargeLoadType, setNewBargeLoadType] = useState("");
+  const [newBargeCapacity, setNewBargeCapacity] = useState("");
+  const [loadTypeOpen, setLoadTypeOpen] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const evidencePhotosRef = useRef(evidencePhotos);
   evidencePhotosRef.current = evidencePhotos;
@@ -7781,7 +7832,9 @@ function LoadingLogsScanScreen({
   const isDamageMode = mode === "damage";
   const allocateComplete = allocatedLogs.length > 0;
   const damageComplete = damageStepVisited || damagedLogs.length > 0;
-  const scanningActive = activeTab === "loading";
+  const selectedBarge = bargeStacks.find(b => b.id === selectedBargeId) ?? null;
+  const bargeReady = isDamageMode || selectedBargeId !== null;
+  const scanningActive = activeTab === "loading" && bargeReady;
 
   const syncOverlayBox = () => {
     const device = document.querySelector(".mobile-device");
@@ -7804,6 +7857,13 @@ function LoadingLogsScanScreen({
   };
 
   useEffect(() => {
+    if (!newBargeOpen) return;
+    syncOverlayBox();
+    window.addEventListener("resize", syncOverlayBox);
+    return () => window.removeEventListener("resize", syncOverlayBox);
+  }, [newBargeOpen]);
+
+  useEffect(() => {
     if (!damageNc?.raised || autoNcSeeded.current) return;
     autoNcSeeded.current = true;
     setFiledNcs(prev => {
@@ -7822,10 +7882,10 @@ function LoadingLogsScanScreen({
   }, [damageNc]);
 
   useEffect(() => {
-    if (scanningActive && !pendingDamage && phase === "idle") {
-      setPhase("scanning");
+    if (!bargeReady && !isDamageMode && phase === "scanning") {
+      setPhase("idle");
     }
-  }, [scanningActive, pendingDamage, phase]);
+  }, [bargeReady, isDamageMode, phase]);
 
   useEffect(() => {
     if (!scanningActive || phase !== "scanning" || pendingDamage) return;
@@ -7844,7 +7904,7 @@ function LoadingLogsScanScreen({
         if (damagedLogs.some(d => d.code === next.code)) {
           setToast(`${next.code} already reported as damaged`);
           onScanConsumed();
-          setPhase("scanning");
+          setPhase("idle");
           return;
         }
         syncOverlayBox();
@@ -7865,7 +7925,7 @@ function LoadingLogsScanScreen({
           ? `${next.code} excluded (damaged)`
           : `${next.code} already allocated`);
         onScanConsumed();
-        setPhase("scanning");
+        setPhase("idle");
         return;
       }
 
@@ -7876,10 +7936,12 @@ function LoadingLogsScanScreen({
         productName: next.productName,
         volume: next.volume,
         scannedAt,
+        bargeStackId: selectedBargeId ?? "",
+        bargeStackLabel: selectedBarge?.label ?? "",
         excluded: false,
       });
       setToast(`${next.code} allocated · ${formatVolumeM3(next.volume)}`);
-      setPhase("scanning");
+      setPhase("idle");
     }, 900);
     return () => clearTimeout(timer);
   }, [phase, pendingDamage, next, isDamageMode, allocatedLogs, damagedLogs, onAllocated, onScanConsumed, scanningActive]);
@@ -7915,12 +7977,12 @@ function LoadingLogsScanScreen({
     if (nextMode === mode) return;
     setPendingDamage(null);
     setMode(nextMode);
-    setPhase("scanning");
+    setPhase("idle");
   };
 
   const closeDamage = () => {
     setPendingDamage(null);
-    setPhase("scanning");
+    setPhase("idle");
   };
 
   const saveDamage = (damageType: string, notes: string) => {
@@ -7937,7 +7999,7 @@ function LoadingLogsScanScreen({
     });
     setToast(`${pendingDamage.code} excluded from loaded volume`);
     setPendingDamage(null);
-    setPhase("scanning");
+    setPhase("idle");
   };
 
   const clearEvidencePhotos = () => {
@@ -8022,6 +8084,40 @@ function LoadingLogsScanScreen({
     onBack();
   };
 
+  const saveNewBarge = () => {
+    const label = newBargeName.trim();
+    if (!label) return;
+    const id = `barge-${Date.now()}`;
+    const capacity = newBargeCapacity.trim();
+    setBargeStacks(prev => [
+      ...prev,
+      {
+        id,
+        label,
+        loadType: newBargeLoadType || undefined,
+        capacity: capacity || undefined,
+      },
+    ]);
+    setSelectedBargeId(id);
+    setBargePickerOpen(false);
+    setNewBargeOpen(false);
+    setNewBargeName("");
+    setNewBargeLoadType("");
+    setNewBargeCapacity("");
+    setLoadTypeOpen(false);
+    setPhase("idle");
+    setToast(`Added ${label} — tap Start Scanning when ready`);
+  };
+
+  const openNewBargeForm = () => {
+    setNewBargeName("");
+    setNewBargeLoadType("");
+    setNewBargeCapacity("");
+    setLoadTypeOpen(false);
+    syncOverlayBox();
+    setNewBargeOpen(true);
+  };
+
   const detected = phase === "detected";
   const scanning = phase === "scanning";
   const frameColor = detected
@@ -8038,9 +8134,15 @@ function LoadingLogsScanScreen({
   ];
 
   const loadedLogs = allocatedLogs.filter(l => !l.excluded);
-  const stepHint = isDamageMode
-    ? "Point your camera at a damaged log’s QR code"
-    : "Point your camera at each log’s QR code as it loads";
+  const stepHint = !bargeReady && !isDamageMode
+    ? "Choose where logs are going first, then scan"
+    : phase === "scanning"
+      ? isDamageMode
+        ? "Scanning damaged log QR code…"
+        : `Scanning to ${selectedBarge?.label ?? "selected barge"}`
+      : isDamageMode
+        ? "Tap Start Scanning when you see a damaged log"
+        : null;
   const volumeStatus = stats.outsideTolerance
     ? { label: "Outside limit — review needed", color: "#d4183d", bg: "rgba(212,24,61,0.08)" }
     : activeCount > 0
@@ -8099,7 +8201,7 @@ function LoadingLogsScanScreen({
                       setPendingDamage(null);
                       setPhase("idle");
                     } else {
-                      setPhase("scanning");
+                      setPhase("idle");
                     }
                   }}
                   className="flex-1 min-w-0 h-10 rounded-xl text-[11px] sm:text-[12px] font-semibold focus:outline-none transition-all duration-200 active:scale-[0.98] px-1 relative"
@@ -8195,6 +8297,104 @@ function LoadingLogsScanScreen({
                 ) : null}
               </div>
 
+              {!isDamageMode && (
+                <div
+                  className="rounded-2xl p-3.5 sm:p-4 flex flex-col gap-3"
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid rgba(15,47,143,0.12)",
+                    boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-[14px] font-bold leading-snug" style={{ color: "#0a1a4a" }}>
+                      Allocation Management
+                    </p>
+                    <button
+                      type="button"
+                      onClick={openNewBargeForm}
+                      className="h-8 px-3 rounded-xl text-[12px] font-bold text-white flex items-center gap-1 focus:outline-none active:scale-[0.98] flex-shrink-0"
+                      style={{ background: GRADIENT, boxShadow: "0 2px 8px rgba(15,47,143,0.28)" }}
+                    >
+                      <Plus size={14} />
+                      New
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold" style={{ color: "#5a6a99" }}>
+                      Select Barge / Stack
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setBargePickerOpen(v => !v)}
+                      className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-sm text-left focus:outline-none"
+                      style={{
+                        background: "#f8faff",
+                        border: `1.5px solid ${bargePickerOpen || selectedBarge ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.14)"}`,
+                        color: selectedBarge ? "#0f2f8f" : "#5a6a99",
+                      }}
+                    >
+                      <span className="truncate font-semibold">
+                        {selectedBarge?.label ?? "Choose barge or stack…"}
+                      </span>
+                      <ChevronDown
+                        size={16}
+                        style={{
+                          color: "#5a6a99",
+                          transform: bargePickerOpen ? "rotate(180deg)" : "rotate(0deg)",
+                          transition: "transform 0.2s",
+                          flexShrink: 0,
+                        }}
+                      />
+                    </button>
+
+                    {bargePickerOpen && (
+                      <div
+                        className="rounded-2xl overflow-hidden flex flex-col"
+                        style={{
+                          background: "#ffffff",
+                          border: "1px solid rgba(15,47,143,0.12)",
+                          boxShadow: "0 2px 12px rgba(15,47,143,0.06)",
+                          maxHeight: 200,
+                          overflowY: "auto",
+                        }}
+                      >
+                        {bargeStacks.map(stack => {
+                          const active = selectedBargeId === stack.id;
+                          return (
+                            <button
+                              key={stack.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedBargeId(stack.id);
+                                setBargePickerOpen(false);
+                                setPhase("idle");
+                                setToast(`Selected ${stack.label} — tap Start Scanning`);
+                              }}
+                              className="w-full text-left px-4 py-3 text-sm font-medium focus:outline-none"
+                              style={{
+                                color: active ? "#0f2f8f" : "#0a1a4a",
+                                background: active ? "rgba(15,47,143,0.08)" : "transparent",
+                                borderBottom: "1px solid rgba(15,47,143,0.08)",
+                              }}
+                            >
+                              {stack.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {!selectedBarge ? (
+                    <p className="text-[11px] leading-snug" style={{ color: "#5a6a99" }}>
+                      Select a destination before scanning logs.
+                    </p>
+                  ) : null}
+                </div>
+              )}
+
               {damageNc?.raised ? (
                 <div
                   className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-2.5 animate-riseIn"
@@ -8236,11 +8436,36 @@ function LoadingLogsScanScreen({
               ) : null}
 
               <section className="flex flex-col items-center gap-3">
-                <p className="text-[12px] font-medium text-center px-2" style={{ color: "#5a6a99" }}>
-                  {stepHint}
-                </p>
+                {stepHint ? (
+                  <p className="text-[12px] font-medium text-center px-2" style={{ color: "#5a6a99" }}>
+                    {stepHint}
+                  </p>
+                ) : null}
 
-                <div className="relative flex items-center justify-center" style={{ width: "min(260px, 70vw)", aspectRatio: "1 / 1" }}>
+                {!bargeReady && !isDamageMode ? (
+                  <div
+                    className="w-full rounded-2xl px-4 py-8 flex flex-col items-center gap-3 text-center"
+                    style={{
+                      background: "rgba(15,47,143,0.04)",
+                      border: "2px dashed rgba(15,47,143,0.18)",
+                    }}
+                  >
+                    <span
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                      style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                    >
+                      <Anchor size={22} />
+                    </span>
+                    <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+                      Select barge or stack first
+                    </p>
+                    <p className="text-[11px] leading-relaxed max-w-[240px]" style={{ color: "#5a6a99" }}>
+                      Choose where logs are being loaded, then tap Start Scanning.
+                    </p>
+                  </div>
+                ) : (
+                <>
+                <div className="relative flex items-center justify-center w-full" style={{ width: "min(260px, 70vw)", aspectRatio: "1 / 1" }}>
                   <div
                     className="absolute rounded-full pointer-events-none"
                     style={{
@@ -8331,15 +8556,31 @@ function LoadingLogsScanScreen({
                         Looking for QR code…
                       </p>
                     </>
-                  ) : (
-                    <>
-                      <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#0f2f8f" }} />
-                      <p className="text-[12px] font-semibold" style={{ color: "#5a6a99" }}>
-                        Starting scanner…
-                      </p>
-                    </>
-                  )}
+                  ) : null}
                 </div>
+
+                {phase === "idle" && !pendingDamage ? (
+                  <button
+                    type="button"
+                    onClick={() => setPhase("scanning")}
+                    className="w-full min-h-[50px] rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
+                    style={{ background: GRADIENT, boxShadow: "0 8px 22px rgba(15,47,143,0.32)" }}
+                  >
+                    <ScanLine size={16} />
+                    Start Scanning
+                  </button>
+                ) : scanning ? (
+                  <button
+                    type="button"
+                    onClick={() => setPhase("idle")}
+                    className="w-full h-10 rounded-xl text-[12px] font-semibold focus:outline-none active:scale-[0.98]"
+                    style={{ background: "#ffffff", color: "#5a6a99", border: "1px solid rgba(15,47,143,0.14)" }}
+                  >
+                    Cancel scan
+                  </button>
+                ) : null}
+                </>
+                )}
               </section>
 
               {!isDamageMode && loadedLogs.length > 0 ? (
@@ -8364,7 +8605,7 @@ function LoadingLogsScanScreen({
                       <div className="min-w-0">
                         <p className="text-[13px] font-bold truncate" style={{ color: "#0a1a4a" }}>{item.code}</p>
                         <p className="text-[11px] truncate" style={{ color: "#5a6a99" }}>
-                          {item.productName} · {formatVolumeM3(item.volume)}
+                          {item.bargeStackLabel ? `${item.bargeStackLabel} · ` : ""}{item.productName} · {formatVolumeM3(item.volume)}
                         </p>
                       </div>
                       <CheckCircle2 size={18} style={{ color: "#16a34a", flexShrink: 0 }} />
@@ -8435,21 +8676,16 @@ function LoadingLogsScanScreen({
                 </div>
               ) : null}
 
-              <div className="flex flex-col gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={onComplete}
-                  disabled={activeCount === 0}
-                  className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-45"
-                  style={{ background: GRADIENT, boxShadow: activeCount > 0 ? "0 6px 18px rgba(15,47,143,0.30)" : "none" }}
-                >
-                  Finish Loading Inspection
-                  <CheckCircle2 size={16} />
-                </button>
-                <p className="text-[10px] text-center leading-snug px-2" style={{ color: "#94a3b8" }}>
-                  Need to report an issue or add photos? Use the Issues or Files tabs above anytime.
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={onComplete}
+                disabled={activeCount === 0}
+                className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-45"
+                style={{ background: GRADIENT, boxShadow: activeCount > 0 ? "0 6px 18px rgba(15,47,143,0.30)" : "none" }}
+              >
+                Finish Loading Inspection
+                <CheckCircle2 size={16} />
+              </button>
             </>
           )}
 
@@ -8853,6 +9089,167 @@ function LoadingLogsScanScreen({
         </div>,
         document.body,
       )}
+
+      {newBargeOpen && overlayBox && createPortal(
+        <div
+          className="z-[65] flex flex-col justify-end"
+          style={{
+            position: "fixed",
+            top: overlayBox.top,
+            left: overlayBox.left,
+            width: overlayBox.width,
+            height: overlayBox.height,
+          }}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 border-0 p-0 cursor-default"
+            style={{
+              background: "rgba(10,22,70,0.45)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+            }}
+            aria-label="Close"
+            onClick={() => {
+              setNewBargeOpen(false);
+              setLoadTypeOpen(false);
+            }}
+          />
+          <div
+            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-4 animate-riseIn max-h-[88%] overflow-y-auto"
+            style={{ background: "#ffffff", boxShadow: "0 -12px 40px rgba(15,47,143,0.18)" }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add barge or stack"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
+              <div className="w-full flex items-center justify-between gap-3">
+                <p className="text-[16px] font-bold" style={{ color: "#0a1a4a" }}>Add Barge / Stack</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewBargeOpen(false);
+                    setLoadTypeOpen(false);
+                  }}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
+                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  aria-label="Close"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
+                Barge / Stack Name <span style={{ color: "#d4183d" }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={newBargeName}
+                onChange={e => setNewBargeName(e.target.value)}
+                placeholder="e.g. Barge B-205"
+                className="w-full px-4 py-3.5 text-sm rounded-xl focus:outline-none"
+                style={{
+                  background: "#f8faff",
+                  border: "1.5px solid rgba(15,47,143,0.14)",
+                  color: "#0a1a4a",
+                }}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
+                Load Type
+              </label>
+              <button
+                type="button"
+                onClick={() => setLoadTypeOpen(v => !v)}
+                className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-sm text-left focus:outline-none"
+                style={{
+                  background: "#f8faff",
+                  border: `1.5px solid ${loadTypeOpen ? "rgba(15,47,143,0.45)" : "rgba(15,47,143,0.14)"}`,
+                  color: newBargeLoadType ? "#0a1a4a" : "#5a6a99",
+                }}
+              >
+                <span className="truncate font-medium">{newBargeLoadType || "Select type…"}</span>
+                <ChevronDown
+                  size={16}
+                  style={{
+                    color: "#5a6a99",
+                    transform: loadTypeOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 0.2s",
+                    flexShrink: 0,
+                  }}
+                />
+              </button>
+              {loadTypeOpen && (
+                <div
+                  className="rounded-2xl overflow-hidden"
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid rgba(15,47,143,0.12)",
+                    maxHeight: 180,
+                    overflowY: "auto",
+                  }}
+                >
+                  {BARGE_LOAD_TYPES.map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => {
+                        setNewBargeLoadType(type);
+                        setLoadTypeOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm font-medium focus:outline-none"
+                      style={{
+                        color: newBargeLoadType === type ? "#0f2f8f" : "#0a1a4a",
+                        background: newBargeLoadType === type ? "rgba(15,47,143,0.08)" : "transparent",
+                        borderBottom: "1px solid rgba(15,47,143,0.08)",
+                      }}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
+                Capacity (Logs)
+              </label>
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={newBargeCapacity}
+                onChange={e => setNewBargeCapacity(e.target.value)}
+                placeholder="--"
+                className="w-full px-4 py-3.5 text-sm rounded-xl focus:outline-none"
+                style={{
+                  background: "#f8faff",
+                  border: "1.5px solid rgba(15,47,143,0.14)",
+                  color: "#0a1a4a",
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              disabled={!newBargeName.trim()}
+              onClick={saveNewBarge}
+              className="w-full h-12 rounded-xl text-sm font-bold text-white focus:outline-none active:scale-[0.98] disabled:opacity-45"
+              style={{ background: GRADIENT, boxShadow: "0 4px 16px rgba(15,47,143,0.32)" }}
+            >
+              Add & select
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
@@ -9199,6 +9596,8 @@ export default function App() {
                       productName: entry.productName,
                       volume: entry.volume,
                       scannedAt: entry.scannedAt,
+                      bargeStackId: "",
+                      bargeStackLabel: "",
                       excluded: true,
                     },
                     ...prev,
@@ -9265,6 +9664,11 @@ export default function App() {
             setAutoStartScanner(false);
             setScreen("sample-verification-scan");
           }}
+          onFinish={() => {
+            setActiveInspectionStep("preShipment");
+            const inspectionComplete = finalizeActiveInspectionStep(task.id);
+            setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
+          }}
         />
         {bottomNav}
       </>
@@ -9297,6 +9701,13 @@ export default function App() {
               setActiveScannedCode(code);
               setScreen("sample-verification-log");
             }}
+            onFinishInspection={() => {
+              setActiveInspectionStep("preShipment");
+              const inspectionComplete = finalizeActiveInspectionStep(task.id);
+              setAutoStartScanner(false);
+              setActiveScannedCode(null);
+              setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
+            }}
           />
           {bottomNav}
         </>
@@ -9308,6 +9719,7 @@ export default function App() {
           record={activeRecord}
           onBack={() => { setAutoStartScanner(false); setScreen("sample-verification-scan"); }}
           onFinish={({ measurements, comment }) => {
+            // Verify this log only — do not complete Pre-Shipment here.
             setScannedSampleLogs(prev =>
               prev.map(r =>
                 r.code === activeRecord.code
@@ -9320,12 +9732,10 @@ export default function App() {
                   : r,
               ),
             );
-            const inspectionComplete = finalizeActiveInspectionStep(task.id);
-            setAutoStartScanner(false);
+            updatePhysicalVerification(task.id, { sampleStepComplete: true });
+            setAutoStartScanner(true);
             setActiveScannedCode(null);
-            // Complete = both steps done with data filled → show Complete card on schedule.
-            // Otherwise return to details so Loading can be finished next.
-            setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
+            setScreen("sample-verification-scan");
           }}
         />
         {bottomNav}
