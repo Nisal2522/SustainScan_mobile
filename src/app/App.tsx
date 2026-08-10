@@ -85,6 +85,93 @@ const BG_URL = bgImage;
 
 const GRADIENT = "linear-gradient(135deg,#1a45b5 0%,#0f2f8f 60%,#0a1f6b 100%)";
 
+/** Count-up for inspection volume readouts (respects reduced motion). */
+function useCountUp(target: number, durationMs = 720, restartKey: string | number = 0) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      setValue(target);
+      return;
+    }
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(target * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, durationMs, restartKey]);
+  return value;
+}
+
+function LiquidTabBar({
+  items,
+  value,
+  onChange,
+  ariaLabel,
+  dark = false,
+}: {
+  items: { id: string; node: ReactNode }[];
+  value: string;
+  onChange: (id: string) => void;
+  ariaLabel: string;
+  dark?: boolean;
+}) {
+  const activeIndex = Math.max(0, items.findIndex(item => item.id === value));
+  const n = Math.max(1, items.length);
+  const trackPad = 4;
+  const gap = 2;
+
+  return (
+    <div
+      className="liquid-tab-track animate-riseIn"
+      style={{
+        gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`,
+        background: dark ? "rgba(30, 41, 59, 0.65)" : "rgba(255,255,255,0.88)",
+        border: `1px solid ${dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.10)"}`,
+        borderRadius: 16,
+        boxShadow: dark ? "0 2px 12px rgba(0,0,0,0.22)" : "0 2px 10px rgba(15,47,143,0.05)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        ["--rise-delay" as string]: "40ms",
+      }}
+      role="tablist"
+      aria-label={ariaLabel}
+    >
+      <div
+        className="liquid-tab-indicator"
+        style={{
+          width: `calc((100% - ${trackPad * 2}px - ${(n - 1) * gap}px) / ${n})`,
+          left: `calc(${trackPad}px + ${activeIndex} * ((100% - ${trackPad * 2}px - ${(n - 1) * gap}px) / ${n} + ${gap}px))`,
+        }}
+        aria-hidden="true"
+      />
+      {items.map(item => {
+        const active = item.id === value;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(item.id)}
+            className="liquid-tab-btn pressable h-10 rounded-xl text-[11px] sm:text-[12px] font-semibold focus:outline-none px-1 min-w-0"
+            style={{ color: active ? "#ffffff" : dark ? "rgba(255,255,255,0.65)" : "#5a6a99" }}
+          >
+            {item.node}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 const SESSION_KEY = "sustainscan-session";
 
 interface AppSession {
@@ -2408,54 +2495,32 @@ function ScheduleInspectionScreen({
             )}
           </div>
 
-          {/* 4. Time Tabs */}
-          <div
-            className="flex p-1 rounded-2xl animate-riseIn"
-            style={{
-              ["--rise-delay" as string]: "90ms",
-              background: dark ? "rgba(30, 41, 59, 0.65)" : "rgba(255,255,255,0.72)",
-              border: `1px solid ${glassBorder}`,
-              boxShadow: dark ? "0 2px 12px rgba(0,0,0,0.22)" : "0 2px 10px rgba(15,47,143,0.04)",
-              backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
-            }}
-            role="tablist"
-            aria-label="Schedule day"
-          >
-            {dayChips.map(chip => {
-              const active = dayFilter === chip.id;
-              return (
-                <button
-                  key={chip.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setDayFilter(chip.id)}
-                  className="flex-1 relative h-10 rounded-xl text-[13px] font-semibold focus:outline-none transition-all duration-200 active:scale-[0.98]"
-                  style={{
-                    background: active ? GRADIENT : "transparent",
-                    color: active ? "#ffffff" : textMuted,
-                    boxShadow: active ? "0 4px 14px rgba(15,47,143,0.28)" : "none",
-                  }}
-                >
-                  <span className="inline-flex items-center justify-center gap-1.5">
-                    {chip.label}
-                    <span
-                      className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums"
-                      style={{
-                        background: active
-                          ? "rgba(255,255,255,0.22)"
-                          : (dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)"),
-                        color: active ? "#ffffff" : (dark ? "#ffffff" : "#0f2f8f"),
-                      }}
-                    >
-                      {dayTotals[chip.id]}
-                    </span>
+          {/* 4. Time Tabs — liquid sliding indicator */}
+          <LiquidTabBar
+            ariaLabel="Schedule day"
+            dark={dark}
+            value={dayFilter}
+            onChange={id => setDayFilter(id as DayFilter)}
+            items={dayChips.map(chip => ({
+              id: chip.id,
+              node: (
+                <span className="inline-flex items-center justify-center gap-1.5">
+                  {chip.label}
+                  <span
+                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums"
+                    style={{
+                      background: dayFilter === chip.id
+                        ? "rgba(255,255,255,0.22)"
+                        : (dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)"),
+                      color: dayFilter === chip.id ? "#ffffff" : (dark ? "#ffffff" : "#0f2f8f"),
+                    }}
+                  >
+                    {dayTotals[chip.id]}
                   </span>
-                </button>
-              );
-            })}
-          </div>
+                </span>
+              ),
+            }))}
+          />
         </div>
       </div>
 
@@ -2465,6 +2530,7 @@ function ScheduleInspectionScreen({
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         <div
+          key={`insp-list-${dayFilter}-${statusFilter}-${qNorm}`}
           className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-1 gap-3.5"
           style={{ paddingBottom: BOTTOM_NAV_PAD }}
         >
@@ -2479,7 +2545,7 @@ function ScheduleInspectionScreen({
               }}
             >
               <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                className="w-14 h-14 rounded-2xl flex items-center justify-center animate-emptyFloat"
                 style={{
                   background: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)",
                   color: dark ? "#ffffff" : "#0f2f8f",
@@ -5452,22 +5518,25 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                 <div className="relative flex gap-4">
                   <div className="flex flex-col items-center flex-shrink-0" style={{ width: 48 }}>
                     <div
-                      className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${isActive ? "animate-softPulse" : ""}`}
+                      className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${isActive ? "animate-softPulse" : ""} ${!isLocked && step.key === "loading" ? "animate-unlockPop" : ""}`}
                       style={{
                         background: "#ffffff",
-                        color: isDone ? "#059669" : "#0f2f8f",
-                        border: `2px solid ${isDone ? "rgba(5,150,105,0.35)" : "rgba(15,47,143,0.18)"}`,
+                        color: isDone ? "#059669" : isLocked ? "#94a3b8" : "#0f2f8f",
+                        border: `2px solid ${isDone ? "rgba(5,150,105,0.35)" : isLocked ? "rgba(15,47,143,0.12)" : "rgba(15,47,143,0.18)"}`,
                         boxShadow: isActive
                           ? "0 0 0 4px rgba(15,47,143,0.12), 0 0 16px rgba(15,47,143,0.35)"
                           : "0 1px 4px rgba(15,47,143,0.10)",
                       }}
                     >
-                      {isDone ? <CheckCircle2 size={20} /> : step.icon}
+                      {isDone ? <CheckCircle2 size={20} /> : isLocked ? <Lock size={18} /> : step.icon}
                     </div>
                     {!isLast && (
                       <div
-                        className="w-0.5 flex-1"
-                        style={{ background: "linear-gradient(180deg, rgba(15,47,143,0.35), rgba(15,47,143,0.15))" }}
+                        className="w-0.5 flex-1 timeline-connector"
+                        style={{
+                          background: "linear-gradient(180deg, rgba(15,47,143,0.35), rgba(15,47,143,0.15))",
+                          ["--rise-delay" as string]: `${180 + idx * 90}ms`,
+                        }}
                         aria-hidden="true"
                       />
                     )}
@@ -5551,6 +5620,8 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                     >
                       {isDone ? (
                         <><CheckCircle2 size={16} /> {ctaLabel}</>
+                      ) : isLocked ? (
+                        <><Lock size={15} /> Locked</>
                       ) : (
                         <>{ctaLabel} <ChevronRight size={16} /></>
                       )}
@@ -5561,7 +5632,13 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                 {!isLast && (
                   <div className="flex gap-4" aria-hidden="true">
                     <div className="flex justify-center flex-shrink-0" style={{ width: 48 }}>
-                      <div className="w-0.5 h-8" style={{ background: "linear-gradient(180deg, rgba(15,47,143,0.15), rgba(15,47,143,0.35))" }} />
+                      <div
+                        className="w-0.5 h-8 timeline-connector"
+                        style={{
+                          background: "linear-gradient(180deg, rgba(15,47,143,0.15), rgba(15,47,143,0.35))",
+                          ["--rise-delay" as string]: `${220 + idx * 90}ms`,
+                        }}
+                      />
                     </div>
                     <div className="flex-1" />
                   </div>
@@ -5889,6 +5966,8 @@ function PhysicalVerificationScreen({
 
   const declaredM3 = task.logs * 21.875;
   const thresholdM3 = declaredM3 * 0.95;
+  const declaredAnim = useCountUp(declaredM3, 760, task.id);
+  const thresholdAnim = useCountUp(thresholdM3, 820, task.id);
   const formatVol = (n: number) =>
     n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
@@ -5929,45 +6008,24 @@ function PhysicalVerificationScreen({
         className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-4 sm:pt-5 gap-4"
         style={{ paddingBottom: BOTTOM_NAV_PAD }}
       >
-        {/* Tabs — above stepper */}
-        <div
-          className="flex p-1 rounded-2xl gap-0.5 animate-riseIn"
-          style={{
-            background: "rgba(255,255,255,0.88)",
-            border: "1px solid rgba(15,47,143,0.10)",
-            boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
-            ["--rise-delay" as string]: "40ms",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
+        {/* Tabs — liquid sliding indicator */}
+        <LiquidTabBar
+          ariaLabel="Pre-shipment sections"
+          value={activeTab}
+          onChange={id => {
+            setActiveTab(id as PreShipmentTab);
+            if (id !== "non-compliance") setNcView("list");
           }}
-          role="tablist"
-          aria-label="Pre-shipment sections"
-        >
-          {tabs.map(tab => {
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  if (tab.id !== "non-compliance") setNcView("list");
-                }}
-                className="pressable flex-1 min-w-0 h-10 rounded-xl text-[11px] sm:text-[12px] font-semibold focus:outline-none px-1"
-                style={{
-                  background: active ? GRADIENT : "transparent",
-                  color: active ? "#ffffff" : "#5a6a99",
-                  boxShadow: active ? "0 4px 12px rgba(15,47,143,0.25)" : "none",
-                }}
-              >
+          items={tabs.map(tab => ({
+            id: tab.id,
+            node: (
+              <>
                 <span className="sm:hidden truncate block">{tab.short}</span>
                 <span className="hidden sm:inline truncate">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+              </>
+            ),
+          }))}
+        />
 
         {activeTab === "verification" && (
         <div key="verification" className="flex flex-col gap-4 animate-panelIn">
@@ -5991,14 +6049,14 @@ function PhysicalVerificationScreen({
           <div className="flex items-end gap-2 sm:gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-[22px] sm:text-[28px] font-bold leading-none tabular-nums break-all" style={{ color: "#0a1a4a" }}>
-                {formatVol(declaredM3)}
+                {formatVol(declaredAnim)}
               </p>
               <p className="text-[11px] sm:text-xs mt-1.5" style={{ color: "#5a6a99" }}>m³ declared</p>
             </div>
             <ArrowRight size={18} className="mb-4 sm:mb-5 flex-shrink-0" style={{ color: "#94a3b8" }} />
             <div className="flex-1 min-w-0 text-right">
               <p className="text-[22px] sm:text-[28px] font-bold leading-none tabular-nums break-all" style={{ color: "#059669" }}>
-                {formatVol(thresholdM3)}
+                {formatVol(thresholdAnim)}
               </p>
               <p className="text-[11px] sm:text-xs mt-1.5" style={{ color: "#5a6a99" }}>m³ threshold (95%)</p>
             </div>
@@ -6969,6 +7027,10 @@ function SampleVerificationScanScreen({
               }}
               aria-hidden="true"
             />
+
+            {detected && (
+              <div className="detect-success-ring" aria-hidden="true" />
+            )}
 
             <div
               className="absolute inset-0 rounded-[1.75rem] overflow-hidden transition-all duration-300"
@@ -8521,6 +8583,8 @@ function LoadingLogsScanScreen({
     : activeCount > 0
       ? { label: "On track", color: "#16a34a", bg: "rgba(22,163,74,0.08)" }
       : { label: "Start scanning logs", color: "#5a6a99", bg: "rgba(15,47,143,0.06)" };
+  const loadedAnim = useCountUp(stats.loadedVolume, 520, `${stats.loadedVolume}-${activeCount}`);
+  const declaredAnim = useCountUp(declaredVolume, 640, declaredVolume);
 
   return (
     <div
@@ -8549,61 +8613,41 @@ function LoadingLogsScanScreen({
           className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-4 sm:pt-5 gap-4"
           style={{ paddingBottom: BOTTOM_NAV_PAD }}
         >
-          <div
-            className="flex p-1 rounded-2xl gap-0.5 animate-riseIn"
-            style={{
-              background: "rgba(255,255,255,0.88)",
-              border: "1px solid rgba(15,47,143,0.10)",
-              boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
-              ["--rise-delay" as string]: "40ms",
-              backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
+          <LiquidTabBar
+            ariaLabel="Loading sections"
+            value={activeTab}
+            onChange={id => {
+              const nextTab = id as LoadingInspectionTab;
+              setActiveTab(nextTab);
+              if (nextTab !== "non-compliance") setNcView("list");
+              if (nextTab !== "loading") {
+                setPendingDamage(null);
+                setPhase("idle");
+              } else {
+                setPhase("idle");
+              }
             }}
-            role="tablist"
-            aria-label="Loading sections"
-          >
-            {tabs.map(tab => {
-              const active = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    if (tab.id !== "non-compliance") setNcView("list");
-                    if (tab.id !== "loading") {
-                      setPendingDamage(null);
-                      setPhase("idle");
-                    } else {
-                      setPhase("idle");
-                    }
-                  }}
-                  className="pressable flex-1 min-w-0 h-10 rounded-xl text-[11px] sm:text-[12px] font-semibold focus:outline-none px-1 relative"
-                  style={{
-                    background: active ? GRADIENT : "transparent",
-                    color: active ? "#ffffff" : "#5a6a99",
-                    boxShadow: active ? "0 4px 12px rgba(15,47,143,0.25)" : "none",
-                  }}
-                >
-                  <span className="sm:hidden truncate block">{tab.short}</span>
+            items={tabs.map(tab => ({
+              id: tab.id,
+              node: (
+                <span className="relative inline-flex items-center justify-center gap-1 min-w-0 px-0.5">
+                  <span className="sm:hidden truncate">{tab.short}</span>
                   <span className="hidden sm:inline truncate">{tab.label}</span>
                   {tab.badge ? (
                     <span
-                      className="absolute -top-1 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center"
+                      className="min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center"
                       style={{
-                        background: active ? "#ffffff" : "#0f2f8f",
-                        color: active ? "#0f2f8f" : "#ffffff",
+                        background: activeTab === tab.id ? "rgba(255,255,255,0.92)" : "#0f2f8f",
+                        color: activeTab === tab.id ? "#0f2f8f" : "#ffffff",
                       }}
                     >
                       {tab.badge}
                     </span>
                   ) : null}
-                </button>
-              );
-            })}
-          </div>
+                </span>
+              ),
+            }))}
+          />
 
           {activeTab === "loading" && (
             <div key="loading" className="flex flex-col gap-4 animate-panelIn">
@@ -8637,17 +8681,29 @@ function LoadingLogsScanScreen({
                 <div className="flex items-end gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-[22px] font-bold leading-none tabular-nums" style={{ color: "#0a1a4a" }}>
-                      {formatVolumeM3(stats.loadedVolume)}
+                      {formatVolumeM3(loadedAnim)}
                     </p>
                     <p className="text-[11px] mt-1.5" style={{ color: "#5a6a99" }}>loaded so far</p>
                   </div>
                   <ArrowRight size={16} className="mb-3 flex-shrink-0" style={{ color: "#94a3b8" }} />
                   <div className="flex-1 min-w-0 text-right">
                     <p className="text-[22px] font-bold leading-none tabular-nums" style={{ color: "#5a6a99" }}>
-                      {formatVolumeM3(declaredVolume)}
+                      {formatVolumeM3(declaredAnim)}
                     </p>
                     <p className="text-[11px] mt-1.5" style={{ color: "#5a6a99" }}>expected total</p>
                   </div>
+                </div>
+
+                <div className="volume-meter-track" aria-hidden="true">
+                  <div
+                    className="volume-meter-fill"
+                    style={{
+                      width: `${Math.min(100, declaredVolume > 0 ? (loadedAnim / declaredVolume) * 100 : 0)}%`,
+                      background: stats.outsideTolerance
+                        ? "linear-gradient(90deg, #f87171, #d4183d)"
+                        : GRADIENT,
+                    }}
+                  />
                 </div>
 
                 <div
@@ -8804,8 +8860,16 @@ function LoadingLogsScanScreen({
 
               {toast ? (
                 <div
-                  className="rounded-xl px-3.5 py-2.5 text-[12px] font-semibold text-center animate-riseIn"
-                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  key={toast}
+                  className="rounded-xl px-3.5 py-2.5 text-[12px] font-semibold text-center animate-toastIn"
+                  style={{
+                    background: "rgba(255,255,255,0.82)",
+                    color: "#0f2f8f",
+                    border: "1px solid rgba(15,47,143,0.12)",
+                    boxShadow: "0 8px 24px rgba(15,47,143,0.10)",
+                    backdropFilter: "blur(12px)",
+                    WebkitBackdropFilter: "blur(12px)",
+                  }}
                 >
                   {toast}
                 </div>
@@ -8856,6 +8920,12 @@ function LoadingLogsScanScreen({
                     }}
                     aria-hidden="true"
                   />
+                  {detected && (
+                    <div
+                      className={`detect-success-ring${isDamageMode ? " detect-success-ring-danger" : ""}`}
+                      aria-hidden="true"
+                    />
+                  )}
                   <div
                     className="absolute inset-0 rounded-[1.75rem] overflow-hidden"
                     style={{

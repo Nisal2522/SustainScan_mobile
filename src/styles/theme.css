@@ -308,6 +308,148 @@
     }
   }
 
+  /* Liquid sliding tab pill */
+  .liquid-tab-track {
+    position: relative;
+    display: grid;
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .liquid-tab-indicator {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #1a45b5 0%, #0f2f8f 60%, #0a1f6b 100%);
+    box-shadow: 0 4px 14px rgba(15, 47, 143, 0.28);
+    transition:
+      left 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+      width 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .liquid-tab-btn {
+    position: relative;
+    z-index: 1;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* Timeline connector draw-in */
+  @keyframes timelineGrow {
+    from {
+      transform: scaleY(0);
+      opacity: 0.35;
+    }
+    to {
+      transform: scaleY(1);
+      opacity: 1;
+    }
+  }
+
+  .timeline-connector {
+    transform-origin: top center;
+    animation: timelineGrow 0.58s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--rise-delay, 0ms);
+  }
+
+  @keyframes unlockPop {
+    0% {
+      transform: scale(0.72) rotate(-8deg);
+      opacity: 0.5;
+    }
+    60% {
+      transform: scale(1.08) rotate(2deg);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+    }
+  }
+
+  .animate-unlockPop {
+    animation: unlockPop 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Volume meter fill */
+  .volume-meter-track {
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(15, 47, 143, 0.08);
+  }
+
+  .volume-meter-fill {
+    height: 100%;
+    border-radius: inherit;
+    transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1), background 0.35s ease;
+    will-change: width;
+  }
+
+  /* QR detect success ring */
+  @keyframes detectRing {
+    0% {
+      transform: scale(0.55);
+      opacity: 0.55;
+    }
+    70% {
+      opacity: 0.2;
+    }
+    100% {
+      transform: scale(1.35);
+      opacity: 0;
+    }
+  }
+
+  .detect-success-ring {
+    position: absolute;
+    inset: 8%;
+    border-radius: 28px;
+    border: 2px solid #16a34a;
+    box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.12);
+    animation: detectRing 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+    pointer-events: none;
+  }
+
+  .detect-success-ring-danger {
+    border-color: #d4183d;
+    box-shadow: 0 0 0 6px rgba(212, 24, 61, 0.12);
+  }
+
+  @keyframes toastIn {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 12px, 0);
+      filter: blur(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+      filter: blur(0);
+    }
+  }
+
+  .animate-toastIn {
+    animation: toastIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes emptyFloat {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(0, -4px, 0);
+    }
+  }
+
+  .animate-emptyFloat {
+    animation: emptyFloat 2.8s ease-in-out infinite;
+  }
+
   @keyframes shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
@@ -404,8 +546,21 @@
     .animate-panelIn,
     .animate-sheetUp,
     .search-suggest-enter,
-    .search-suggest-panel {
-      animation: none;
+    .search-suggest-panel,
+    .timeline-connector,
+    .animate-unlockPop,
+    .detect-success-ring,
+    .animate-toastIn,
+    .animate-emptyFloat {
+      animation: none !important;
+    }
+
+    .liquid-tab-indicator {
+      transition: none !important;
+    }
+
+    .volume-meter-fill {
+      transition: none !important;
     }
 
     .pressable:active:not(:disabled) {
