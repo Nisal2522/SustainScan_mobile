@@ -6740,7 +6740,7 @@ function SampleVerificationScanScreen({
   onOpenRecord: (code: string) => void;
 }) {
   // Arms itself when the user arrived here to scan; otherwise it waits so the history stays browsable.
-  const [phase, setPhase] = useState<ScannerPhase>(autoStart ? "scanning" : "idle");
+  const [phase, setPhase] = useState<ScannerPhase>("scanning");
   const next = SAMPLE_QR_POOL[scanCount % SAMPLE_QR_POOL.length];
 
   // Simulated capture: the frame "finds" a code, shows a confirmation beat, then advances.
@@ -6885,29 +6885,6 @@ function SampleVerificationScanScreen({
               </p>
             )}
           </div>
-
-          {phase === "idle" ? (
-            <button
-              type="button"
-              onClick={() => setPhase("scanning")}
-              className="w-full min-h-[50px] rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
-              style={{ background: GRADIENT, boxShadow: "0 8px 22px rgba(15,47,143,0.32)" }}
-            >
-              <ScanLine size={16} />
-              Start Scanning
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setPhase("detected")}
-              disabled={detected}
-              className="w-full min-h-[50px] rounded-2xl text-sm font-bold flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all disabled:opacity-60"
-              style={{ ...SCAN_GLASS, color: "#0f2f8f" }}
-            >
-              <QrCode size={16} />
-              {detected ? "Opening QR details…" : "Capture Now"}
-            </button>
-          )}
         </section>
 
         {/* Scanned history — stays below the scanner and grows with every capture */}
@@ -7778,7 +7755,7 @@ function LoadingLogsScanScreen({
   const [activeTab, setActiveTab] = useState<LoadingInspectionTab>("loading");
   const [mode, setMode] = useState<LoadingScanMode>("allocate");
   const [damageStepVisited, setDamageStepVisited] = useState(false);
-  const [phase, setPhase] = useState<ScannerPhase>(autoStart ? "scanning" : "idle");
+  const [phase, setPhase] = useState<ScannerPhase>("scanning");
   const [pendingDamage, setPendingDamage] = useState<PendingDamageScan | null>(null);
   const [overlayBox, setOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -7843,6 +7820,12 @@ function LoadingLogsScanScreen({
       ];
     });
   }, [damageNc]);
+
+  useEffect(() => {
+    if (scanningActive && !pendingDamage && phase === "idle") {
+      setPhase("scanning");
+    }
+  }, [scanningActive, pendingDamage, phase]);
 
   useEffect(() => {
     if (!scanningActive || phase !== "scanning" || pendingDamage) return;
@@ -8337,6 +8320,10 @@ function LoadingLogsScanScreen({
                         {isDamageMode ? `${next.code} — tap to report` : `${next.code} added`}
                       </p>
                     </>
+                  ) : pendingDamage ? (
+                    <p className="text-[12px] font-semibold" style={{ color: "#5a6a99" }}>
+                      Fill in damage details below
+                    </p>
                   ) : scanning ? (
                     <>
                       <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#0f2f8f" }} />
@@ -8345,32 +8332,14 @@ function LoadingLogsScanScreen({
                       </p>
                     </>
                   ) : (
-                    <p className="text-[12px] font-semibold" style={{ color: "#94a3b8" }}>
-                      Tap below to start scanning
-                    </p>
+                    <>
+                      <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#0f2f8f" }} />
+                      <p className="text-[12px] font-semibold" style={{ color: "#5a6a99" }}>
+                        Starting scanner…
+                      </p>
+                    </>
                   )}
                 </div>
-
-                {phase === "idle" && !pendingDamage ? (
-                  <button
-                    type="button"
-                    onClick={() => setPhase("scanning")}
-                    className="w-full min-h-[50px] rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
-                    style={{ background: GRADIENT, boxShadow: "0 8px 22px rgba(15,47,143,0.32)" }}
-                  >
-                    <ScanLine size={16} />
-                    Start Scanning
-                  </button>
-                ) : scanning ? (
-                  <button
-                    type="button"
-                    onClick={() => setPhase("idle")}
-                    className="w-full h-10 rounded-xl text-[12px] font-semibold focus:outline-none active:scale-[0.98]"
-                    style={{ background: "#ffffff", color: "#5a6a99", border: "1px solid rgba(15,47,143,0.14)" }}
-                  >
-                    Pause scanner
-                  </button>
-                ) : null}
               </section>
 
               {!isDamageMode && loadedLogs.length > 0 ? (
