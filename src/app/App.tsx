@@ -1294,6 +1294,14 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenInventorySheet, isCU
             <span aria-hidden="true">👋</span>
           </p>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.75)" }}>{formatDate(new Date())}</p>
+          {!isCU && location ? (
+            <div className="flex items-center gap-2 mt-3">
+              <MapPin size={14} style={{ color: "rgba(255,255,255,0.85)", flexShrink: 0 }} />
+              <span className="text-sm font-medium truncate" style={{ color: "rgba(255,255,255,0.9)" }}>
+                {location}
+              </span>
+            </div>
+          ) : null}
         </div>
 
         {/* ── Action cards ── */}
