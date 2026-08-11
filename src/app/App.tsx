@@ -608,17 +608,8 @@ function BottomNavBar({
       }}
     >
       <div
-        className="mx-3 mb-3 rounded-[1.35rem] px-1.5 py-1.5 flex items-stretch gap-0.5"
-        style={{
-          pointerEvents: "auto",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          background: dark ? "rgba(15, 23, 42, 0.88)" : "rgba(255, 255, 255, 0.92)",
-          border: dark ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(15,47,143,0.10)",
-          boxShadow: dark
-            ? "0 10px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04) inset"
-            : "0 10px 32px rgba(15,47,143,0.14), 0 1px 0 rgba(255,255,255,0.8) inset",
-        }}
+        className={`mx-3 mb-3 rounded-[1.35rem] px-1.5 py-1.5 flex items-stretch gap-0.5 glow-footer-bar${dark ? " glow-footer-bar--dark" : ""}`}
+        style={{ pointerEvents: "auto" }}
       >
         {items.map(item => {
           const active = selectedTab === item.screen;
@@ -629,7 +620,7 @@ function BottomNavBar({
               type="button"
               onClick={() => onNavigate(item.screen)}
               aria-current={active ? "page" : undefined}
-              className="relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-2 rounded-2xl focus:outline-none active:scale-[0.96] transition-all duration-200"
+              className={`relative z-[1] flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-2 rounded-2xl focus:outline-none active:scale-[0.96] transition-all duration-200${active ? (dark ? " glow-footer-tab--active-dark" : " glow-footer-tab--active") : ""}`}
               style={{
                 background: active ? (dark ? "rgba(59,130,246,0.18)" : "rgba(15,47,143,0.08)") : "transparent",
                 color: active ? (dark ? "#93c5fd" : "#0f2f8f") : (dark ? "rgba(255,255,255,0.55)" : "#5a6a99"),
