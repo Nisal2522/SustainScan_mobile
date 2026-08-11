@@ -483,11 +483,30 @@ function todayISODate() {
 // ─── Shared: blurred background ───────────────────────────────────────────────
 
 function Background() {
+  const [bgReady, setBgReady] = useState(false);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = BG_URL;
+    img.onload = () => setBgReady(true);
+  }, []);
+
   return (
     <>
-      <div className="absolute inset-0 bg-emerald-900"
-        style={{ backgroundImage: `url(${BG_URL})`, backgroundSize: "cover", backgroundPosition: "18% center", filter: "blur(3px) brightness(0.68) saturate(1.15)", transform: "scale(1.05)" }}
-        aria-hidden="true" />
+      <div className="absolute inset-0" style={{ background: "#0a162e" }} aria-hidden="true" />
+      {bgReady && (
+        <div
+          className="absolute inset-0 bg-emerald-900 animate-fadeIn"
+          style={{
+            backgroundImage: `url(${BG_URL})`,
+            backgroundSize: "cover",
+            backgroundPosition: "18% center",
+            filter: "blur(3px) brightness(0.68) saturate(1.15)",
+            transform: "scale(1.05)",
+          }}
+          aria-hidden="true"
+        />
+      )}
       <div className="absolute inset-0" style={{ background: "rgba(10,22,70,0.45)" }} aria-hidden="true" />
     </>
   );

@@ -25,7 +25,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: [
         'icons/apple-touch-v3.png',
         'icons/logo-horizontal.png',
@@ -70,9 +70,21 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff2}'],
+        globPatterns: [
+          '**/*.{js,css,html,ico,svg,woff2}',
+          'icons/app-192-v3.png',
+          'icons/logo-horizontal.png',
+        ],
+        globIgnores: [
+          '**/timber*.png',
+          '**/ChatGPT*.png',
+          '**/splash*.png',
+          '**/app-512*.png',
+          '**/app-maskable*.png',
+        ],
         navigateFallback: '/index.html',
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 512 * 1024,
+        cleanupOutdatedCaches: true,
         // Always refresh HTML/manifest so splash-related metadata isn't sticky
         runtimeCaching: [
           {
@@ -83,7 +95,18 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'ss-navigations-v2',
-              networkTimeoutSeconds: 3,
+              networkTimeoutSeconds: 1,
+            },
+          },
+          {
+            urlPattern: ({ request }) => request.destination === 'image',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'ss-images-v1',
+              expiration: {
+                maxEntries: 40,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
+              },
             },
           },
         ],
