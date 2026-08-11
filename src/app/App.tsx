@@ -1407,10 +1407,6 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
     return () => clearTimeout(timer);
   }, [phase, isCU, onOpenExisting, onScanNew]);
 
-  const detected = phase === "detected";
-  const scanning = phase === "scanning";
-  const frameColor = detected ? "#16a34a" : scanning ? (dark ? "#93c5fd" : "#0f2f8f") : (dark ? "rgba(255,255,255,0.28)" : "#c3cee6");
-
   const INSTRUCTIONS = isCU
     ? [
         "Hold the camera steady 15–20 cm from the QR.",
@@ -1441,139 +1437,19 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
         style={{ paddingBottom: BOTTOM_NAV_PAD }}
       >
 
-        {/* Modern open viewfinder — matches Sample Verification */}
+        {/* Modern tap-to-scan viewfinder */}
         <section className="flex flex-col items-center gap-4">
-          <div className="relative flex items-center justify-center" style={{ width: "min(260px, 70vw)", aspectRatio: "1 / 1" }}>
-            <div
-              className="absolute rounded-full pointer-events-none"
-              style={{
-                inset: "-18%",
-                background: detected
-                  ? "radial-gradient(circle, rgba(22,163,74,0.18) 0%, transparent 68%)"
-                  : scanning
-                    ? (dark
-                      ? "radial-gradient(circle, rgba(59,130,246,0.22) 0%, transparent 68%)"
-                      : "radial-gradient(circle, rgba(26,69,181,0.16) 0%, transparent 68%)")
-                    : (dark
-                      ? "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 68%)"
-                      : "radial-gradient(circle, rgba(15,47,143,0.08) 0%, transparent 68%)"),
-                transition: "background 0.35s ease",
-              }}
-              aria-hidden="true"
-            />
-
-            <button
-              type="button"
-              onClick={() => setPhase("detected")}
-              disabled={detected}
-              className="absolute inset-0 rounded-[1.75rem] overflow-hidden transition-all duration-300 focus:outline-none active:scale-[0.99]"
-              style={{
-                background: dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255,255,255,0.28)",
-                border: `1px solid ${detected
-                  ? "rgba(22,163,74,0.40)"
-                  : (dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)")}`,
-                boxShadow: detected
-                  ? "0 12px 36px rgba(22,163,74,0.18)"
-                  : (dark ? "0 12px 36px rgba(0,0,0,0.35)" : "0 12px 36px rgba(15,47,143,0.10)"),
-                backdropFilter: "blur(10px)",
-                WebkitBackdropFilter: "blur(10px)",
-              }}
-              aria-label={isCU ? "Scan QR code to view log" : "Scan QR code"}
-            >
-              <img
-                src={qrCode}
-                alt="SustainScan QR Code"
-                className="absolute inset-0 w-full h-full object-contain p-9 transition-opacity duration-300"
-                style={{ opacity: detected ? 0.92 : scanning ? 0.38 : 0.18 }}
-              />
-
-              {scanning && (
-                <div
-                  className="absolute left-0 right-0 h-[2px] animate-qrSweep"
-                  style={{
-                    background: "linear-gradient(90deg, rgba(26,69,181,0) 0%, #1a45b5 50%, rgba(26,69,181,0) 100%)",
-                    boxShadow: "0 0 12px rgba(26,69,181,0.65)",
-                  }}
-                  aria-hidden="true"
-                />
-              )}
-
-              {detected && (
-                <div
-                  className="absolute inset-0 flex items-center justify-center"
-                  style={{ background: dark ? "rgba(15,23,42,0.55)" : "rgba(240,244,255,0.55)" }}
-                >
-                  <span
-                    className="w-14 h-14 rounded-full flex items-center justify-center animate-fadeIn"
-                    style={{ background: "#16a34a", boxShadow: "0 8px 24px rgba(22,163,74,0.40)" }}
-                  >
-                    <CheckCircle2 size={30} style={{ color: "#ffffff" }} />
-                  </span>
-                </div>
-              )}
-            </button>
-
-            {CORNER_BRACKETS.map(corner => (
-              <span
-                key={corner.key}
-                aria-hidden="true"
-                className={`absolute w-8 h-8 transition-colors duration-300 pointer-events-none ${corner.className}`}
-                style={{ borderColor: frameColor, borderRadius: corner.radius }}
-              />
-            ))}
-          </div>
-
-          <div className="flex items-center justify-center gap-2 min-h-[22px]">
-            {detected ? (
-              <>
-                <CheckCircle2 size={14} style={{ color: "#16a34a" }} />
-                <p className="text-[12px] font-bold" style={{ color: "#16a34a" }}>
-                  QR captured
-                </p>
-              </>
-            ) : scanning ? (
-              <>
-                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: dark ? "#93c5fd" : "#0f2f8f" }} />
-                <p className="text-[12px] font-semibold" style={{ color: textMuted }}>
-                  Searching for a QR code…
-                </p>
-              </>
-            ) : (
-              <p className="text-[12px] font-semibold" style={{ color: dark ? "rgba(255,255,255,0.45)" : "#94a3b8" }}>
-                Scanner paused
-              </p>
-            )}
-          </div>
-
-          {phase === "idle" ? (
-            <button
-              type="button"
-              onClick={() => setPhase("scanning")}
-              className="w-full min-h-[50px] rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
-              style={{ background: GRADIENT, boxShadow: "0 8px 22px rgba(15,47,143,0.32)" }}
-            >
-              <ScanLine size={16} />
-              Start Scanning
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setPhase("detected")}
-              disabled={detected}
-              className="w-full min-h-[50px] rounded-2xl text-sm font-bold flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all disabled:opacity-60"
-              style={{
-                background: surface,
-                border: `1px solid ${surfaceBorder}`,
-                color: dark ? "#ffffff" : "#0f2f8f",
-                backdropFilter: "blur(16px)",
-                WebkitBackdropFilter: "blur(16px)",
-                boxShadow: dark ? "0 8px 28px rgba(0,0,0,0.28)" : "0 8px 28px rgba(15,47,143,0.06)",
-              }}
-            >
-              <QrCode size={16} />
-              {detected ? (isCU ? "Opening log details…" : "Opening registration…") : "Capture Now"}
-            </button>
-          )}
+          <QrTapViewfinder
+            phase={phase}
+            dark={dark}
+            detectedLabel="QR captured"
+            idleHint="Ready when you are"
+            scanningHint={isCU ? "Hold steady to view log details" : "Hold steady to open registration"}
+            onToggleScan={() => {
+              if (phase === "idle") setPhase("scanning");
+              else if (phase === "scanning") setPhase("idle");
+            }}
+          />
 
           {!isCU && (
             <button
@@ -5907,12 +5783,17 @@ function PhysicalVerificationScreen({
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
   const [evidenceSheetOpen, setEvidenceSheetOpen] = useState(false);
   const [photoSheetPurpose, setPhotoSheetPurpose] = useState<"evidence" | "verification">("evidence");
+  const photoSheetPurposeRef = useRef<"evidence" | "verification">("evidence");
+  const [verificationPhotoPreview, setVerificationPhotoPreview] = useState<string | null>(null);
+  const verificationPhotoPreviewRef = useRef<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(!physicalStepComplete);
   const [evidenceSheetBox, setEvidenceSheetBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [attachments, setAttachments] = useState<AttachmentFile[]>(ATTACHMENT_FILES);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const evidencePhotosRef = useRef(evidencePhotos);
   evidencePhotosRef.current = evidencePhotos;
+  photoSheetPurposeRef.current = photoSheetPurpose;
 
   const syncEvidenceSheetBox = () => {
     const device = document.querySelector(".mobile-device");
@@ -5941,18 +5822,27 @@ function PhysicalVerificationScreen({
   useEffect(() => {
     return () => {
       evidencePhotosRef.current.forEach(photo => URL.revokeObjectURL(photo.previewUrl));
+      if (verificationPhotoPreviewRef.current) {
+        URL.revokeObjectURL(verificationPhotoPreviewRef.current);
+      }
     };
   }, []);
 
+  useEffect(() => {
+    setDetailsOpen(!physicalStepComplete);
+  }, [physicalStepComplete]);
+
   const openEvidenceSheet = () => {
     if (viewOnly) return;
+    photoSheetPurposeRef.current = "evidence";
     setPhotoSheetPurpose("evidence");
     syncEvidenceSheetBox();
     setEvidenceSheetOpen(true);
   };
 
   const openVerificationPhotoSheet = () => {
-    if (viewOnly) return;
+    if (viewOnly || physicalStepComplete) return;
+    photoSheetPurposeRef.current = "verification";
     setPhotoSheetPurpose("verification");
     syncEvidenceSheetBox();
     setEvidenceSheetOpen(true);
@@ -5968,6 +5858,14 @@ function PhysicalVerificationScreen({
     setEvidenceError(null);
   };
 
+  const setVerificationPhoto = (previewUrl: string | null) => {
+    if (verificationPhotoPreviewRef.current) {
+      URL.revokeObjectURL(verificationPhotoPreviewRef.current);
+    }
+    verificationPhotoPreviewRef.current = previewUrl;
+    setVerificationPhotoPreview(previewUrl);
+  };
+
   const handleVerificationPhotoPicked = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -5977,13 +5875,19 @@ function PhysicalVerificationScreen({
     const ext = file.name.includes(".")
       ? file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase()
       : "";
-    const isImage = file.type.startsWith("image/") || ACCEPTED_EVIDENCE_EXTS.includes(ext);
+    const isImage =
+      file.type.startsWith("image/") ||
+      ACCEPTED_EVIDENCE_EXTS.includes(ext) ||
+      ["heic", "heif", "gif", "bmp"].includes(ext) ||
+      !file.type;
     if (!isImage || file.size > MAX_ATTACHMENT_BYTES) return;
+
+    setVerificationPhoto(URL.createObjectURL(file));
     onDraftChange({ photoAdded: true });
   };
 
   const handleEvidencePicked = (event: ChangeEvent<HTMLInputElement>) => {
-    if (photoSheetPurpose === "verification") {
+    if (photoSheetPurposeRef.current === "verification") {
       handleVerificationPhotoPicked(event);
       return;
     }
@@ -6206,8 +6110,11 @@ function PhysicalVerificationScreen({
           <div className="grid grid-cols-2 gap-3" role="group" aria-label="Volume confirmation">
             <button
               type="button"
-              onClick={() => !viewOnly && onDraftChange({ volumeOk: volumeOk === "yes" ? null : "yes" })}
-              disabled={viewOnly}
+              onClick={() => !viewOnly && !physicalStepComplete && onDraftChange({
+                volumeOk: volumeOk === "yes" ? null : "yes",
+                physicalStepComplete: false,
+              })}
+              disabled={viewOnly || physicalStepComplete}
               className={`rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "yes" ? "animate-selectSpring" : ""} ${viewOnly ? "cursor-default" : ""}`}
               style={{
                 background: volumeOk === "yes" ? "rgba(22,163,74,0.10)" : choiceIdleBg,
@@ -6234,8 +6141,11 @@ function PhysicalVerificationScreen({
 
             <button
               type="button"
-              onClick={() => !viewOnly && onDraftChange({ volumeOk: volumeOk === "no" ? null : "no" })}
-              disabled={viewOnly}
+              onClick={() => !viewOnly && !physicalStepComplete && onDraftChange({
+                volumeOk: volumeOk === "no" ? null : "no",
+                physicalStepComplete: false,
+              })}
+              disabled={viewOnly || physicalStepComplete}
               className={`rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "no" ? "animate-selectSpring" : ""} ${viewOnly ? "cursor-default" : ""}`}
               style={{
                 background: volumeOk === "no" ? "rgba(212,24,61,0.08)" : choiceIdleBg,
@@ -6261,7 +6171,33 @@ function PhysicalVerificationScreen({
             </button>
           </div>
 
-          {(volumeOk === "yes" || volumeOk === "no") && (
+          {/* After submit: only answer shows; reason/photo toggle open/close */}
+          {(volumeOk === "yes" || volumeOk === "no") && physicalStepComplete && (
+            <button
+              type="button"
+              onClick={() => setDetailsOpen(o => !o)}
+              className="w-full rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 focus:outline-none"
+              style={{
+                background: dark ? "rgba(255,255,255,0.04)" : "#f5f8ff",
+                border: `1px solid ${cardBorder}`,
+              }}
+              aria-expanded={detailsOpen}
+            >
+              <span className="text-[12px] font-semibold" style={{ color: textPrimary }}>
+                Reason & photo
+              </span>
+              <ChevronDown
+                size={16}
+                style={{
+                  color: textMuted,
+                  transform: detailsOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s",
+                }}
+              />
+            </button>
+          )}
+
+          {(volumeOk === "yes" || volumeOk === "no") && (!physicalStepComplete || detailsOpen) && (
             <div
               className="rounded-2xl p-3.5 flex flex-col gap-3"
               style={{
@@ -6278,16 +6214,19 @@ function PhysicalVerificationScreen({
                 </p>
                 <textarea
                   value={nonConformanceReason}
-                  onChange={e => !viewOnly && onDraftChange({ nonConformanceReason: e.target.value })}
+                  onChange={e => {
+                    if (viewOnly || physicalStepComplete) return;
+                    onDraftChange({ nonConformanceReason: e.target.value });
+                  }}
                   rows={3}
                   placeholder={viewOnly ? "No reason recorded" : "Enter reason"}
-                  readOnly={viewOnly}
+                  readOnly={viewOnly || physicalStepComplete}
                   className="w-full mt-2 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none"
                   style={{
                     background: fieldBg,
                     border: volumeOk === "no" ? "1px solid rgba(212,24,61,0.25)" : "1px solid rgba(22,163,74,0.30)",
                     color: textPrimary,
-                    cursor: viewOnly ? "default" : undefined,
+                    cursor: viewOnly || physicalStepComplete ? "default" : undefined,
                   }}
                 />
               </div>
@@ -6302,46 +6241,52 @@ function PhysicalVerificationScreen({
                 <button
                   type="button"
                   onClick={openVerificationPhotoSheet}
-                  disabled={viewOnly}
-                  className="w-full rounded-xl px-3 py-3.5 flex flex-col items-center justify-center gap-1.5 focus:outline-none active:scale-[0.99] transition-all disabled:active:scale-100"
+                  disabled={viewOnly || physicalStepComplete}
+                  className="w-full rounded-xl px-3 py-3.5 flex flex-col items-center justify-center gap-1.5 focus:outline-none active:scale-[0.99] transition-all disabled:active:scale-100 overflow-hidden"
                   style={{
-                    background: photoAdded
-                      ? "rgba(22,163,74,0.10)"
-                      : "#ffffff",
+                    background: photoAdded ? "rgba(22,163,74,0.10)" : "#ffffff",
                     border: photoAdded
                       ? "2px dashed rgba(22,163,74,0.45)"
                       : volumeOk === "no"
                         ? "2px dashed rgba(212,24,61,0.28)"
                         : "2px dashed rgba(22,163,74,0.32)",
-                    opacity: viewOnly ? 0.9 : 1,
-                    cursor: viewOnly ? "default" : undefined,
+                    opacity: viewOnly || physicalStepComplete ? 0.9 : 1,
+                    cursor: viewOnly || physicalStepComplete ? "default" : undefined,
                   }}
                 >
-                  <span
-                    className="w-9 h-9 rounded-xl flex items-center justify-center"
-                    style={{
-                      background: photoAdded
-                        ? "rgba(22,163,74,0.16)"
-                        : volumeOk === "no"
-                          ? "rgba(212,24,61,0.10)"
-                          : "rgba(22,163,74,0.12)",
-                      color: photoAdded ? "#16a34a" : volumeOk === "no" ? "#d4183d" : "#166534",
-                    }}
-                  >
-                    <Camera size={18} />
-                  </span>
+                  {verificationPhotoPreview ? (
+                    <img
+                      src={verificationPhotoPreview}
+                      alt="Attached"
+                      className="w-full max-h-36 object-cover rounded-lg"
+                    />
+                  ) : (
+                    <span
+                      className="w-9 h-9 rounded-xl flex items-center justify-center"
+                      style={{
+                        background: photoAdded
+                          ? "rgba(22,163,74,0.16)"
+                          : volumeOk === "no"
+                            ? "rgba(212,24,61,0.10)"
+                            : "rgba(22,163,74,0.12)",
+                        color: photoAdded ? "#16a34a" : volumeOk === "no" ? "#d4183d" : "#166534",
+                      }}
+                    >
+                      <Camera size={18} />
+                    </span>
+                  )}
                   <span
                     className="text-[12px] font-bold"
                     style={{ color: photoAdded ? "#166534" : volumeOk === "no" ? "#9f1239" : "#0a1a4a" }}
                   >
-                    {photoAdded ? "Photo added" : viewOnly ? "No photo" : "Add Photo"}
+                    {photoAdded ? "Photo attached" : viewOnly || physicalStepComplete ? "No photo" : "Add Photo"}
                   </span>
                   <span
                     className="text-[10px] font-medium text-center leading-snug"
                     style={{ color: "#5a6a99" }}
                   >
-                    {viewOnly
-                      ? (photoAdded ? "View only" : "No photo attached")
+                    {viewOnly || physicalStepComplete
+                      ? (photoAdded ? "Photo saved with response" : "No photo attached")
                       : photoAdded
                         ? "Tap to change photo"
                         : "Take photo or upload from gallery"}
@@ -6349,36 +6294,66 @@ function PhysicalVerificationScreen({
                 </button>
               </div>
 
-              {!viewOnly && (
-              <button
-                type="button"
-                onClick={onProceed}
-                className="w-full min-h-[44px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
-                style={{
-                  background: volumeOk === "no"
-                    ? "linear-gradient(135deg, #e11d48 0%, #be123c 100%)"
-                    : "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
-                  boxShadow: volumeOk === "no"
-                    ? "0 6px 18px rgba(190,18,60,0.28)"
-                    : "0 6px 18px rgba(22,163,74,0.30)",
-                }}
-              >
-                Submit
-              </button>
+              {!viewOnly && !physicalStepComplete && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!nonConformanceReason.trim()) return;
+                    onDraftChange({ physicalStepComplete: true });
+                  }}
+                  disabled={!nonConformanceReason.trim()}
+                  className="w-full min-h-[44px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all disabled:opacity-45 disabled:cursor-not-allowed"
+                  style={{
+                    background: volumeOk === "no"
+                      ? "linear-gradient(135deg, #e11d48 0%, #be123c 100%)"
+                      : "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+                    boxShadow: !nonConformanceReason.trim()
+                      ? "none"
+                      : volumeOk === "no"
+                        ? "0 6px 18px rgba(190,18,60,0.28)"
+                        : "0 6px 18px rgba(22,163,74,0.30)",
+                  }}
+                >
+                  Submit
+                </button>
               )}
-              {viewOnly && (
-              <button
-                type="button"
-                onClick={onGoToSample}
-                className="w-full min-h-[44px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
-                style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
-              >
-                View Sample Verification <ChevronRight size={16} />
-              </button>
+
+              {!viewOnly && physicalStepComplete && (
+                <button
+                  type="button"
+                  onClick={() => onDraftChange({ physicalStepComplete: false })}
+                  className="self-start text-[12px] font-semibold focus:outline-none"
+                  style={{ color: dark ? "#93c5fd" : "#0f2f8f" }}
+                >
+                  Edit response
+                </button>
               )}
             </div>
           )}
         </div>
+
+        {!viewOnly && physicalStepComplete && (
+          <button
+            type="button"
+            onClick={onProceed}
+            className="w-full min-h-[48px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all animate-riseIn"
+            style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
+          >
+            Next: Sample Verification
+            <ChevronRight size={16} />
+          </button>
+        )}
+
+        {viewOnly && (
+          <button
+            type="button"
+            onClick={onGoToSample}
+            className="w-full min-h-[44px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
+            style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
+          >
+            View Sample Verification <ChevronRight size={16} />
+          </button>
+        )}
 
         {viewOnly && (
           <button
@@ -6945,6 +6920,247 @@ const CORNER_BRACKETS = [
   { key: "br", className: "bottom-0 right-0 border-b-[3px] border-r-[3px]", radius: "0 0 14px 0" },
 ];
 
+/** Shared QR capture frame — tap-to-scan shutter lives inside the viewfinder. */
+function QrTapViewfinder({
+  phase,
+  dark = false,
+  viewOnly = false,
+  disabled = false,
+  danger = false,
+  detectedLabel,
+  idleHint = "Ready when you are",
+  scanningHint = "Hold steady over the log QR",
+  onToggleScan,
+}: {
+  phase: ScannerPhase;
+  dark?: boolean;
+  viewOnly?: boolean;
+  disabled?: boolean;
+  danger?: boolean;
+  detectedLabel?: string;
+  idleHint?: string;
+  scanningHint?: string;
+  onToggleScan: () => void;
+}) {
+  const detected = phase === "detected";
+  const scanning = phase === "scanning";
+  const locked = viewOnly || disabled || detected;
+  const frameColor = detected
+    ? (danger ? "#d4183d" : "#16a34a")
+    : scanning
+      ? (dark ? "#93c5fd" : "#0f2f8f")
+      : (dark ? "rgba(255,255,255,0.28)" : "#c3cee6");
+  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+
+  return (
+    <div className="flex flex-col items-center gap-3 w-full">
+      <div
+        className="relative flex items-center justify-center"
+        style={{ width: "min(280px, 78vw)", aspectRatio: "1 / 1" }}
+      >
+        <div
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            inset: "-18%",
+            background: detected
+              ? danger
+                ? "radial-gradient(circle, rgba(212,24,61,0.18) 0%, transparent 68%)"
+                : "radial-gradient(circle, rgba(22,163,74,0.18) 0%, transparent 68%)"
+              : scanning
+                ? (dark
+                  ? "radial-gradient(circle, rgba(59,130,246,0.22) 0%, transparent 68%)"
+                  : "radial-gradient(circle, rgba(26,69,181,0.16) 0%, transparent 68%)")
+                : (dark
+                  ? "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 68%)"
+                  : "radial-gradient(circle, rgba(15,47,143,0.08) 0%, transparent 68%)"),
+            transition: "background 0.35s ease",
+          }}
+          aria-hidden="true"
+        />
+
+        {detected && (
+          <div
+            className={`detect-success-ring${danger ? " detect-success-ring-danger" : ""}`}
+            aria-hidden="true"
+          />
+        )}
+
+        <button
+          type="button"
+          disabled={locked && !scanning}
+          onClick={() => {
+            if (viewOnly || disabled || detected) return;
+            onToggleScan();
+          }}
+          className="absolute inset-0 rounded-[1.75rem] overflow-hidden transition-all duration-300 focus:outline-none disabled:cursor-default pressable"
+          style={{
+            background: dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255,255,255,0.28)",
+            border: `1px solid ${detected
+              ? (danger ? "rgba(212,24,61,0.40)" : "rgba(22,163,74,0.40)")
+              : scanning
+                ? (dark ? "rgba(147,197,253,0.35)" : "rgba(15,47,143,0.28)")
+                : (dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)")}`,
+            boxShadow: detected
+              ? danger
+                ? "0 12px 36px rgba(212,24,61,0.18)"
+                : "0 12px 36px rgba(22,163,74,0.18)"
+              : (dark ? "0 12px 36px rgba(0,0,0,0.35)" : "0 12px 36px rgba(15,47,143,0.10)"),
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+          }}
+          aria-label={
+            viewOnly
+              ? "Scanner view only"
+              : scanning
+                ? "Cancel scan"
+                : detected
+                  ? "QR captured"
+                  : "Start scanning"
+          }
+        >
+          <img
+            src={qrCode}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-contain p-9 transition-opacity duration-300 pointer-events-none"
+            style={{ opacity: detected ? 0.92 : scanning ? 0.34 : 0.14 }}
+          />
+
+          {scanning && (
+            <div
+              className="absolute left-0 right-0 h-[2px] animate-qrSweep pointer-events-none"
+              style={{
+                background: "linear-gradient(90deg, rgba(26,69,181,0) 0%, #1a45b5 50%, rgba(26,69,181,0) 100%)",
+                boxShadow: "0 0 12px rgba(26,69,181,0.65)",
+              }}
+              aria-hidden="true"
+            />
+          )}
+
+          {detected && (
+            <div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+              style={{ background: dark ? "rgba(15,23,42,0.55)" : "rgba(240,244,255,0.55)" }}
+            >
+              <span
+                className="w-14 h-14 rounded-full flex items-center justify-center animate-fadeIn"
+                style={{
+                  background: danger ? "#d4183d" : "#16a34a",
+                  boxShadow: danger
+                    ? "0 8px 24px rgba(212,24,61,0.40)"
+                    : "0 8px 24px rgba(22,163,74,0.40)",
+                }}
+              >
+                {danger
+                  ? <AlertTriangle size={28} style={{ color: "#ffffff" }} />
+                  : <CheckCircle2 size={30} style={{ color: "#ffffff" }} />}
+              </span>
+            </div>
+          )}
+
+          {phase === "idle" && !viewOnly && !disabled && (
+            <span
+              className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 pb-5 pt-10 pointer-events-none"
+              style={{
+                background: dark
+                  ? "linear-gradient(180deg, transparent 0%, rgba(15,23,42,0.72) 70%)"
+                  : "linear-gradient(180deg, transparent 0%, rgba(10,26,74,0.55) 70%)",
+              }}
+            >
+              <span
+                className="w-14 h-14 rounded-full flex items-center justify-center"
+                style={{
+                  background: GRADIENT,
+                  boxShadow: "0 8px 24px rgba(15,47,143,0.40), inset 0 0 0 3px rgba(255,255,255,0.22)",
+                }}
+              >
+                <ScanLine size={22} style={{ color: "#ffffff" }} />
+              </span>
+              <span className="text-[12px] font-bold tracking-wide" style={{ color: "#ffffff" }}>
+                Tap to scan
+              </span>
+            </span>
+          )}
+
+          {phase === "idle" && (viewOnly || disabled) && (
+            <span
+              className="absolute inset-x-0 bottom-0 flex justify-center pb-5 pt-10 pointer-events-none"
+              style={{
+                background: dark
+                  ? "linear-gradient(180deg, transparent 0%, rgba(15,23,42,0.72) 70%)"
+                  : "linear-gradient(180deg, transparent 0%, rgba(10,26,74,0.45) 70%)",
+              }}
+            >
+              <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.85)" }}>
+                {viewOnly ? "View only" : "Waiting…"}
+              </span>
+            </span>
+          )}
+
+          {scanning && (
+            <span
+              className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-1.5 pb-4 pt-8 pointer-events-none"
+              style={{
+                background: dark
+                  ? "linear-gradient(180deg, transparent 0%, rgba(15,23,42,0.55) 75%)"
+                  : "linear-gradient(180deg, transparent 0%, rgba(10,26,74,0.40) 75%)",
+              }}
+            >
+              <span
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[11px] font-bold"
+                style={{
+                  background: "rgba(255,255,255,0.92)",
+                  color: "#0f2f8f",
+                  boxShadow: "0 4px 14px rgba(15,47,143,0.18)",
+                }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#0f2f8f" }} />
+                Searching…
+              </span>
+              <span className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.8)" }}>
+                Tap to cancel
+              </span>
+            </span>
+          )}
+        </button>
+
+        {CORNER_BRACKETS.map(corner => (
+          <span
+            key={corner.key}
+            aria-hidden="true"
+            className={`absolute w-8 h-8 transition-colors duration-300 pointer-events-none ${corner.className}`}
+            style={{ borderColor: frameColor, borderRadius: corner.radius }}
+          />
+        ))}
+      </div>
+
+      <div className="flex items-center justify-center gap-2 min-h-[18px] px-2">
+        {detected ? (
+          <>
+            {danger
+              ? <AlertTriangle size={14} style={{ color: "#d4183d" }} />
+              : <CheckCircle2 size={14} style={{ color: "#16a34a" }} />}
+            <p
+              className="text-[12px] font-bold truncate"
+              style={{ color: danger ? "#d4183d" : "#16a34a" }}
+            >
+              {detectedLabel ?? "QR captured"}
+            </p>
+          </>
+        ) : scanning ? (
+          <p className="text-[11px] font-semibold text-center" style={{ color: textMuted }}>
+            {scanningHint}
+          </p>
+        ) : (
+          <p className="text-[11px] font-semibold text-center" style={{ color: dark ? "rgba(255,255,255,0.45)" : "#94a3b8" }}>
+            {viewOnly ? "Scanning disabled" : idleHint}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const SCAN_GLASS = {
   backdropFilter: "blur(16px)",
   WebkitBackdropFilter: "blur(16px)",
@@ -6981,26 +7197,17 @@ function ScannedHistoryList({
   const accent = dark ? "#93c5fd" : "#0f2f8f";
   const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
   const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.14)";
-  const rowGlass = dark
-    ? {
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-        background: "rgba(30, 41, 59, 0.72)",
-        border: "1px solid rgba(255,255,255,0.10)",
-        boxShadow: "0 8px 28px rgba(0,0,0,0.28)",
-      }
-    : SCAN_GLASS;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div
-        className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-2.5"
-        style={{
-          background: cardBg,
-          border: `1px solid ${cardBorder}`,
-          boxShadow: dark ? "0 2px 12px rgba(0,0,0,0.28)" : "0 2px 12px rgba(15,47,143,0.05)",
-        }}
-      >
+    <div
+      className="rounded-2xl overflow-hidden flex flex-col"
+      style={{
+        background: cardBg,
+        border: `1px solid ${cardBorder}`,
+        boxShadow: dark ? "0 2px 12px rgba(0,0,0,0.28)" : "0 2px 12px rgba(15,47,143,0.05)",
+      }}
+    >
+      <div className="px-3.5 pt-3.5 pb-3 flex flex-col gap-2.5">
         <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: accent }}>
           Total Scanned Volume
         </p>
@@ -7038,7 +7245,13 @@ function ScannedHistoryList({
         </div>
       </div>
 
-      <div className="flex items-baseline justify-between gap-2 px-0.5">
+      <div
+        className="px-3.5 py-2.5 flex items-baseline justify-between gap-2"
+        style={{
+          borderTop: `1px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)"}`,
+          background: dark ? "rgba(255,255,255,0.03)" : "rgba(15,47,143,0.03)",
+        }}
+      >
         <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: textMuted }}>
           Scanned QR Codes
         </p>
@@ -7048,7 +7261,7 @@ function ScannedHistoryList({
       </div>
 
       {records.length === 0 ? (
-        <div className="rounded-2xl px-4 py-7 flex flex-col items-center gap-2 text-center" style={rowGlass}>
+        <div className="px-4 py-7 flex flex-col items-center gap-2 text-center">
           <span
             className="w-11 h-11 rounded-2xl flex items-center justify-center"
             style={{ background: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)", color: accent }}
@@ -7061,57 +7274,63 @@ function ScannedHistoryList({
           </p>
         </div>
       ) : (
-        records.map((record, i) => {
-          const meta = SCAN_STATUS_META[record.status];
-          const hasEdits = Boolean(record.inspectorMeasurements);
-          return (
-            <button
-              key={record.code}
-              type="button"
-              onClick={() => onSelect(record.code)}
-              className="w-full text-left rounded-2xl px-3.5 py-3.5 flex items-center gap-3 animate-riseIn focus:outline-none active:scale-[0.99] transition-transform"
-              style={{ ...rowGlass, ["--rise-delay" as string]: `${40 + i * 45}ms` }}
-              aria-label={`View details for ${record.code}`}
-            >
-              <span
-                className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-                style={{ background: dark ? "rgba(59,130,246,0.18)" : "rgba(15,47,143,0.10)", color: accent }}
+        <div className="flex flex-col px-2 pb-2 gap-1.5">
+          {records.map((record, i) => {
+            const meta = SCAN_STATUS_META[record.status];
+            const hasEdits = Boolean(record.inspectorMeasurements);
+            return (
+              <button
+                key={record.code}
+                type="button"
+                onClick={() => onSelect(record.code)}
+                className="w-full text-left rounded-xl px-3 py-3 flex items-center gap-3 animate-riseIn focus:outline-none active:scale-[0.99] transition-transform"
+                style={{
+                  background: dark ? "rgba(255,255,255,0.04)" : "rgba(15,47,143,0.04)",
+                  border: `1px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)"}`,
+                  ["--rise-delay" as string]: `${40 + i * 45}ms`,
+                }}
+                aria-label={`View details for ${record.code}`}
               >
-                <QrCode size={20} />
-              </span>
+                <span
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: dark ? "rgba(59,130,246,0.18)" : "rgba(15,47,143,0.10)", color: accent }}
+                >
+                  <QrCode size={20} />
+                </span>
 
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                  <p className="text-[14px] font-bold truncate" style={{ color: textPrimary }}>
-                    {record.code}
-                  </p>
-                  <span
-                    className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
-                    style={{ background: meta.bg, color: meta.color }}
-                  >
-                    {meta.label}
-                  </span>
-                  {hasEdits && (
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                    <p className="text-[14px] font-bold truncate" style={{ color: textPrimary }}>
+                      {record.code}
+                    </p>
                     <span
                       className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
-                      style={{
-                        background: dark ? "rgba(59,130,246,0.18)" : "rgba(15,47,143,0.12)",
-                        color: accent,
-                      }}
+                      style={{ background: meta.bg, color: meta.color }}
                     >
-                      Edited
+                      {meta.label}
                     </span>
-                  )}
+                    {hasEdits && (
+                      <span
+                        className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
+                        style={{
+                          background: dark ? "rgba(59,130,246,0.18)" : "rgba(15,47,143,0.12)",
+                          color: accent,
+                        }}
+                      >
+                        Edited
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] mt-1 truncate" style={{ color: textMuted }}>
+                    {record.scannedAt} <span aria-hidden>·</span> {record.log.productName}
+                  </p>
                 </div>
-                <p className="text-[11px] mt-1 truncate" style={{ color: textMuted }}>
-                  {record.scannedAt} <span aria-hidden>·</span> {record.log.productName}
-                </p>
-              </div>
 
-              <ChevronRight size={17} className="flex-shrink-0" style={{ color: dark ? "rgba(255,255,255,0.35)" : "#94a3b8" }} />
-            </button>
-          );
-        })
+                <ChevronRight size={17} className="flex-shrink-0" style={{ color: dark ? "rgba(255,255,255,0.35)" : "#94a3b8" }} />
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -7121,7 +7340,10 @@ function SampleVerificationScanScreen({
   scanCount,
   records,
   targetVolumeM3,
+  physicalComplete = false,
+  sampleComplete = false,
   onBack,
+  onGoToPhysical,
   onScanned,
   onOpenRecord,
   onFinishInspection,
@@ -7131,7 +7353,10 @@ function SampleVerificationScanScreen({
   scanCount: number;
   records: ScannedSampleLog[];
   targetVolumeM3: number;
+  physicalComplete?: boolean;
+  sampleComplete?: boolean;
   onBack: () => void;
+  onGoToPhysical?: () => void;
   onScanned: (record: ScannedSampleLog) => void;
   onOpenRecord: (code: string) => void;
   onFinishInspection: () => void;
@@ -7140,6 +7365,13 @@ function SampleVerificationScanScreen({
 }) {
   const [phase, setPhase] = useState<ScannerPhase>("idle");
   const [finishPulse, setFinishPulse] = useState(false);
+  const [activeTab, setActiveTab] = useState<PreShipmentTab>("verification");
+  const [ncView, setNcView] = useState<NonComplianceView>("list");
+  const [selectedNcTypes, setSelectedNcTypes] = useState<string[]>([]);
+  const [ncDescription, setNcDescription] = useState("");
+  const [attachments, setAttachments] = useState<AttachmentFile[]>(ATTACHMENT_FILES);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const next = SAMPLE_QR_POOL[scanCount % SAMPLE_QR_POOL.length];
 
   // Simulated capture: the frame "finds" a code, shows a confirmation beat, then advances.
@@ -7171,12 +7403,66 @@ function SampleVerificationScanScreen({
     : scanning
       ? (dark ? "#93c5fd" : "#0f2f8f")
       : (dark ? "rgba(255,255,255,0.28)" : "#c3cee6");
-  const swipe = useSwipeBack(onBack);
+
+  const handleBack = () => {
+    if (activeTab === "non-compliance" && ncView === "create") {
+      setNcView("list");
+      return;
+    }
+    onBack();
+  };
+  const swipe = useSwipeBack(handleBack);
   const pageBg = dark
     ? "linear-gradient(165deg, #0b1224 0%, #0f172a 42%, #111827 100%)"
     : "#f0f4ff";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
   const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
+  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)";
+  const cardShadow = dark ? "0 2px 12px rgba(0,0,0,0.28)" : "0 2px 12px rgba(15,47,143,0.06)";
+  const fieldBg = dark ? "rgba(15, 23, 42, 0.85)" : "#ffffff";
+  const fieldBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.16)";
+  const dashedBorder = dark ? "rgba(255,255,255,0.16)" : "rgba(15,47,143,0.18)";
+  const iconMutedBg = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)";
+
+  const tabs: { id: PreShipmentTab; label: string; short: string }[] = [
+    { id: "verification", label: "Verification", short: "Verify" },
+    { id: "non-compliance", label: "Non-Compliance", short: "NC" },
+    { id: "attachments", label: "Attachments", short: "Files" },
+  ];
+
+  const handleNcTypeToggle = (type: string) => {
+    setSelectedNcTypes(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type],
+    );
+  };
+
+  const handleAttachmentPicked = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const ext = file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase();
+    if (!ACCEPTED_ATTACHMENT_EXTS.includes(ext)) {
+      setAttachmentError("Unsupported file type. Choose a JPG, PNG, or PDF.");
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      setAttachmentError(`That file is ${formatAttachmentSize(file.size)}. The limit is 10 MB.`);
+      return;
+    }
+
+    setAttachmentError(null);
+    setAttachments(prev => [
+      ...prev,
+      {
+        fileName: file.name,
+        category: ext === "pdf" ? "DOCUMENT" : "PHOTO",
+        uploaded: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
+        size: formatAttachmentSize(file.size),
+      },
+    ]);
+  };
 
   const runFinishInspection = () => {
     if (viewOnly) {
@@ -7194,7 +7480,7 @@ function SampleVerificationScanScreen({
     >
       <AppHeaderBar dark={dark}>
         <div className="flex items-center gap-3 min-w-0">
-          <BackCardButton onClick={onBack} dark={dark} />
+          <BackCardButton onClick={handleBack} dark={dark} />
           <div className="min-w-0">
             <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: textPrimary }}>
               Sample Verification
@@ -7204,158 +7490,271 @@ function SampleVerificationScanScreen({
       </AppHeaderBar>
 
       <div
-        className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 pt-5 gap-6"
+        className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 pt-5 gap-4"
         style={{ paddingBottom: BOTTOM_NAV_PAD }}
       >
-        {/* Open scanner composition — no solid white card */}
-        <section className="flex flex-col items-center gap-4">
-          {/* Viewfinder hero */}
-          <div className="relative flex items-center justify-center" style={{ width: "min(260px, 70vw)", aspectRatio: "1 / 1" }}>
-            {/* Soft ambient glow behind the frame */}
-            <div
-              className="absolute rounded-full pointer-events-none"
-              style={{
-                inset: "-18%",
-                background: detected
-                  ? "radial-gradient(circle, rgba(22,163,74,0.18) 0%, transparent 68%)"
-                  : scanning
-                    ? (dark
-                      ? "radial-gradient(circle, rgba(59,130,246,0.22) 0%, transparent 68%)"
-                      : "radial-gradient(circle, rgba(26,69,181,0.16) 0%, transparent 68%)")
-                    : (dark
-                      ? "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 68%)"
-                      : "radial-gradient(circle, rgba(15,47,143,0.08) 0%, transparent 68%)"),
-                transition: "background 0.35s ease",
-              }}
-              aria-hidden="true"
-            />
-
-            {detected && (
-              <div className="detect-success-ring" aria-hidden="true" />
-            )}
-
-            <div
-              className="absolute inset-0 rounded-[1.75rem] overflow-hidden transition-all duration-300"
-              style={{
-                background: dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255,255,255,0.28)",
-                border: `1px solid ${detected
-                  ? "rgba(22,163,74,0.40)"
-                  : (dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)")}`,
-                boxShadow: detected
-                  ? "0 12px 36px rgba(22,163,74,0.18)"
-                  : (dark ? "0 12px 36px rgba(0,0,0,0.35)" : "0 12px 36px rgba(15,47,143,0.10)"),
-                backdropFilter: "blur(10px)",
-                WebkitBackdropFilter: "blur(10px)",
-              }}
-            >
-              <img
-                src={qrCode}
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 w-full h-full object-contain p-9 transition-opacity duration-300"
-                style={{ opacity: detected ? 0.92 : scanning ? 0.34 : 0.16 }}
-              />
-
-              {scanning && (
-                <div
-                  className="absolute left-0 right-0 h-[2px] animate-qrSweep"
-                  style={{
-                    background: "linear-gradient(90deg, rgba(26,69,181,0) 0%, #1a45b5 50%, rgba(26,69,181,0) 100%)",
-                    boxShadow: "0 0 12px rgba(26,69,181,0.65)",
-                  }}
-                  aria-hidden="true"
-                />
-              )}
-
-              {detected && (
-                <div
-                  className="absolute inset-0 flex items-center justify-center"
-                  style={{ background: dark ? "rgba(15,23,42,0.55)" : "rgba(240,244,255,0.55)" }}
-                >
-                  <span
-                    className="w-14 h-14 rounded-full flex items-center justify-center animate-fadeIn"
-                    style={{ background: "#16a34a", boxShadow: "0 8px 24px rgba(22,163,74,0.40)" }}
-                  >
-                    <CheckCircle2 size={30} style={{ color: "#ffffff" }} />
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {CORNER_BRACKETS.map(corner => (
-              <span
-                key={corner.key}
-                aria-hidden="true"
-                className={`absolute w-8 h-8 transition-colors duration-300 ${corner.className}`}
-                style={{ borderColor: frameColor, borderRadius: corner.radius }}
-              />
-            ))}
-          </div>
-
-          {/* Status line */}
-          <div className="flex items-center justify-center gap-2 min-h-[22px]">
-            {detected ? (
+        <LiquidTabBar
+          ariaLabel="Pre-shipment sections"
+          dark={dark}
+          value={activeTab}
+          onChange={id => {
+            setActiveTab(id as PreShipmentTab);
+            if (id !== "non-compliance") setNcView("list");
+          }}
+          items={tabs.map(tab => ({
+            id: tab.id,
+            node: (
               <>
-                <CheckCircle2 size={14} style={{ color: "#16a34a" }} />
-                <p className="text-[12px] font-bold truncate" style={{ color: "#16a34a" }}>
-                  {next.code} captured
-                </p>
+                <span className="sm:hidden truncate block">{tab.short}</span>
+                <span className="hidden sm:inline truncate">{tab.label}</span>
               </>
-            ) : scanning ? (
-              <>
-                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: dark ? "#93c5fd" : "#0f2f8f" }} />
-                <p className="text-[12px] font-semibold" style={{ color: textMuted }}>
-                  Searching for a QR code…
-                </p>
-              </>
-            ) : (
-              <p className="text-[12px] font-semibold" style={{ color: dark ? "rgba(255,255,255,0.45)" : "#94a3b8" }}>
-                {viewOnly ? "View only — scanning disabled" : "Scanner paused"}
-              </p>
-            )}
-          </div>
+            ),
+          }))}
+        />
 
-          {phase === "idle" ? (
-            viewOnly ? null : (
-              <button
-                type="button"
-                onClick={() => setPhase("scanning")}
-                className="w-full min-h-[50px] rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
-                style={{ background: GRADIENT, boxShadow: "0 8px 22px rgba(15,47,143,0.32)" }}
-              >
-                <ScanLine size={16} />
-                Start Scanning
-              </button>
-            )
-          ) : scanning ? (
-            <button
-              type="button"
-              onClick={() => setPhase("idle")}
-              className="w-full h-10 rounded-xl text-[12px] font-semibold focus:outline-none active:scale-[0.98]"
-              style={{
-                background: dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff",
-                color: textMuted,
-                border: `1px solid ${dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.14)"}`,
-              }}
-            >
-              Cancel scan
-            </button>
-          ) : null}
+        {activeTab === "verification" && (
+        <div key="verification" className="flex flex-col gap-6 animate-panelIn">
+        <PreShipmentVerifyStepper
+          activeStep="sample"
+          physicalComplete={physicalComplete}
+          sampleComplete={sampleComplete}
+          onStepSelect={step => {
+            if (step === "physical") (onGoToPhysical ?? onBack)();
+          }}
+        />
+
+        {/* Scanner — shared tap-to-scan viewfinder */}
+        <section className="flex flex-col items-center gap-3">
+          <QrTapViewfinder
+            phase={phase}
+            dark={dark}
+            viewOnly={viewOnly}
+            detectedLabel={`${next.code} captured`}
+            idleHint="Ready when you are"
+            scanningHint="Hold steady over the log QR"
+            onToggleScan={() => {
+              if (phase === "idle") setPhase("scanning");
+              else if (phase === "scanning") setPhase("idle");
+            }}
+          />
         </section>
 
         {/* Scanned history — stays below the scanner and grows with every capture */}
         <ScannedHistoryList records={records} targetVolumeM3={targetVolumeM3} onSelect={onOpenRecord} dark={dark} />
 
-        <button
-          type="button"
-          onClick={runFinishInspection}
-          disabled={!viewOnly && finishPulse}
-          className={`w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-70 ${finishPulse ? "animate-finishSuccess" : ""}`}
-          style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
-        >
-          {viewOnly ? "Close" : finishPulse ? "Completed" : "Finish Pre-Shipment Inspection"}
-          {!viewOnly && <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />}
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => (onGoToPhysical ?? onBack)()}
+            className="flex-1 min-w-0 h-12 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 focus:outline-none active:scale-[0.98]"
+            style={{
+              background: dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff",
+              color: textPrimary,
+              border: `1px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)"}`,
+              boxShadow: dark ? "none" : "0 2px 8px rgba(15,47,143,0.06)",
+            }}
+            aria-label="Back"
+          >
+            <ArrowLeft size={16} />
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={runFinishInspection}
+            disabled={!viewOnly && finishPulse}
+            className={`flex-1 min-w-0 h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-70 ${finishPulse ? "animate-finishSuccess" : ""}`}
+            style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
+          >
+            {viewOnly ? "Close" : finishPulse ? "Completed" : "Finish Inspection"}
+            {!viewOnly && <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />}
+          </button>
+        </div>
+        </div>
+        )}
+
+        {activeTab === "non-compliance" && ncView === "list" && (
+          <div className="flex flex-col gap-4 animate-panelIn">
+            {!viewOnly && (
+              <button
+                type="button"
+                onClick={() => setNcView("create")}
+                className="w-full h-11 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
+                style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
+              >
+                <Plus size={16} />
+                New Notice of Discrepancy
+              </button>
+            )}
+            <div
+              className="rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-2"
+              style={{
+                background: cardBg,
+                border: `2px dashed ${dashedBorder}`,
+                boxShadow: cardShadow,
+              }}
+            >
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center mb-1"
+                style={{ background: iconMutedBg, color: dark ? "rgba(255,255,255,0.45)" : "#94a3b8" }}
+              >
+                <ClipboardList size={22} />
+              </div>
+              <p className="text-[12px] font-medium" style={{ color: dark ? "rgba(255,255,255,0.45)" : "#94a3b8" }}>
+                No Notices of Discrepancy filed yet.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "non-compliance" && ncView === "create" && (
+          <div className="flex flex-col gap-4 animate-panelIn">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-bold" style={{ color: textPrimary }}>
+                Non-Compliance Description <span style={{ color: "#d4183d" }}>*</span>
+              </label>
+              <textarea
+                rows={4}
+                value={ncDescription}
+                onChange={e => setNcDescription(e.target.value)}
+                placeholder="Describe the discrepancy observed..."
+                className="w-full p-3 text-[12px] rounded-xl focus:outline-none resize-none"
+                style={{
+                  background: fieldBg,
+                  border: `1px solid ${fieldBorder}`,
+                  color: textPrimary,
+                  boxShadow: cardShadow,
+                }}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
+                Type of Non-Compliance
+              </label>
+              <div
+                className="rounded-2xl overflow-hidden flex flex-col"
+                style={{
+                  background: cardBg,
+                  border: `1px solid ${cardBorder}`,
+                  boxShadow: cardShadow,
+                }}
+              >
+                <div className="px-3.5 pt-3 pb-2">
+                  <p className="text-[13px] font-bold" style={{ color: textPrimary }}>
+                    Non-Compliance Records
+                  </p>
+                </div>
+                <div className="px-3 pb-3 flex flex-col gap-2 max-h-56 overflow-y-auto overscroll-contain">
+                  {NON_COMPLIANCE_TYPES.map(type => {
+                    const checked = selectedNcTypes.includes(type);
+                    return (
+                      <label
+                        key={type}
+                        className="flex items-center gap-3 cursor-pointer rounded-full px-3 py-2.5 transition-all active:scale-[0.99]"
+                        style={{
+                          background: checked
+                            ? (dark ? "rgba(59,130,246,0.16)" : "rgba(15,47,143,0.06)")
+                            : (dark ? "rgba(255,255,255,0.03)" : "#ffffff"),
+                          border: checked
+                            ? (dark ? "1.5px solid rgba(96,165,250,0.45)" : "1.5px solid rgba(15,47,143,0.35)")
+                            : (dark ? "1.5px solid rgba(255,255,255,0.10)" : "1.5px solid rgba(15,47,143,0.12)"),
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleNcTypeToggle(type)}
+                          className="w-4 h-4 flex-shrink-0 rounded accent-[#0f2f8f]"
+                        />
+                        <span className="text-[14px] font-medium leading-snug" style={{ color: textPrimary }}>
+                          {type}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div
+                  className="px-3.5 py-2.5"
+                  style={{
+                    background: dark ? "rgba(255,255,255,0.04)" : "rgba(15,47,143,0.05)",
+                    borderTop: `1px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)"}`,
+                  }}
+                >
+                  <p className="text-[12px] font-semibold" style={{ color: textMuted }}>
+                    Summary:{" "}
+                    <span style={{ color: dark ? "#93c5fd" : "#0f2f8f" }}>
+                      {selectedNcTypes.length} selected
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setNcView("list");
+                setNcDescription("");
+                setSelectedNcTypes([]);
+              }}
+              className="w-full h-12 rounded-xl text-[12px] font-bold uppercase tracking-wider text-white flex items-center justify-center focus:outline-none active:scale-[0.98]"
+              style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
+            >
+              Submit Notice of Discrepancy
+            </button>
+          </div>
+        )}
+
+        {activeTab === "attachments" && (
+          <div className="flex flex-col gap-4 animate-panelIn">
+            <input
+              ref={attachmentInputRef}
+              type="file"
+              accept={ACCEPTED_ATTACHMENT_MIME}
+              onChange={handleAttachmentPicked}
+              className="hidden"
+            />
+            {!viewOnly && (
+              <button
+                type="button"
+                onClick={() => attachmentInputRef.current?.click()}
+                className="rounded-2xl p-6 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
+                style={{
+                  background: cardBg,
+                  border: `2px dashed ${dashedBorder}`,
+                  boxShadow: cardShadow,
+                }}
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ background: iconMutedBg, color: textMuted }}
+                >
+                  <Upload size={18} />
+                </div>
+                <p className="text-[12px] font-bold" style={{ color: textPrimary }}>+ Add Photo or Document</p>
+                <p className="text-[10px]" style={{ color: dark ? "rgba(255,255,255,0.40)" : "#94a3b8" }}>JPG, PNG, or PDF up to 10MB</p>
+              </button>
+            )}
+            {attachmentError && (
+              <p
+                role="alert"
+                className="text-[11px] font-semibold rounded-xl px-3 py-2.5"
+                style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid rgba(220,38,38,0.18)" }}
+              >
+                {attachmentError}
+              </p>
+            )}
+            {attachments.map((file, i) => (
+              <AttachmentFileCard
+                key={`${file.fileName}-${i}`}
+                file={file}
+                index={i}
+                dark={dark}
+                onDelete={viewOnly ? undefined : () => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -8875,7 +9274,7 @@ function LoadingLogsScanScreen({
     setNewBargeLoadType("");
     setLoadTypeOpen(false);
     setPhase("idle");
-    setToast(`Added ${label} — tap Start Scanning when ready`);
+    setToast(`Added ${label} — tap the scanner when ready`);
   };
 
   const openNewBargeForm = () => {
@@ -8935,13 +9334,13 @@ function LoadingLogsScanScreen({
         ? "Scanning damaged log QR code…"
         : `Scanning to ${selectedBarge?.label ?? "selected barge"}`
       : isDamageMode
-        ? "Tap Start Scanning when you see a damaged log"
+        ? "Tap the scanner when you see a damaged log"
         : null;
   const volumeStatus = stats.outsideTolerance
     ? { label: "Outside limit — review needed", color: "#d4183d", bg: "rgba(212,24,61,0.08)" }
     : activeCount > 0
       ? { label: "On track", color: "#16a34a", bg: "rgba(22,163,74,0.08)" }
-      : { label: "Start scanning logs", color: textMuted, bg: chipBg };
+      : { label: "Tap scanner to begin", color: textMuted, bg: chipBg };
   const loadedAnim = useCountUp(stats.loadedVolume, 520, `${stats.loadedVolume}-${activeCount}`);
   const declaredAnim = useCountUp(declaredVolume, 640, declaredVolume);
 
@@ -9165,7 +9564,7 @@ function LoadingLogsScanScreen({
                                 setSelectedBargeId(stack.id);
                                 setBargePickerOpen(false);
                                 setPhase("idle");
-                                setToast(`Selected ${stack.label} — tap Start Scanning`);
+                                setToast(`Selected ${stack.label} — tap the scanner to start`);
                               }}
                               className={`chip-settle w-full text-left px-4 py-3 text-sm font-medium focus:outline-none ${active ? "is-active animate-selectSpring" : ""}`}
                               style={{
@@ -9271,144 +9670,28 @@ function LoadingLogsScanScreen({
                       Select barge or stack first
                     </p>
                     <p className="text-[11px] leading-relaxed max-w-[240px]" style={{ color: textMuted }}>
-                      Choose where logs are being loaded, then tap Start Scanning.
+                      Choose where logs are being loaded, then tap the scanner to start.
                     </p>
                   </div>
                 ) : (
-                <>
-                <div className="relative flex items-center justify-center w-full" style={{ width: "min(260px, 70vw)", aspectRatio: "1 / 1" }}>
-                  <div
-                    className="absolute rounded-full pointer-events-none"
-                    style={{
-                      inset: "-18%",
-                      background: detected
-                        ? isDamageMode
-                          ? "radial-gradient(circle, rgba(212,24,61,0.18) 0%, transparent 68%)"
-                          : "radial-gradient(circle, rgba(22,163,74,0.18) 0%, transparent 68%)"
-                        : scanning
-                          ? (dark
-                            ? "radial-gradient(circle, rgba(59,130,246,0.22) 0%, transparent 68%)"
-                            : "radial-gradient(circle, rgba(26,69,181,0.16) 0%, transparent 68%)")
-                          : (dark
-                            ? "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 68%)"
-                            : "radial-gradient(circle, rgba(15,47,143,0.08) 0%, transparent 68%)"),
-                    }}
-                    aria-hidden="true"
-                  />
-                  {detected && (
-                    <div
-                      className={`detect-success-ring${isDamageMode ? " detect-success-ring-danger" : ""}`}
-                      aria-hidden="true"
-                    />
-                  )}
-                  <div
-                    className="absolute inset-0 rounded-[1.75rem] overflow-hidden"
-                    style={{
-                      background: dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255,255,255,0.28)",
-                      border: `1px solid ${detected
-                        ? (isDamageMode ? "rgba(212,24,61,0.40)" : "rgba(22,163,74,0.40)")
-                        : (dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)")}`,
-                      boxShadow: dark ? "0 12px 36px rgba(0,0,0,0.35)" : "0 12px 36px rgba(15,47,143,0.10)",
-                      backdropFilter: "blur(10px)",
-                      WebkitBackdropFilter: "blur(10px)",
-                    }}
-                  >
-                    <img
-                      src={qrCode}
-                      alt=""
-                      aria-hidden="true"
-                      className="absolute inset-0 w-full h-full object-contain p-9"
-                      style={{ opacity: detected ? 0.92 : scanning ? 0.34 : 0.16 }}
-                    />
-                    {scanning && (
-                      <div
-                        className="absolute left-0 right-0 h-[2px] animate-qrSweep"
-                        style={{
-                          background: "linear-gradient(90deg, rgba(26,69,181,0) 0%, #1a45b5 50%, rgba(26,69,181,0) 100%)",
-                          boxShadow: "0 0 12px rgba(26,69,181,0.65)",
-                        }}
-                        aria-hidden="true"
-                      />
-                    )}
-                    {detected && (
-                      <div className="absolute inset-0 flex items-center justify-center" style={{ background: dark ? "rgba(15,23,42,0.55)" : "rgba(240,244,255,0.55)" }}>
-                        <span
-                          className="w-14 h-14 rounded-full flex items-center justify-center"
-                          style={{
-                            background: isDamageMode ? "#d4183d" : "#16a34a",
-                            boxShadow: isDamageMode
-                              ? "0 8px 24px rgba(212,24,61,0.40)"
-                              : "0 8px 24px rgba(22,163,74,0.40)",
-                          }}
-                        >
-                          {isDamageMode
-                            ? <AlertTriangle size={28} style={{ color: "#ffffff" }} />
-                            : <CheckCircle2 size={30} style={{ color: "#ffffff" }} />}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  {CORNER_BRACKETS.map(corner => (
-                    <span
-                      key={corner.key}
-                      aria-hidden="true"
-                      className={`absolute w-8 h-8 ${corner.className}`}
-                      style={{ borderColor: frameColor, borderRadius: corner.radius }}
-                    />
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-center gap-2 min-h-[22px]">
-                  {detected ? (
-                    <>
-                      {isDamageMode
-                        ? <AlertTriangle size={14} style={{ color: "#d4183d" }} />
-                        : <CheckCircle2 size={14} style={{ color: "#16a34a" }} />}
-                      <p className="text-[12px] font-bold truncate" style={{ color: isDamageMode ? "#d4183d" : "#16a34a" }}>
-                        {isDamageMode ? `${next.code} — tap to report` : `${next.code} added`}
-                      </p>
-                    </>
-                  ) : pendingDamage ? (
-                    <p className="text-[12px] font-semibold" style={{ color: textMuted }}>
-                      Fill in damage details below
-                    </p>
-                  ) : scanning ? (
-                    <>
-                      <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: accent }} />
-                      <p className="text-[12px] font-semibold" style={{ color: textMuted }}>
-                        Looking for QR code…
-                      </p>
-                    </>
-                  ) : null}
-                </div>
-
-                {phase === "idle" && !pendingDamage ? (
-                  viewOnly ? (
-                    <p className="text-center text-[12px] font-semibold py-2" style={{ color: subtleText }}>
-                      View only — scanning disabled
-                    </p>
-                  ) : (
-                  <button
-                    type="button"
-                    onClick={() => setPhase("scanning")}
-                    className="w-full min-h-[50px] rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
-                    style={{ background: GRADIENT, boxShadow: "0 8px 22px rgba(15,47,143,0.32)" }}
-                  >
-                    <ScanLine size={16} />
-                    Start Scanning
-                  </button>
-                  )
-                ) : scanning ? (
-                  <button
-                    type="button"
-                    onClick={() => setPhase("idle")}
-                    className="w-full h-10 rounded-xl text-[12px] font-semibold focus:outline-none active:scale-[0.98]"
-                    style={{ background: cardBg, color: textMuted, border: `1px solid ${fieldBorder}` }}
-                  >
-                    Cancel scan
-                  </button>
-                ) : null}
-                </>
+                <QrTapViewfinder
+                  phase={pendingDamage ? "idle" : phase}
+                  dark={dark}
+                  viewOnly={viewOnly}
+                  disabled={Boolean(pendingDamage)}
+                  danger={isDamageMode}
+                  detectedLabel={
+                    isDamageMode
+                      ? `${next.code} — tap to report`
+                      : `${next.code} added`
+                  }
+                  idleHint={pendingDamage ? "Fill in damage details below" : "Ready when you are"}
+                  scanningHint="Hold steady over the log QR"
+                  onToggleScan={() => {
+                    if (phase === "idle") setPhase("scanning");
+                    else if (phase === "scanning") setPhase("idle");
+                  }}
+                />
                 )}
               </section>
 
@@ -10713,7 +10996,10 @@ export default function App() {
             viewOnly={inspectionViewOnly}
             dark={dark}
             targetVolumeM3={task.logs * 21.875}
+            physicalComplete={getPhysicalVerification(task.id).physicalStepComplete}
+            sampleComplete={getPhysicalVerification(task.id).sampleStepComplete}
             onBack={() => setScreen("physical-verification")}
+            onGoToPhysical={() => setScreen("physical-verification")}
             onScanned={record => {
               if (inspectionViewOnly) return;
               recordSampleScan(record);
