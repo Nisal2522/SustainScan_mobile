@@ -687,6 +687,117 @@
     animation: qrPulse 1.8s ease-in-out infinite;
   }
 
+  /* Home action-card icons */
+  @keyframes iconPackageBob {
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg);
+    }
+    40% {
+      transform: translateY(-3px) rotate(-4deg);
+    }
+    70% {
+      transform: translateY(-1px) rotate(2deg);
+    }
+  }
+
+  @keyframes iconCalendarFlip {
+    0%,
+    100% {
+      transform: translateY(0) rotateX(0deg);
+    }
+    35% {
+      transform: translateY(-2px) rotateX(-12deg);
+    }
+    55% {
+      transform: translateY(-1px) rotateX(6deg);
+    }
+  }
+
+  @keyframes iconClipboardTap {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+    }
+    45% {
+      transform: translateY(-2px) scale(1.04);
+    }
+    65% {
+      transform: translateY(0) scale(0.98);
+    }
+  }
+
+  @keyframes iconWellBreath {
+    0%,
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(26, 69, 181, 0);
+    }
+    50% {
+      transform: scale(1.03);
+      box-shadow: 0 0 0 6px rgba(26, 69, 181, 0.08);
+    }
+  }
+
+  .animate-iconPackage {
+    animation: iconPackageBob 2.6s ease-in-out infinite;
+    transform-origin: center bottom;
+  }
+
+  .animate-iconCalendar {
+    animation: iconCalendarFlip 2.8s ease-in-out infinite;
+    transform-origin: center top;
+    transform-style: preserve-3d;
+  }
+
+  .animate-iconClipboard {
+    animation: iconClipboardTap 2.5s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .animate-iconWell {
+    animation: iconWellBreath 3.2s ease-in-out infinite;
+  }
+
+  .group:hover .animate-iconPackage,
+  .group:hover .animate-iconCalendar,
+  .group:hover .animate-iconClipboard {
+    animation-duration: 1.2s;
+  }
+
+  .group:hover .animate-iconWell {
+    animation-duration: 1.6s;
+  }
+
+  /* Home greeting aurora text */
+  @keyframes auroraText {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  .aurora-text {
+    background: linear-gradient(
+      110deg,
+      #ffffff 0%,
+      #ffffff 38%,
+      #d4ecff 48%,
+      #ffffff 58%,
+      #b8dcff 68%,
+      #ffffff 100%
+    );
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: auroraText 5s ease-in-out infinite;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-nudgeRight,
     .animate-qrSweep,
@@ -708,8 +819,19 @@
     .animate-volumeFlash,
     .animate-finishSuccess,
     .step-onion-ghost,
-    .animate-statusMorph {
+    .animate-statusMorph,
+    .animate-iconPackage,
+    .animate-iconCalendar,
+    .animate-iconClipboard,
+    .animate-iconWell,
+    .aurora-text {
       animation: none !important;
+    }
+
+    .aurora-text {
+      background: none;
+      -webkit-text-fill-color: #ffffff;
+      color: #ffffff;
     }
 
     .liquid-tab-indicator {

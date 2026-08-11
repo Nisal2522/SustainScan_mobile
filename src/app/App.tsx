@@ -1242,7 +1242,10 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenLogInventory, isCU, 
 
         {/* ── Greeting card ── */}
         <div className="rounded-2xl px-5 py-5" style={{ background: GRADIENT, boxShadow: "0 4px 20px rgba(15,47,143,0.35)" }}>
-          <p className="text-2xl font-bold tracking-tight text-white">Hello, Thilina 👋</p>
+          <p className="text-2xl font-bold tracking-tight text-white">
+            <span className="aurora-text">Hello, Thilina</span>{" "}
+            <span aria-hidden="true">👋</span>
+          </p>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.75)" }}>{formatDate(new Date())}</p>
         </div>
 
@@ -1254,8 +1257,8 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenLogInventory, isCU, 
             <button onClick={() => onNavigate("scan-log")}
               className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
               style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
-                <ClipboardList size={26} style={{ color: iconColor }} />
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 animate-iconWell" style={{ background: iconBg }}>
+                <ClipboardList size={26} className="animate-iconClipboard" style={{ color: iconColor }} />
               </div>
               <div className="flex-1">
                 <p className="text-base font-bold" style={{ color: textPrimary }}>Register Log</p>
@@ -1270,8 +1273,8 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenLogInventory, isCU, 
           <button onClick={openInventorySheet}
             className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
             style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
-              <Package size={26} style={{ color: iconColor }} />
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 animate-iconWell" style={{ background: iconBg }}>
+              <Package size={26} className="animate-iconPackage" style={{ color: iconColor }} />
             </div>
             <div className="flex-1">
               <p className="text-base font-bold" style={{ color: textPrimary }}>Log Inventory</p>
@@ -1284,8 +1287,8 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenLogInventory, isCU, 
             <button onClick={() => onNavigate("schedule-inspection")}
               className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
               style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
-                <Calendar size={26} style={{ color: iconColor }} />
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 animate-iconWell" style={{ background: iconBg }}>
+                <Calendar size={26} className="animate-iconCalendar" style={{ color: iconColor }} />
               </div>
               <div className="flex-1">
                 <p className="text-base font-bold" style={{ color: textPrimary }}>Inspection</p>
