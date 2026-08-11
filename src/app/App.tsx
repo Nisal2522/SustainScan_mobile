@@ -1244,10 +1244,6 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenLogInventory, isCU, 
         <div className="rounded-2xl px-5 py-5" style={{ background: GRADIENT, boxShadow: "0 4px 20px rgba(15,47,143,0.35)" }}>
           <p className="text-2xl font-bold tracking-tight text-white">Hello, Thilina 👋</p>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.75)" }}>{formatDate(new Date())}</p>
-          <div className="flex items-center gap-2 mt-3">
-            <MapPin size={14} style={{ color: "rgba(255,255,255,0.85)", flexShrink: 0 }} />
-            <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.9)" }}>{location}</span>
-          </div>
         </div>
 
         {/* ── Action cards ── */}
