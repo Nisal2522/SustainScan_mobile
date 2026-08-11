@@ -133,19 +133,35 @@ function useScrollFocusList(itemCount: number, listKey: string) {
     }
 
     const rect = container.getBoundingClientRect();
-    const centerY = rect.top + rect.height * 0.46;
     const focusRadius = Math.max(rect.height * 0.42, 140);
+    const atTop = container.scrollTop < 32;
+    const firstEl = itemRefs.current[0];
+
+    const focusY = atTop && firstEl
+      ? (() => {
+          const firstRect = firstEl.getBoundingClientRect();
+          return firstRect.top + firstRect.height / 2;
+        })()
+      : rect.top + rect.height * 0.46;
 
     itemRefs.current.forEach(el => {
       if (!el) return;
       const itemRect = el.getBoundingClientRect();
       const itemCenterY = itemRect.top + itemRect.height / 2;
-      const dist = Math.abs(itemCenterY - centerY);
+      const dist = Math.abs(itemCenterY - focusY);
       const t = Math.min(1, dist / focusRadius);
       const scale = 1 - t * 0.1;
       const opacity = 1 - t * 0.52;
       el.style.transform = `scale(${scale.toFixed(3)})`;
       el.style.opacity = `${opacity.toFixed(3)}`;
+    });
+  };
+
+  const scheduleFocus = () => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      updateFocus();
     });
   };
 
@@ -157,28 +173,27 @@ function useScrollFocusList(itemCount: number, listKey: string) {
     const container = scrollRef.current;
     if (!container || itemCount === 0) return;
 
-    const onScroll = () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = null;
-        updateFocus();
-      });
-    };
+    scheduleFocus();
+    const settleTimers = [
+      window.setTimeout(scheduleFocus, 120),
+      window.setTimeout(scheduleFocus, 520),
+      window.setTimeout(scheduleFocus, 900),
+    ];
 
-    const raf = requestAnimationFrame(updateFocus);
-    container.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    container.addEventListener("scroll", scheduleFocus, { passive: true });
+    window.addEventListener("resize", scheduleFocus);
 
     return () => {
-      cancelAnimationFrame(raf);
+      settleTimers.forEach(clearTimeout);
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-      container.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      container.removeEventListener("scroll", scheduleFocus);
+      window.removeEventListener("resize", scheduleFocus);
     };
   }, [itemCount, listKey]);
 
   const setItemRef = (index: number) => (el: HTMLDivElement | null) => {
     itemRefs.current[index] = el;
+    if (el && index === itemCount - 1) scheduleFocus();
   };
 
   return { scrollRef, setItemRef };
@@ -5379,12 +5394,17 @@ function StartSubInspectionDialog({
   onCancel: () => void;
   onConfirm: () => void;
   overlayBox: { top: number; left: number; width: number; height: number };
-  mode?: "start" | "continue";
+  mode?: "start" | "continue" | "finish";
   dark?: boolean;
 }) {
   const stepLabel = stepKey === "preShipment" ? "Pre-Shipment Inspection" : "Loading Inspection";
-  const title = mode === "continue" ? `Continue ${stepLabel}` : `Start ${stepLabel}`;
-  const confirmLabel = mode === "continue" ? "Continue" : "Start";
+  const title = mode === "finish"
+    ? `Finish ${stepLabel}`
+    : mode === "continue"
+      ? `Continue ${stepLabel}`
+      : `Start ${stepLabel}`;
+  const confirmLabel = mode === "finish" ? "Finish" : mode === "continue" ? "Continue" : "Start";
+  const dateLabel = mode === "finish" ? "End Date" : "Date";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
   const panelBg = dark ? "#1e293b" : "#ffffff";
   const panelBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)";
@@ -5423,7 +5443,7 @@ function StartSubInspectionDialog({
           {title}
         </h2>
 
-        <FormField label="Date" required dark={dark}>
+        <FormField label={dateLabel} required dark={dark}>
           <CompactBlueDatePicker value={date} onChange={onDateChange} dark={dark} />
         </FormField>
 
@@ -6127,9 +6147,8 @@ function PhysicalVerificationScreen({
       onBack();
       return;
     }
-    if (finishPulse || volumeOk === null) return;
-    setFinishPulse(true);
-    window.setTimeout(() => onFinish(), 420);
+    if (volumeOk === null) return;
+    onFinish();
   };
   const formatVol = (n: number) =>
     n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -7175,7 +7194,6 @@ function ScannedHistoryList({
 function SampleVerificationScanScreen({
   scanCount,
   records,
-  autoStart,
   targetVolumeM3,
   onBack,
   onScanned,
@@ -7186,7 +7204,6 @@ function SampleVerificationScanScreen({
 }: {
   scanCount: number;
   records: ScannedSampleLog[];
-  autoStart: boolean;
   targetVolumeM3: number;
   onBack: () => void;
   onScanned: (record: ScannedSampleLog) => void;
@@ -7195,8 +7212,7 @@ function SampleVerificationScanScreen({
   viewOnly?: boolean;
   dark?: boolean;
 }) {
-  // Arms itself when the user arrived here to scan; otherwise it waits so the history stays browsable.
-  const [phase, setPhase] = useState<ScannerPhase>(viewOnly || !autoStart ? "idle" : "scanning");
+  const [phase, setPhase] = useState<ScannerPhase>("idle");
   const [finishPulse, setFinishPulse] = useState(false);
   const next = SAMPLE_QR_POOL[scanCount % SAMPLE_QR_POOL.length];
 
@@ -7241,9 +7257,7 @@ function SampleVerificationScanScreen({
       onBack();
       return;
     }
-    if (finishPulse) return;
-    setFinishPulse(true);
-    window.setTimeout(() => onFinishInspection(), 420);
+    onFinishInspection();
   };
 
   return (
@@ -7374,6 +7388,33 @@ function SampleVerificationScanScreen({
               </p>
             )}
           </div>
+
+          {phase === "idle" ? (
+            viewOnly ? null : (
+              <button
+                type="button"
+                onClick={() => setPhase("scanning")}
+                className="w-full min-h-[50px] rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
+                style={{ background: GRADIENT, boxShadow: "0 8px 22px rgba(15,47,143,0.32)" }}
+              >
+                <ScanLine size={16} />
+                Start Scanning
+              </button>
+            )
+          ) : scanning ? (
+            <button
+              type="button"
+              onClick={() => setPhase("idle")}
+              className="w-full h-10 rounded-xl text-[12px] font-semibold focus:outline-none active:scale-[0.98]"
+              style={{
+                background: dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff",
+                color: textMuted,
+                border: `1px solid ${dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.14)"}`,
+              }}
+            >
+              Cancel scan
+            </button>
+          ) : null}
         </section>
 
         {/* Scanned history — stays below the scanner and grows with every capture */}
@@ -8717,11 +8758,8 @@ function LoadingLogsScanScreen({
       onBack();
       return;
     }
-    if (finishPulse || activeCount === 0) return;
-    setFinishPulse(true);
-    window.setTimeout(() => {
-      onComplete();
-    }, 420);
+    if (activeCount === 0) return;
+    onComplete();
   };
 
   const clearEvidencePhotos = () => {
@@ -10088,8 +10126,6 @@ export default function App() {
   // Always increments, so the mock scanner keeps cycling the pool even after every code is seen.
   const [sampleScanCount, setSampleScanCount] = useState(0);
   const [activeScannedCode, setActiveScannedCode] = useState<string | null>(null);
-  // True when the user navigated in order to scan, so the scanner arms itself on arrival.
-  const [autoStartScanner, setAutoStartScanner] = useState(true);
   const [inspectionProgressById, setInspectionProgressById] = useState<Record<string, InspectionProgress>>({});
   const [physicalVerificationById, setPhysicalVerificationById] = useState<Record<string, PhysicalVerificationDraft>>({});
   // Which sub-inspection (Pre-Shipment vs Loading) the physical/sample flow is currently working on.
@@ -10100,6 +10136,10 @@ export default function App() {
   const [loadingDamageNc, setLoadingDamageNc] = useState<LoadingDamageNc | null>(null);
   const [autoStartLoadingScanner, setAutoStartLoadingScanner] = useState(true);
   const [inspectionViewOnly, setInspectionViewOnly] = useState(false);
+  const [finishDialogKey, setFinishDialogKey] = useState<"preShipment" | "loading" | null>(null);
+  const [finishEndDate, setFinishEndDate] = useState(todayISODate);
+  const [finishOverlayBox, setFinishOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const finishOnDoneRef = useRef<((result: { inspectionComplete: boolean }) => void) | null>(null);
 
   const isCU = userType === "cu";
 
@@ -10112,6 +10152,97 @@ export default function App() {
       setInventoryOverlayBox({ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight });
     }
   };
+
+  const syncFinishOverlayBox = () => {
+    const device = document.querySelector(".mobile-device");
+    if (device) {
+      const r = device.getBoundingClientRect();
+      setFinishOverlayBox({ top: r.top, left: r.left, width: r.width, height: r.height });
+    } else {
+      setFinishOverlayBox({ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight });
+    }
+  };
+
+  useEffect(() => {
+    if (!finishDialogKey) return;
+    syncFinishOverlayBox();
+    const vp = document.querySelector(".mobile-viewport");
+    window.addEventListener("resize", syncFinishOverlayBox);
+    window.addEventListener("scroll", syncFinishOverlayBox, true);
+    vp?.addEventListener("scroll", syncFinishOverlayBox);
+    return () => {
+      window.removeEventListener("resize", syncFinishOverlayBox);
+      window.removeEventListener("scroll", syncFinishOverlayBox, true);
+      vp?.removeEventListener("scroll", syncFinishOverlayBox);
+    };
+  }, [finishDialogKey]);
+
+  const openFinishDialog = (
+    key: "preShipment" | "loading",
+    taskId: string,
+    onDone: (result: { inspectionComplete: boolean }) => void,
+  ) => {
+    const progress = getInspectionProgress(taskId);
+    const existingEnd = key === "preShipment" ? progress.preShipmentEndDate : progress.loadingEndDate;
+    setFinishEndDate(existingEnd ?? todayISODate());
+    syncFinishOverlayBox();
+    finishOnDoneRef.current = onDone;
+    setFinishDialogKey(key);
+  };
+
+  const cancelFinishDialog = () => {
+    setFinishDialogKey(null);
+    finishOnDoneRef.current = null;
+  };
+
+  const completeLoadingInspection = (taskId: string, endDate: string) => {
+    const current = getInspectionProgress(taskId);
+    const today = todayISODate();
+    setInspectionProgressById(prev => ({
+      ...prev,
+      [taskId]: {
+        ...current,
+        loading: "completed",
+        loadingStartDate: current.loadingStartDate ?? today,
+        loadingEndDate: endDate,
+      },
+    }));
+  };
+
+  const confirmFinishDialog = () => {
+    if (!finishDialogKey || !finishEndDate || !selectedInspectionId) return;
+    const taskId = selectedInspectionId;
+    const key = finishDialogKey;
+    const endDate = finishEndDate;
+    const onDone = finishOnDoneRef.current;
+    setFinishDialogKey(null);
+    finishOnDoneRef.current = null;
+
+    let inspectionComplete = false;
+    if (key === "preShipment") {
+      setActiveInspectionStep("preShipment");
+      inspectionComplete = finalizeActiveInspectionStep(taskId, endDate);
+    } else {
+      setActiveInspectionStep("loading");
+      const current = getInspectionProgress(taskId);
+      completeLoadingInspection(taskId, endDate);
+      inspectionComplete = current.preShipment === "completed";
+    }
+    onDone?.({ inspectionComplete });
+  };
+
+  const finishDialogPortal = finishDialogKey && finishOverlayBox ? (
+    <StartSubInspectionDialog
+      stepKey={finishDialogKey}
+      date={finishEndDate}
+      onDateChange={setFinishEndDate}
+      onCancel={cancelFinishDialog}
+      onConfirm={confirmFinishDialog}
+      overlayBox={finishOverlayBox}
+      mode="finish"
+      dark={dark}
+    />
+  ) : null;
 
   const openInventorySheet = () => {
     syncInventoryOverlayBox();
@@ -10210,7 +10341,7 @@ export default function App() {
   };
 
   /** Finish the active step: fill verification data + mark that step completed. Returns true when the whole inspection is Complete. */
-  const finalizeActiveInspectionStep = (taskId: string): boolean => {
+  const finalizeActiveInspectionStep = (taskId: string, endDate?: string): boolean => {
     const step = activeInspectionStep;
     const draft = physicalVerificationById[taskId] ?? EMPTY_PHYSICAL_VERIFICATION;
     updatePhysicalVerification(taskId, {
@@ -10221,6 +10352,7 @@ export default function App() {
     });
     const current = getInspectionProgress(taskId);
     const today = todayISODate();
+    const end = endDate ?? today;
     const nextPre: SubInspectionStatus = step === "preShipment" ? "completed" : current.preShipment;
     const nextLoading: SubInspectionStatus = step === "loading" ? "completed" : current.loading;
     setInspectionProgressById(prev => {
@@ -10232,9 +10364,9 @@ export default function App() {
           preShipment: nextPre,
           loading: nextLoading,
           preShipmentStartDate: cur.preShipmentStartDate ?? (step === "preShipment" ? today : cur.preShipmentStartDate),
-          preShipmentEndDate: nextPre === "completed" ? (cur.preShipmentEndDate ?? today) : cur.preShipmentEndDate,
+          preShipmentEndDate: nextPre === "completed" ? end : cur.preShipmentEndDate,
           loadingStartDate: cur.loadingStartDate ?? (step === "loading" ? today : cur.loadingStartDate),
-          loadingEndDate: nextLoading === "completed" ? (cur.loadingEndDate ?? today) : cur.loadingEndDate,
+          loadingEndDate: nextLoading === "completed" ? end : cur.loadingEndDate,
         },
       };
     });
@@ -10505,21 +10637,12 @@ export default function App() {
               setScreen("inspection-details");
               return;
             }
-            setActiveInspectionStep("loading");
-            const current = getInspectionProgress(task.id);
-            const today = todayISODate();
-            setInspectionProgressById(prev => ({
-              ...prev,
-              [task.id]: {
-                ...current,
-                loading: "completed",
-                loadingStartDate: current.loadingStartDate ?? today,
-                loadingEndDate: current.loadingEndDate ?? today,
-              },
-            }));
-            setScreen(current.preShipment === "completed" ? "schedule-inspection" : "inspection-details");
+            openFinishDialog("loading", task.id, ({ inspectionComplete }) => {
+              setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
+            });
           }}
         />
+        {finishDialogPortal}
         {bottomNav}
       </>
     );
@@ -10552,14 +10675,12 @@ export default function App() {
             } else {
               setScannedSampleLogs(prev => (prev.length > 0 ? prev : buildCompletedSampleScans()));
             }
-            setAutoStartScanner(!inspectionViewOnly);
             setScreen("sample-verification-scan");
           }}
           onGoToSample={() => {
             if (inspectionViewOnly) {
               setScannedSampleLogs(prev => (prev.length > 0 ? prev : buildCompletedSampleScans()));
             }
-            setAutoStartScanner(false);
             setScreen("sample-verification-scan");
           }}
           onFinish={() => {
@@ -10567,11 +10688,12 @@ export default function App() {
               setScreen("inspection-details");
               return;
             }
-            setActiveInspectionStep("preShipment");
-            const inspectionComplete = finalizeActiveInspectionStep(task.id);
-            setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
+            openFinishDialog("preShipment", task.id, ({ inspectionComplete }) => {
+              setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
+            });
           }}
         />
+        {finishDialogPortal}
         {bottomNav}
       </>
     );
@@ -10595,7 +10717,6 @@ export default function App() {
             key={sampleScanCount}
             scanCount={sampleScanCount}
             records={scannedSampleLogs}
-            autoStart={autoStartScanner && !inspectionViewOnly}
             viewOnly={inspectionViewOnly}
             dark={dark}
             targetVolumeM3={task.logs * 21.875}
@@ -10613,13 +10734,13 @@ export default function App() {
                 setScreen("physical-verification");
                 return;
               }
-              setActiveInspectionStep("preShipment");
-              const inspectionComplete = finalizeActiveInspectionStep(task.id);
-              setAutoStartScanner(false);
-              setActiveScannedCode(null);
-              setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
+              openFinishDialog("preShipment", task.id, ({ inspectionComplete }) => {
+                setActiveScannedCode(null);
+                setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
+              });
             }}
           />
+          {finishDialogPortal}
           {bottomNav}
         </>
       );
@@ -10630,7 +10751,7 @@ export default function App() {
           record={activeRecord}
           viewOnly={inspectionViewOnly}
           dark={dark}
-          onBack={() => { setAutoStartScanner(false); setScreen("sample-verification-scan"); }}
+          onBack={() => { setScreen("sample-verification-scan"); }}
           onFinish={({ measurements, comment }) => {
             if (inspectionViewOnly) return;
             // Verify this log only — do not complete Pre-Shipment here.
@@ -10647,7 +10768,6 @@ export default function App() {
               ),
             );
             updatePhysicalVerification(task.id, { sampleStepComplete: true });
-            setAutoStartScanner(true);
             setActiveScannedCode(null);
             setScreen("sample-verification-scan");
           }}
