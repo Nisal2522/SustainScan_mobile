@@ -7809,7 +7809,7 @@ function QrDetailsScreen({
 }
 // ─── Log Inventory Screen ─────────────────────────────────────────────────────
 
-function LogInventoryScreen({ dark, onBack, exporter, concession }: {
+function LogInventoryScreen({ dark, onBack }: {
   dark: boolean;
   onBack: () => void;
   exporter?: string;
@@ -7822,9 +7822,6 @@ function LogInventoryScreen({ dark, onBack, exporter, concession }: {
   const textMuted = dark ? "rgba(255,255,255,0.6)" : "#5a6a99";
 
   const items = tab === "all" ? INVENTORY_ITEMS : INVENTORY_ITEMS.filter(i => i.modified);
-  const scopeLabel = exporter && concession
-    ? `${exporter} · ${concession}`
-    : `${INVENTORY_ITEMS.length} records · ${INVENTORY_ITEMS.filter(i => i.modified).length} modified`;
 
   return (
     <div className="min-h-screen w-full transition-colors duration-300 animate-fadeIn" style={{ background: bg, fontFamily: "'Inter', sans-serif" }}>
@@ -7833,9 +7830,6 @@ function LogInventoryScreen({ dark, onBack, exporter, concession }: {
           <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
             <h1 className="text-[18px] font-bold tracking-tight" style={{ color: textPrimary }}>Log Inventory</h1>
-            <p className="text-xs truncate" style={{ color: textMuted }}>
-              {scopeLabel}
-            </p>
           </div>
         </div>
       </AppHeaderBar>
