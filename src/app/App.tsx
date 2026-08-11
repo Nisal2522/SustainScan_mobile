@@ -310,39 +310,6 @@ function resolveBottomNavTab(screen: Screen): Screen | null {
   return null;
 }
 
-function loadSession(): AppSession | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw) as Partial<AppSession>;
-    if (
-      typeof data.screen !== "string" ||
-      !AUTHENTICATED_SCREENS.includes(data.screen as Screen) ||
-      (data.userType !== "client" && data.userType !== "cu") ||
-      typeof data.location !== "string" ||
-      typeof data.dark !== "boolean"
-    ) {
-      return null;
-    }
-    let screen = data.screen as Screen;
-    const selectedInspectionId = typeof data.selectedInspectionId === "string" ? data.selectedInspectionId : null;
-    // Guard against restoring a task-dependent screen whose task no longer resolves
-    // (e.g. the referenced id was lost) — fall back to the list instead of a blank screen.
-    if (INSPECTION_TASK_SCREENS.includes(screen) && !SCHEDULED_INSPECTIONS.some(t => t.id === selectedInspectionId)) {
-      screen = "schedule-inspection";
-    }
-    return {
-      screen,
-      userType: data.userType,
-      location: data.location,
-      dark: data.dark,
-      selectedInspectionId: INSPECTION_TASK_SCREENS.includes(screen) ? selectedInspectionId : null,
-    };
-  } catch {
-    return null;
-  }
-}
-
 function saveSession(session: AppSession) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
@@ -10121,16 +10088,15 @@ function LoadingLogsScanScreen({
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const restored = useRef(loadSession()).current;
-  const [screen, setScreen] = useState<Screen>(restored?.screen ?? "login");
-  const [location, setLocation] = useState(restored?.location ?? "");
-  const [dark, setDark] = useState(restored?.dark ?? false);
-  const [userType, setUserType] = useState<UserType>(restored?.userType ?? "client");
+  const [screen, setScreen] = useState<Screen>("login");
+  const [location, setLocation] = useState("");
+  const [dark, setDark] = useState(false);
+  const [userType, setUserType] = useState<UserType>("client");
   const [inventoryExporter, setInventoryExporter] = useState("");
   const [inventorySheetOpen, setInventorySheetOpen] = useState(false);
   const [inventoryOverlayBox, setInventoryOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [registerLogPrefill, setRegisterLogPrefill] = useState<RegisterLogFormData | null>(null);
-  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(restored?.selectedInspectionId ?? null);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
   const [scannedSampleLogs, setScannedSampleLogs] = useState<ScannedSampleLog[]>([]);
   // Always increments, so the mock scanner keeps cycling the pool even after every code is seen.
   const [sampleScanCount, setSampleScanCount] = useState(0);
@@ -10389,6 +10355,10 @@ export default function App() {
     setActiveScannedCode(record.code);
     setScreen("sample-verification-log");
   };
+
+  useEffect(() => {
+    clearSession();
+  }, []);
 
   useEffect(() => {
     const vp = document.querySelector(".mobile-viewport");
