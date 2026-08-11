@@ -6345,25 +6345,30 @@ function PhysicalVerificationScreen({
         )}
 
         {viewOnly && (
-          <button
-            type="button"
-            onClick={onGoToSample}
-            className="w-full min-h-[44px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
-            style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
-          >
-            View Sample Verification <ChevronRight size={16} />
-          </button>
-        )}
-
-        {viewOnly && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
-            style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex-1 min-w-0 h-12 rounded-xl text-sm font-bold flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
+              style={{
+                background: dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff",
+                color: textPrimary,
+                border: `1px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)"}`,
+                boxShadow: dark ? "none" : "0 2px 8px rgba(15,47,143,0.06)",
+              }}
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={onGoToSample}
+              className="flex-1 min-w-0 h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-1.5 focus:outline-none active:scale-[0.98] transition-all"
+              style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
+            >
+              <span className="truncate">View Sample</span>
+              <ChevronRight size={16} className="flex-shrink-0" />
+            </button>
+          </div>
         )}
         </div>
         )}
@@ -9564,7 +9569,6 @@ function LoadingLogsScanScreen({
                                 setSelectedBargeId(stack.id);
                                 setBargePickerOpen(false);
                                 setPhase("idle");
-                                setToast(`Selected ${stack.label} — tap the scanner to start`);
                               }}
                               className={`chip-settle w-full text-left px-4 py-3 text-sm font-medium focus:outline-none ${active ? "is-active animate-selectSpring" : ""}`}
                               style={{
