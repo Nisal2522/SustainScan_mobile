@@ -229,10 +229,12 @@
     from {
       opacity: 0.85;
       transform: translate3d(0, 28px, 0);
+      filter: blur(2px);
     }
     to {
       opacity: 1;
       transform: translate3d(0, 0, 0);
+      filter: blur(0);
     }
   }
 
@@ -532,6 +534,73 @@
     transform: scale(1.02);
   }
 
+  /* FlipaClip-style onion ghost of previous stepper frame */
+  @keyframes onionGhost {
+    0% {
+      opacity: 0.55;
+      transform: translate3d(0, 4px, 0);
+    }
+    70% {
+      opacity: 0.35;
+    }
+    100% {
+      opacity: 0;
+      transform: translate3d(0, -2px, 0);
+    }
+  }
+
+  .step-onion-ghost {
+    animation: onionGhost 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+    pointer-events: none;
+  }
+
+  /* Alight-style keyframed stepper segment fill */
+  .stepper-seg-track {
+    height: 8px;
+    flex: 1;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.28);
+    border: 0;
+    padding: 0;
+    min-width: 0;
+  }
+
+  .stepper-seg-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: #ffffff;
+    width: var(--seg-fill, 0%);
+    transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.35);
+  }
+
+  .stepper-seg-track.is-active .stepper-seg-fill {
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.55);
+  }
+
+  /* Status pill morph when status changes */
+  @keyframes statusMorph {
+    0% {
+      transform: scale(0.88);
+      opacity: 0.65;
+      filter: blur(1px);
+    }
+    55% {
+      transform: scale(1.06);
+      opacity: 1;
+      filter: blur(0);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-statusMorph {
+    animation: statusMorph 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
   @keyframes shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
@@ -637,7 +706,9 @@
     .animate-selectSpring,
     .animate-checkPop,
     .animate-volumeFlash,
-    .animate-finishSuccess {
+    .animate-finishSuccess,
+    .step-onion-ghost,
+    .animate-statusMorph {
       animation: none !important;
     }
 
@@ -646,8 +717,13 @@
     }
 
     .volume-meter-fill,
-    .chip-settle {
+    .chip-settle,
+    .stepper-seg-fill {
       transition: none !important;
+    }
+
+    .animate-sheetUp {
+      filter: none !important;
     }
 
     .chip-settle.is-active {

@@ -2590,7 +2590,8 @@ function ScheduleInspectionScreen({
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                         <span
-                          className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-semibold"
+                          key={status}
+                          className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-semibold animate-statusMorph"
                           style={{ background: meta.bg, color: meta.color }}
                         >
                           {status === "complete" && <CheckCircle2 size={10} strokeWidth={2.5} />}
@@ -2818,7 +2819,11 @@ const SUB_STATUS_CONFIG: Record<SubInspectionStatus, { label: string; bg: string
 function SubInspectionStatusPill({ status }: { status: SubInspectionStatus }) {
   const cfg = SUB_STATUS_CONFIG[status];
   return (
-    <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11px] font-semibold flex-shrink-0" style={{ background: cfg.bg, color: cfg.color }}>
+    <span
+      key={status}
+      className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11px] font-semibold flex-shrink-0 animate-statusMorph"
+      style={{ background: cfg.bg, color: cfg.color }}
+    >
       {status === "in-progress" && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: cfg.color }} />}
       {status === "completed" && <CheckCircle2 size={12} />}
       Status: {cfg.label}
@@ -5692,6 +5697,18 @@ function PreShipmentVerifyStepper({
   const stepComplete = [physicalComplete, sampleComplete];
   const doneCount = stepComplete.filter(Boolean).length;
   const allDone = physicalComplete && sampleComplete;
+  const [ghostLabel, setGhostLabel] = useState<string | null>(null);
+  const prevStepRef = useRef(activeStep);
+
+  useEffect(() => {
+    if (prevStepRef.current === activeStep) return;
+    const prev = PRE_SHIPMENT_VERIFY_STEPS.find(s => s.id === prevStepRef.current);
+    prevStepRef.current = activeStep;
+    if (!prev) return;
+    setGhostLabel(prev.label);
+    const timer = window.setTimeout(() => setGhostLabel(null), 420);
+    return () => window.clearTimeout(timer);
+  }, [activeStep]);
 
   return (
     <div
@@ -5716,15 +5733,27 @@ function PreShipmentVerifyStepper({
         </span>
       </div>
 
-      <p className="relative z-10 text-[14px] font-bold leading-snug" style={{ color: "#ffffff" }}>
-        {allDone ? "Pre-shipment verification complete" : PRE_SHIPMENT_VERIFY_STEPS[activeIndex].label}
-      </p>
+      <div className="relative z-10 min-h-[40px]">
+        {ghostLabel ? (
+          <p
+            key={ghostLabel}
+            className="step-onion-ghost absolute left-0 top-0 text-[14px] font-bold leading-snug"
+            style={{ color: "rgba(255,255,255,0.45)" }}
+            aria-hidden="true"
+          >
+            {ghostLabel}
+          </p>
+        ) : null}
+        <p className="relative z-[1] text-[14px] font-bold leading-snug" style={{ color: "#ffffff" }}>
+          {allDone ? "Pre-shipment verification complete" : PRE_SHIPMENT_VERIFY_STEPS[activeIndex].label}
+        </p>
+      </div>
 
       <div className="relative z-10 flex gap-2" role="tablist" aria-label="Verification steps">
         {PRE_SHIPMENT_VERIFY_STEPS.map((step, i) => {
           const done = stepComplete[i];
           const active = activeIndex === i;
-          const filled = done || active;
+          const fill = done || allDone ? 100 : active ? 100 : 0;
           return (
             <button
               key={step.id}
@@ -5733,12 +5762,13 @@ function PreShipmentVerifyStepper({
               aria-selected={active}
               aria-label={`${step.label}${done ? ", completed" : ""}`}
               onClick={() => onStepSelect(step.id)}
-              className="h-2 flex-1 rounded-full transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-              style={{
-                background: filled ? "#ffffff" : "rgba(255,255,255,0.28)",
-                boxShadow: active && !done ? "0 2px 10px rgba(255,255,255,0.38)" : done ? "0 0 0 1px rgba(255,255,255,0.35)" : "none",
-              }}
-            />
+              className={`stepper-seg-track focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${active && !done ? "is-active" : ""}`}
+            >
+              <div
+                className="stepper-seg-fill"
+                style={{ ["--seg-fill" as string]: `${fill}%` }}
+              />
+            </button>
           );
         })}
       </div>
@@ -8103,6 +8133,18 @@ function LoadingVerifyStepper({
   const activeIndex = activeStep === "allocate" ? 0 : 1;
   const stepComplete = [allocateComplete, damageComplete];
   const allDone = allocateComplete && damageComplete;
+  const [ghostLabel, setGhostLabel] = useState<string | null>(null);
+  const prevStepRef = useRef(activeStep);
+
+  useEffect(() => {
+    if (prevStepRef.current === activeStep) return;
+    const prev = steps.find(s => s.id === prevStepRef.current);
+    prevStepRef.current = activeStep;
+    if (!prev) return;
+    setGhostLabel(prev.label);
+    const timer = window.setTimeout(() => setGhostLabel(null), 420);
+    return () => window.clearTimeout(timer);
+  }, [activeStep]);
 
   return (
     <div
@@ -8127,9 +8169,21 @@ function LoadingVerifyStepper({
         </span>
       </div>
 
-      <p className="relative z-10 text-[14px] font-bold leading-snug" style={{ color: "#ffffff" }}>
-        {allDone ? "All steps done" : steps[activeIndex].label}
-      </p>
+      <div className="relative z-10 min-h-[40px]">
+        {ghostLabel ? (
+          <p
+            key={ghostLabel}
+            className="step-onion-ghost absolute left-0 top-0 text-[14px] font-bold leading-snug"
+            style={{ color: "rgba(255,255,255,0.45)" }}
+            aria-hidden="true"
+          >
+            {ghostLabel}
+          </p>
+        ) : null}
+        <p className="relative z-[1] text-[14px] font-bold leading-snug" style={{ color: "#ffffff" }}>
+          {allDone ? "All steps done" : steps[activeIndex].label}
+        </p>
+      </div>
       {!allDone && (
         <p className="relative z-10 text-[12px] leading-snug" style={{ color: "rgba(255,255,255,0.85)" }}>
           {steps[activeIndex].hint}
@@ -8140,7 +8194,7 @@ function LoadingVerifyStepper({
         {steps.map((step, i) => {
           const done = stepComplete[i];
           const active = activeIndex === i;
-          const filled = done || active;
+          const fill = done || allDone ? 100 : active ? 100 : 0;
           return (
             <button
               key={step.id}
@@ -8149,12 +8203,13 @@ function LoadingVerifyStepper({
               aria-selected={active}
               aria-label={`${step.label}${done ? ", completed" : ""}`}
               onClick={() => onStepSelect(step.id)}
-              className="h-2 flex-1 rounded-full transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-              style={{
-                background: filled ? "#ffffff" : "rgba(255,255,255,0.28)",
-                boxShadow: active && !done ? "0 2px 10px rgba(255,255,255,0.38)" : done ? "0 0 0 1px rgba(255,255,255,0.35)" : "none",
-              }}
-            />
+              className={`stepper-seg-track focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${active && !done ? "is-active" : ""}`}
+            >
+              <div
+                className="stepper-seg-fill"
+                style={{ ["--seg-fill" as string]: `${fill}%` }}
+              />
+            </button>
           );
         })}
       </div>
