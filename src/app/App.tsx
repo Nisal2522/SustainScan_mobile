@@ -5886,7 +5886,6 @@ function PhysicalVerificationScreen({
   onBack,
   onProceed,
   onGoToSample,
-  onFinish,
   viewOnly = false,
   dark = false,
 }: {
@@ -5896,7 +5895,6 @@ function PhysicalVerificationScreen({
   onBack: () => void;
   onProceed: () => void;
   onGoToSample: () => void;
-  onFinish: () => void;
   viewOnly?: boolean;
   dark?: boolean;
 }) {
@@ -5912,7 +5910,6 @@ function PhysicalVerificationScreen({
   const [evidenceSheetBox, setEvidenceSheetBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [attachments, setAttachments] = useState<AttachmentFile[]>(ATTACHMENT_FILES);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
-  const [finishPulse, setFinishPulse] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const evidencePhotosRef = useRef(evidencePhotos);
   evidencePhotosRef.current = evidencePhotos;
@@ -6072,14 +6069,6 @@ function PhysicalVerificationScreen({
   const declaredAnim = useCountUp(declaredM3, 760, task.id);
   const thresholdAnim = useCountUp(thresholdM3, 820, task.id);
 
-  const runFinish = () => {
-    if (viewOnly) {
-      onBack();
-      return;
-    }
-    if (volumeOk === null) return;
-    onFinish();
-  };
   const formatVol = (n: number) =>
     n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
@@ -6365,7 +6354,14 @@ function PhysicalVerificationScreen({
                 type="button"
                 onClick={onProceed}
                 className="w-full min-h-[44px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
-                style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
+                style={{
+                  background: volumeOk === "no"
+                    ? "linear-gradient(135deg, #e11d48 0%, #be123c 100%)"
+                    : "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+                  boxShadow: volumeOk === "no"
+                    ? "0 6px 18px rgba(190,18,60,0.28)"
+                    : "0 6px 18px rgba(22,163,74,0.30)",
+                }}
               >
                 Submit
               </button>
@@ -6384,16 +6380,16 @@ function PhysicalVerificationScreen({
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={runFinish}
-          disabled={!viewOnly && (volumeOk === null || finishPulse)}
-          className={`w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-45 ${finishPulse ? "animate-finishSuccess" : ""}`}
-          style={{ background: GRADIENT, boxShadow: viewOnly || volumeOk !== null ? "0 6px 18px rgba(15,47,143,0.30)" : "none" }}
-        >
-          {viewOnly ? "Close" : finishPulse ? "Completed" : "Finish Pre-Shipment Inspection"}
-          {!viewOnly && <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />}
-        </button>
+        {viewOnly && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
+            style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
+          >
+            Close
+          </button>
+        )}
         </div>
         )}
 
@@ -10688,15 +10684,6 @@ export default function App() {
               setScannedSampleLogs(prev => (prev.length > 0 ? prev : buildCompletedSampleScans()));
             }
             setScreen("sample-verification-scan");
-          }}
-          onFinish={() => {
-            if (inspectionViewOnly) {
-              setScreen("inspection-details");
-              return;
-            }
-            openFinishDialog("preShipment", task.id, ({ inspectionComplete }) => {
-              setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
-            });
           }}
         />
         {finishDialogPortal}
