@@ -554,29 +554,217 @@
     pointer-events: none;
   }
 
-  /* Alight-style keyframed stepper segment fill */
-  .stepper-seg-track {
-    height: 8px;
+  /* Verification step picker — clean professional cards */
+  .stepper-track {
+    display: flex;
+    gap: 8px;
+    padding: 4px;
+    border-radius: 18px;
+    background: rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .stepper-choice {
     flex: 1;
-    border-radius: 999px;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.28);
-    border: 0;
-    padding: 0;
     min-width: 0;
+    min-height: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 11px 12px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    color: rgba(255, 255, 255, 0.88);
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      color 0.2s ease,
+      opacity 0.2s ease;
   }
 
-  .stepper-seg-fill {
-    height: 100%;
-    border-radius: inherit;
+  .stepper-choice:hover:not(.stepper-choice--active) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+
+  .stepper-choice:active:not(.stepper-choice--active) {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .stepper-choice--active {
     background: #ffffff;
-    width: var(--seg-fill, 0%);
-    transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.35);
+    border-color: #ffffff;
+    color: #0f2f8f;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
   }
 
-  .stepper-seg-track.is-active .stepper-seg-fill {
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.55);
+  .stepper-choice--done:not(.stepper-choice--active) {
+    opacity: 0.92;
+  }
+
+  .stepper-choice-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .stepper-choice-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.12);
+    color: inherit;
+    flex-shrink: 0;
+  }
+
+  .stepper-choice--active .stepper-choice-icon {
+    background: rgba(15, 47, 143, 0.08);
+    color: #0f2f8f;
+  }
+
+  .stepper-choice--done:not(.stepper-choice--active) .stepper-choice-icon {
+    background: rgba(134, 239, 172, 0.16);
+    color: #bbf7d0;
+  }
+
+  .stepper-choice-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    opacity: 0.65;
+    flex-shrink: 0;
+  }
+
+  .stepper-choice--active .stepper-choice-meta {
+    opacity: 1;
+    color: #1a45b5;
+  }
+
+  .stepper-choice-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  @media (min-width: 380px) {
+    .stepper-choice-label {
+      font-size: 12px;
+    }
+  }
+
+  .stepper-choice-hint {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .stepper-choice-foot-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  @keyframes stepMarchSpin {
+    to {
+      --march-angle: 630deg;
+    }
+  }
+
+  @keyframes stepChevronNudge {
+    0%,
+    100% {
+      transform: translateX(0);
+      opacity: 0.5;
+    }
+    50% {
+      transform: translateX(4px);
+      opacity: 1;
+    }
+  }
+
+  @keyframes stepCurrentPulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.65;
+      transform: scale(0.88);
+    }
+  }
+
+  @property --march-angle {
+    syntax: "<angle>";
+    initial-value: 270deg;
+    inherits: false;
+  }
+
+  .stepper-choice--switch {
+    position: relative;
+    isolation: isolate;
+    border-color: transparent;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .stepper-choice--switch::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: conic-gradient(
+      from var(--march-angle),
+      rgba(255, 255, 255, 0.88) 0deg 10deg,
+      transparent 10deg 22deg
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: stepMarchSpin 3.6s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .stepper-choice--switch:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .stepper-choice--switch:hover::before {
+    animation-duration: 3s;
+  }
+
+  .stepper-choice--switch > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .stepper-choice-chevron {
+    animation: stepChevronNudge 3.8s ease-in-out infinite;
+  }
+
+  .stepper-choice--active .stepper-choice-foot-dot {
+    animation: stepCurrentPulse 2.4s ease-in-out infinite;
   }
 
   /* Status pill morph when status changes */
@@ -974,8 +1162,20 @@
 
     .volume-meter-fill,
     .chip-settle,
-    .stepper-seg-fill {
-      transition: none !important;
+    .stepper-choice--switch::before {
+      animation: none !important;
+      padding: 0;
+      background: none;
+      -webkit-mask: none;
+      mask: none;
+      border: 1.5px dashed rgba(255, 255, 255, 0.48);
+    }
+
+    .stepper-choice,
+    .stepper-choice--switch,
+    .stepper-choice-chevron,
+    .stepper-choice--active .stepper-choice-foot-dot {
+      animation: none !important;
     }
 
     .animate-sheetUp {

@@ -5702,9 +5702,113 @@ type PreShipmentTab = "verification" | "non-compliance" | "attachments";
 type NonComplianceView = "list" | "create";
 
 const PRE_SHIPMENT_VERIFY_STEPS = [
-  { id: "physical" as const, label: "Physical verification" },
-  { id: "sample" as const, label: "Sample verification" },
+  { id: "physical" as const, label: "Physical verification", hint: "Check volume and capture photos", icon: Scale },
+  { id: "sample" as const, label: "Sample verification", hint: "Scan sample QR codes", icon: QrCode },
 ];
+
+type VerificationStepConfig<T extends string> = {
+  id: T;
+  label: string;
+  hint?: string;
+  icon: typeof Scale;
+};
+
+function VerificationStepPicker<T extends string>({
+  steps,
+  activeStep,
+  stepComplete,
+  onStepSelect,
+  allDoneTitle,
+  tablistLabel,
+}: {
+  steps: VerificationStepConfig<T>[];
+  activeStep: T;
+  stepComplete: boolean[];
+  onStepSelect: (step: T) => void;
+  allDoneTitle: string;
+  tablistLabel: string;
+}) {
+  const activeIndex = Math.max(0, steps.findIndex(step => step.id === activeStep));
+  const allDone = stepComplete.every(Boolean);
+  const activeStepConfig = steps[activeIndex];
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl px-3.5 sm:px-4 py-4 flex flex-col gap-3 animate-riseIn"
+      style={{ background: GRADIENT, boxShadow: "0 10px 26px rgba(15,47,143,0.30)", ["--rise-delay" as string]: "60ms" }}
+    >
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.00) 58%)" }}
+        aria-hidden="true"
+      />
+
+      <div className="relative z-10 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.72)" }}>
+            {allDone ? "Complete" : "Verification"}
+          </p>
+          {!allDone && activeStepConfig?.hint && (
+            <p className="stepper-choice-hint mt-1">{activeStepConfig.hint}</p>
+          )}
+          {allDone && (
+            <p className="stepper-choice-hint mt-1">{allDoneTitle}</p>
+          )}
+        </div>
+        <span
+          className="text-[11px] font-semibold rounded-full px-2.5 py-1 flex-shrink-0 tabular-nums"
+          style={{ background: "rgba(255,255,255,0.14)", color: "#ffffff" }}
+        >
+          {allDone ? `${steps.length}/${steps.length}` : `${activeIndex + 1}/${steps.length}`}
+        </span>
+      </div>
+
+      <div className="relative z-10 stepper-track" role="tablist" aria-label={tablistLabel}>
+        {steps.map((step, i) => {
+          const done = stepComplete[i];
+          const active = activeIndex === i;
+          const switchable = !active;
+          const Icon = step.icon;
+          return (
+            <button
+              key={step.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-label={`${step.label}${done ? ", completed" : active ? ", current" : ", tap to switch"}`}
+              onClick={() => onStepSelect(step.id)}
+              className={`stepper-choice focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${active ? "stepper-choice--active" : ""} ${done ? "stepper-choice--done" : ""} ${switchable ? "stepper-choice--switch" : ""}`}
+            >
+              <span className="stepper-choice-head">
+                <span className="stepper-choice-icon" aria-hidden="true">
+                  {done && !active ? (
+                    <CheckCircle2 size={15} strokeWidth={2.25} />
+                  ) : (
+                    <Icon size={15} strokeWidth={active ? 2.25 : 2} />
+                  )}
+                </span>
+                <span className="stepper-choice-meta">
+                  {active ? (
+                    <>
+                      <span className="stepper-choice-foot-dot" aria-hidden="true" />
+                      Current
+                    </>
+                  ) : (
+                    <>
+                      {i + 1}
+                      <ChevronRight size={12} strokeWidth={2.25} className="stepper-choice-chevron" aria-hidden="true" />
+                    </>
+                  )}
+                </span>
+              </span>
+              <span className="stepper-choice-label">{step.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function PreShipmentVerifyStepper({
   activeStep,
@@ -5717,110 +5821,15 @@ function PreShipmentVerifyStepper({
   sampleComplete: boolean;
   onStepSelect: (step: "physical" | "sample") => void;
 }) {
-  const activeIndex = activeStep === "physical" ? 0 : 1;
-  const stepComplete = [physicalComplete, sampleComplete];
-  const doneCount = stepComplete.filter(Boolean).length;
-  const allDone = physicalComplete && sampleComplete;
-  const [ghostLabel, setGhostLabel] = useState<string | null>(null);
-  const prevStepRef = useRef(activeStep);
-
-  useEffect(() => {
-    if (prevStepRef.current === activeStep) return;
-    const prev = PRE_SHIPMENT_VERIFY_STEPS.find(s => s.id === prevStepRef.current);
-    prevStepRef.current = activeStep;
-    if (!prev) return;
-    setGhostLabel(prev.label);
-    const timer = window.setTimeout(() => setGhostLabel(null), 420);
-    return () => window.clearTimeout(timer);
-  }, [activeStep]);
-
   return (
-    <div
-      className="relative overflow-hidden rounded-2xl px-3.5 sm:px-4 py-4 flex flex-col gap-3 animate-riseIn"
-      style={{ background: GRADIENT, boxShadow: "0 10px 26px rgba(15,47,143,0.30)", ["--rise-delay" as string]: "60ms" }}
-    >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.00) 58%)" }}
-        aria-hidden="true"
-      />
-
-      <div className="relative z-10 flex items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.78)" }}>
-          {allDone ? "Completed" : "Current Step"}
-        </p>
-        <span
-          className="text-[11px] font-semibold rounded-full px-2.5 py-1 flex-shrink-0"
-          style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}
-        >
-          {allDone ? "2 / 2" : `${activeIndex + 1} / 2`}
-        </span>
-      </div>
-
-      <div className="relative z-10 min-h-[40px]">
-        {ghostLabel ? (
-          <p
-            key={ghostLabel}
-            className="step-onion-ghost absolute left-0 top-0 text-[14px] font-bold leading-snug"
-            style={{ color: "rgba(255,255,255,0.45)" }}
-            aria-hidden="true"
-          >
-            {ghostLabel}
-          </p>
-        ) : null}
-        <p className="relative z-[1] text-[14px] font-bold leading-snug" style={{ color: "#ffffff" }}>
-          {allDone ? "Pre-shipment verification complete" : PRE_SHIPMENT_VERIFY_STEPS[activeIndex].label}
-        </p>
-      </div>
-
-      <div className="relative z-10 flex gap-2" role="tablist" aria-label="Verification steps">
-        {PRE_SHIPMENT_VERIFY_STEPS.map((step, i) => {
-          const done = stepComplete[i];
-          const active = activeIndex === i;
-          const fill = done || allDone ? 100 : active ? 100 : 0;
-          return (
-            <button
-              key={step.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              aria-label={`${step.label}${done ? ", completed" : ""}`}
-              onClick={() => onStepSelect(step.id)}
-              className={`stepper-seg-track focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${active && !done ? "is-active" : ""}`}
-            >
-              <div
-                className="stepper-seg-fill"
-                style={{ ["--seg-fill" as string]: `${fill}%` }}
-              />
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="relative z-10 grid grid-cols-2 gap-2">
-        {PRE_SHIPMENT_VERIFY_STEPS.map((step, i) => {
-          const done = stepComplete[i];
-          const active = activeIndex === i;
-          return (
-            <button
-              key={step.id}
-              type="button"
-              onClick={() => onStepSelect(step.id)}
-              className={`text-[9px] sm:text-[10px] font-semibold truncate focus:outline-none transition-colors ${i === 1 ? "text-right" : "text-left"}`}
-              style={{ color: active || done ? "#ffffff" : "rgba(255,255,255,0.72)" }}
-            >
-              {done ? `✓ ${step.label}` : step.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {!allDone && doneCount > 0 && (
-        <p className="relative z-10 text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.72)" }}>
-          {doneCount} of 2 steps measured
-        </p>
-      )}
-    </div>
+    <VerificationStepPicker
+      steps={PRE_SHIPMENT_VERIFY_STEPS}
+      activeStep={activeStep}
+      stepComplete={[physicalComplete, sampleComplete]}
+      onStepSelect={onStepSelect}
+      allDoneTitle="Pre-shipment verification complete"
+      tablistLabel="Verification steps"
+    />
   );
 }
 
@@ -8344,111 +8353,19 @@ function LoadingVerifyStepper({
   onStepSelect: (step: LoadingScanMode) => void;
 }) {
   const steps = [
-    { id: "allocate" as const, label: "Load logs", hint: "Scan each log as it is loaded" },
-    { id: "damage" as const, label: "Damaged logs", hint: "Scan and report any damaged logs" },
+    { id: "allocate" as const, label: "Load logs", hint: "Scan each log as it is loaded", icon: Container },
+    { id: "damage" as const, label: "Damaged logs", hint: "Scan and report any damaged logs", icon: AlertTriangle },
   ];
-  const activeIndex = activeStep === "allocate" ? 0 : 1;
-  const stepComplete = [allocateComplete, damageComplete];
-  const allDone = allocateComplete && damageComplete;
-  const [ghostLabel, setGhostLabel] = useState<string | null>(null);
-  const prevStepRef = useRef(activeStep);
-
-  useEffect(() => {
-    if (prevStepRef.current === activeStep) return;
-    const prev = steps.find(s => s.id === prevStepRef.current);
-    prevStepRef.current = activeStep;
-    if (!prev) return;
-    setGhostLabel(prev.label);
-    const timer = window.setTimeout(() => setGhostLabel(null), 420);
-    return () => window.clearTimeout(timer);
-  }, [activeStep]);
 
   return (
-    <div
-      className="relative overflow-hidden rounded-2xl px-3.5 sm:px-4 py-4 flex flex-col gap-3 animate-riseIn"
-      style={{ background: GRADIENT, boxShadow: "0 10px 26px rgba(15,47,143,0.30)", ["--rise-delay" as string]: "60ms" }}
-    >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.00) 58%)" }}
-        aria-hidden="true"
-      />
-
-      <div className="relative z-10 flex items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.78)" }}>
-          {allDone ? "Completed" : "Current Step"}
-        </p>
-        <span
-          className="text-[11px] font-semibold rounded-full px-2.5 py-1 flex-shrink-0"
-          style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff" }}
-        >
-          {allDone ? "2 / 2" : `${activeIndex + 1} / 2`}
-        </span>
-      </div>
-
-      <div className="relative z-10 min-h-[40px]">
-        {ghostLabel ? (
-          <p
-            key={ghostLabel}
-            className="step-onion-ghost absolute left-0 top-0 text-[14px] font-bold leading-snug"
-            style={{ color: "rgba(255,255,255,0.45)" }}
-            aria-hidden="true"
-          >
-            {ghostLabel}
-          </p>
-        ) : null}
-        <p className="relative z-[1] text-[14px] font-bold leading-snug" style={{ color: "#ffffff" }}>
-          {allDone ? "All steps done" : steps[activeIndex].label}
-        </p>
-      </div>
-      {!allDone && (
-        <p className="relative z-10 text-[12px] leading-snug" style={{ color: "rgba(255,255,255,0.85)" }}>
-          {steps[activeIndex].hint}
-        </p>
-      )}
-
-      <div className="relative z-10 flex gap-2" role="tablist" aria-label="Loading steps">
-        {steps.map((step, i) => {
-          const done = stepComplete[i];
-          const active = activeIndex === i;
-          const fill = done || allDone ? 100 : active ? 100 : 0;
-          return (
-            <button
-              key={step.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              aria-label={`${step.label}${done ? ", completed" : ""}`}
-              onClick={() => onStepSelect(step.id)}
-              className={`stepper-seg-track focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${active && !done ? "is-active" : ""}`}
-            >
-              <div
-                className="stepper-seg-fill"
-                style={{ ["--seg-fill" as string]: `${fill}%` }}
-              />
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="relative z-10 grid grid-cols-2 gap-2">
-        {steps.map((step, i) => {
-          const done = stepComplete[i];
-          const active = activeIndex === i;
-          return (
-            <button
-              key={step.id}
-              type="button"
-              onClick={() => onStepSelect(step.id)}
-              className={`text-[9px] sm:text-[10px] font-semibold truncate focus:outline-none transition-colors ${i === 1 ? "text-right" : "text-left"}`}
-              style={{ color: active || done ? "#ffffff" : "rgba(255,255,255,0.72)" }}
-            >
-              {done ? `✓ ${step.label}` : step.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <VerificationStepPicker
+      steps={steps}
+      activeStep={activeStep}
+      stepComplete={[allocateComplete, damageComplete]}
+      onStepSelect={onStepSelect}
+      allDoneTitle="Loading inspection complete"
+      tablistLabel="Loading steps"
+    />
   );
 }
 
