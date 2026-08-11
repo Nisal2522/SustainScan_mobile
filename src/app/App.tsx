@@ -5400,7 +5400,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
   progress: InspectionProgress;
   onBack: () => void;
   onViewFullInfo: () => void;
-  onStartSession: (key: "preShipment" | "loading", startDate: string) => void;
+  onStartSession: (key: "preShipment" | "loading", startDate: string, options?: { viewOnly?: boolean }) => void;
 }) {
   const info = getShipmentDetailsData(task);
   const preShipmentDone = progress.preShipment === "completed";
@@ -5443,7 +5443,14 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
 
   const handleStepAction = (key: "preShipment" | "loading", _isActive: boolean, isDisabled: boolean) => {
     if (isDisabled) return;
-    // Always confirm date via popup before entering Pre-Shipment or Loading.
+    // Completed: open directly in view-only — no start popup, no editing.
+    if (progress[key] === "completed") {
+      const existing = key === "preShipment"
+        ? progress.preShipmentStartDate
+        : progress.loadingStartDate;
+      onStartSession(key, existing ?? todayISODate(), { viewOnly: true });
+      return;
+    }
     openStartDialog(key);
   };
 
@@ -5506,10 +5513,11 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
             const isActive = status === "in-progress";
             const isLast = idx === INSPECTION_STEPS.length - 1;
             const isLocked = step.key === "loading" && !preShipmentDone;
-            const isDisabled = isDone || isLocked;
+            // Completed stays muted but clickable for view/edit; only locked is disabled.
+            const isDisabled = isLocked;
 
             const ctaLabel = isDone
-              ? "Completed"
+              ? "View"
               : isActive
                 ? `Continue ${step.shortLabel}`
                 : `Start ${step.shortLabel}`;
@@ -5615,18 +5623,19 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                       disabled={isDisabled}
                       className="pressable w-full h-12 mt-1 rounded-xl text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2 focus:outline-none hover:brightness-110 disabled:hover:brightness-100 disabled:cursor-not-allowed"
                       style={{
-                        background: isDone || isLocked ? "#eef1f6" : GRADIENT,
-                        color: isDone || isLocked ? "#94a3b8" : "#ffffff",
-                        boxShadow: isDone || isLocked ? "none" : "0 4px 16px rgba(15,47,143,0.30)",
+                        background: isLocked ? "#eef1f6" : GRADIENT,
+                        color: isLocked ? "#94a3b8" : "#ffffff",
+                        boxShadow: isLocked ? "none" : "0 4px 16px rgba(15,47,143,0.30)",
                         opacity: isLocked ? 0.55 : 1,
                         border: isLocked ? "1px solid rgba(15,47,143,0.10)" : "none",
                       }}
                       aria-disabled={isDisabled}
+                      aria-label={isDone ? "View completed inspection" : undefined}
                     >
-                      {isDone ? (
-                        <><CheckCircle2 size={16} /> {ctaLabel}</>
-                      ) : isLocked ? (
+                      {isLocked ? (
                         <><Lock size={15} /> Locked</>
+                      ) : isDone ? (
+                        <><Eye size={16} strokeWidth={2.25} /> {ctaLabel} <ChevronRight size={16} /></>
                       ) : (
                         <>{ctaLabel} <ChevronRight size={16} /></>
                       )}
@@ -5664,7 +5673,9 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
           onConfirm={confirmStart}
           overlayBox={overlayBox}
           mode={
-            progress[startDialogKey] === "in-progress" ? "continue" : "start"
+            progress[startDialogKey] === "completed" || progress[startDialogKey] === "in-progress"
+              ? "continue"
+              : "start"
           }
         />
       )}
@@ -5821,6 +5832,7 @@ function PhysicalVerificationScreen({
   onProceed,
   onGoToSample,
   onFinish,
+  viewOnly = false,
 }: {
   task: InspectionTask;
   draft: PhysicalVerificationDraft;
@@ -5829,6 +5841,7 @@ function PhysicalVerificationScreen({
   onProceed: () => void;
   onGoToSample: () => void;
   onFinish: () => void;
+  viewOnly?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<PreShipmentTab>("verification");
   const { volumeOk, photoAdded, nonConformanceReason, physicalStepComplete, sampleStepComplete } = draft;
@@ -5878,12 +5891,14 @@ function PhysicalVerificationScreen({
   }, []);
 
   const openEvidenceSheet = () => {
+    if (viewOnly) return;
     setPhotoSheetPurpose("evidence");
     syncEvidenceSheetBox();
     setEvidenceSheetOpen(true);
   };
 
   const openVerificationPhotoSheet = () => {
+    if (viewOnly) return;
     setPhotoSheetPurpose("verification");
     syncEvidenceSheetBox();
     setEvidenceSheetOpen(true);
@@ -6001,6 +6016,10 @@ function PhysicalVerificationScreen({
   const thresholdAnim = useCountUp(thresholdM3, 820, task.id);
 
   const runFinish = () => {
+    if (viewOnly) {
+      onBack();
+      return;
+    }
     if (finishPulse || volumeOk === null) return;
     setFinishPulse(true);
     window.setTimeout(() => onFinish(), 420);
@@ -6123,12 +6142,14 @@ function PhysicalVerificationScreen({
           <div className="grid grid-cols-2 gap-3" role="group" aria-label="Volume confirmation">
             <button
               type="button"
-              onClick={() => onDraftChange({ volumeOk: volumeOk === "yes" ? null : "yes" })}
-              className={`rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "yes" ? "animate-selectSpring" : ""}`}
+              onClick={() => !viewOnly && onDraftChange({ volumeOk: volumeOk === "yes" ? null : "yes" })}
+              disabled={viewOnly}
+              className={`rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "yes" ? "animate-selectSpring" : ""} ${viewOnly ? "cursor-default" : ""}`}
               style={{
                 background: volumeOk === "yes" ? "rgba(22,163,74,0.10)" : "#f8fafc",
                 borderColor: volumeOk === "yes" ? "rgba(22,163,74,0.55)" : "rgba(15,47,143,0.14)",
                 boxShadow: volumeOk === "yes" ? "0 6px 16px rgba(22,163,74,0.20)" : "none",
+                opacity: viewOnly ? 0.92 : 1,
               }}
               aria-pressed={volumeOk === "yes"}
             >
@@ -6149,12 +6170,14 @@ function PhysicalVerificationScreen({
 
             <button
               type="button"
-              onClick={() => onDraftChange({ volumeOk: volumeOk === "no" ? null : "no" })}
-              className={`rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "no" ? "animate-selectSpring" : ""}`}
+              onClick={() => !viewOnly && onDraftChange({ volumeOk: volumeOk === "no" ? null : "no" })}
+              disabled={viewOnly}
+              className={`rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "no" ? "animate-selectSpring" : ""} ${viewOnly ? "cursor-default" : ""}`}
               style={{
                 background: volumeOk === "no" ? "rgba(212,24,61,0.08)" : "#f8fafc",
                 borderColor: volumeOk === "no" ? "rgba(212,24,61,0.45)" : "rgba(15,47,143,0.14)",
                 boxShadow: volumeOk === "no" ? "0 6px 16px rgba(212,24,61,0.16)" : "none",
+                opacity: viewOnly ? 0.92 : 1,
               }}
               aria-pressed={volumeOk === "no"}
             >
@@ -6191,14 +6214,16 @@ function PhysicalVerificationScreen({
                 </p>
                 <textarea
                   value={nonConformanceReason}
-                  onChange={e => onDraftChange({ nonConformanceReason: e.target.value })}
+                  onChange={e => !viewOnly && onDraftChange({ nonConformanceReason: e.target.value })}
                   rows={3}
-                  placeholder="Enter reason"
+                  placeholder={viewOnly ? "No reason recorded" : "Enter reason"}
+                  readOnly={viewOnly}
                   className="w-full mt-2 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none"
                   style={{
                     background: "#ffffff",
                     border: volumeOk === "no" ? "1px solid rgba(212,24,61,0.25)" : "1px solid rgba(22,163,74,0.30)",
                     color: "#0a1a4a",
+                    cursor: viewOnly ? "default" : undefined,
                   }}
                 />
               </div>
@@ -6213,7 +6238,8 @@ function PhysicalVerificationScreen({
                 <button
                   type="button"
                   onClick={openVerificationPhotoSheet}
-                  className="w-full rounded-xl px-3 py-3.5 flex flex-col items-center justify-center gap-1.5 focus:outline-none active:scale-[0.99] transition-all"
+                  disabled={viewOnly}
+                  className="w-full rounded-xl px-3 py-3.5 flex flex-col items-center justify-center gap-1.5 focus:outline-none active:scale-[0.99] transition-all disabled:active:scale-100"
                   style={{
                     background: photoAdded
                       ? "rgba(22,163,74,0.10)"
@@ -6223,6 +6249,8 @@ function PhysicalVerificationScreen({
                       : volumeOk === "no"
                         ? "2px dashed rgba(212,24,61,0.28)"
                         : "2px dashed rgba(22,163,74,0.32)",
+                    opacity: viewOnly ? 0.9 : 1,
+                    cursor: viewOnly ? "default" : undefined,
                   }}
                 >
                   <span
@@ -6242,17 +6270,22 @@ function PhysicalVerificationScreen({
                     className="text-[12px] font-bold"
                     style={{ color: photoAdded ? "#166534" : volumeOk === "no" ? "#9f1239" : "#0a1a4a" }}
                   >
-                    {photoAdded ? "Photo added" : "Add Photo"}
+                    {photoAdded ? "Photo added" : viewOnly ? "No photo" : "Add Photo"}
                   </span>
                   <span
                     className="text-[10px] font-medium text-center leading-snug"
                     style={{ color: "#5a6a99" }}
                   >
-                    {photoAdded ? "Tap to change photo" : "Take photo or upload from gallery"}
+                    {viewOnly
+                      ? (photoAdded ? "View only" : "No photo attached")
+                      : photoAdded
+                        ? "Tap to change photo"
+                        : "Take photo or upload from gallery"}
                   </span>
                 </button>
               </div>
 
+              {!viewOnly && (
               <button
                 type="button"
                 onClick={onProceed}
@@ -6261,6 +6294,17 @@ function PhysicalVerificationScreen({
               >
                 Submit
               </button>
+              )}
+              {viewOnly && (
+              <button
+                type="button"
+                onClick={onGoToSample}
+                className="w-full min-h-[44px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all"
+                style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
+              >
+                View Sample Verification <ChevronRight size={16} />
+              </button>
+              )}
             </div>
           )}
         </div>
@@ -6268,18 +6312,19 @@ function PhysicalVerificationScreen({
         <button
           type="button"
           onClick={runFinish}
-          disabled={volumeOk === null || finishPulse}
+          disabled={!viewOnly && (volumeOk === null || finishPulse)}
           className={`w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-45 ${finishPulse ? "animate-finishSuccess" : ""}`}
-          style={{ background: GRADIENT, boxShadow: volumeOk !== null ? "0 6px 18px rgba(15,47,143,0.30)" : "none" }}
+          style={{ background: GRADIENT, boxShadow: viewOnly || volumeOk !== null ? "0 6px 18px rgba(15,47,143,0.30)" : "none" }}
         >
-          {finishPulse ? "Completed" : "Finish Pre-Shipment Inspection"}
-          <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />
+          {viewOnly ? "Close" : finishPulse ? "Completed" : "Finish Pre-Shipment Inspection"}
+          {!viewOnly && <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />}
         </button>
         </div>
         )}
 
         {activeTab === "non-compliance" && ncView === "list" && (
           <div className="flex flex-col gap-4 animate-panelIn">
+            {!viewOnly && (
             <button
               type="button"
               onClick={() => setNcView("create")}
@@ -6289,6 +6334,7 @@ function PhysicalVerificationScreen({
               <Plus size={16} />
               New Notice of Discrepancy
             </button>
+            )}
 
             <div
               className="rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-2"
@@ -6514,6 +6560,7 @@ function PhysicalVerificationScreen({
               className="hidden"
             />
 
+            {!viewOnly && (
             <button
               type="button"
               onClick={() => attachmentInputRef.current?.click()}
@@ -6533,6 +6580,7 @@ function PhysicalVerificationScreen({
               <p className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>+ Add Photo or Document</p>
               <p className="text-[10px]" style={{ color: "#94a3b8" }}>JPG, PNG, or PDF up to 10MB</p>
             </button>
+            )}
 
             {attachmentError && (
               <p
@@ -6549,7 +6597,7 @@ function PhysicalVerificationScreen({
                 key={`${file.fileName}-${i}`}
                 file={file}
                 index={i}
-                onDelete={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
+                onDelete={viewOnly ? undefined : () => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
               />
             ))}
           </div>
@@ -6984,6 +7032,7 @@ function SampleVerificationScanScreen({
   onScanned,
   onOpenRecord,
   onFinishInspection,
+  viewOnly = false,
 }: {
   scanCount: number;
   records: ScannedSampleLog[];
@@ -6993,21 +7042,22 @@ function SampleVerificationScanScreen({
   onScanned: (record: ScannedSampleLog) => void;
   onOpenRecord: (code: string) => void;
   onFinishInspection: () => void;
+  viewOnly?: boolean;
 }) {
   // Arms itself when the user arrived here to scan; otherwise it waits so the history stays browsable.
-  const [phase, setPhase] = useState<ScannerPhase>("scanning");
+  const [phase, setPhase] = useState<ScannerPhase>(viewOnly || !autoStart ? "idle" : "scanning");
   const [finishPulse, setFinishPulse] = useState(false);
   const next = SAMPLE_QR_POOL[scanCount % SAMPLE_QR_POOL.length];
 
   // Simulated capture: the frame "finds" a code, shows a confirmation beat, then advances.
   useEffect(() => {
-    if (phase !== "scanning") return;
+    if (viewOnly || phase !== "scanning") return;
     const timer = setTimeout(() => setPhase("detected"), 2400);
     return () => clearTimeout(timer);
-  }, [phase]);
+  }, [phase, viewOnly]);
 
   useEffect(() => {
-    if (phase !== "detected") return;
+    if (viewOnly || phase !== "detected") return;
     const timer = setTimeout(
       () => onScanned({
         code: next.code,
@@ -7019,7 +7069,7 @@ function SampleVerificationScanScreen({
       900,
     );
     return () => clearTimeout(timer);
-  }, [phase, next, onScanned]);
+  }, [phase, next, onScanned, viewOnly]);
 
   const detected = phase === "detected";
   const scanning = phase === "scanning";
@@ -7027,6 +7077,10 @@ function SampleVerificationScanScreen({
   const swipe = useSwipeBack(onBack);
 
   const runFinishInspection = () => {
+    if (viewOnly) {
+      onBack();
+      return;
+    }
     if (finishPulse) return;
     setFinishPulse(true);
     window.setTimeout(() => onFinishInspection(), 420);
@@ -7147,7 +7201,7 @@ function SampleVerificationScanScreen({
               </>
             ) : (
               <p className="text-[12px] font-semibold" style={{ color: "#94a3b8" }}>
-                Scanner paused
+                {viewOnly ? "View only — scanning disabled" : "Scanner paused"}
               </p>
             )}
           </div>
@@ -7159,12 +7213,12 @@ function SampleVerificationScanScreen({
         <button
           type="button"
           onClick={runFinishInspection}
-          disabled={finishPulse}
+          disabled={!viewOnly && finishPulse}
           className={`w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-70 ${finishPulse ? "animate-finishSuccess" : ""}`}
           style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
         >
-          {finishPulse ? "Completed" : "Finish Pre-Shipment Inspection"}
-          <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />
+          {viewOnly ? "Close" : finishPulse ? "Completed" : "Finish Pre-Shipment Inspection"}
+          {!viewOnly && <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />}
         </button>
       </div>
     </div>
@@ -7204,6 +7258,35 @@ function measurementsFromLog(data: RegisterLogFormData): MeasurementValues {
     volume: data.volume,
     defectVolume: data.defectVolume,
   };
+}
+
+/** Demo history for completed inspections opened via View. */
+function buildCompletedSampleScans(): ScannedSampleLog[] {
+  const now = Date.now();
+  return [...SAMPLE_QR_POOL].reverse().map((item, index) => {
+    const inspector = measurementsFromLog(item.log);
+    return {
+      code: item.code,
+      scannedAt: formatScanTime(new Date(now - index * 7 * 60_000)),
+      status: item.status,
+      log: item.log,
+      previous: item.previous,
+      inspectorMeasurements: {
+        diameter1: formatMeasurementOneDecimal(inspector.diameter1),
+        diameter2: formatMeasurementOneDecimal(inspector.diameter2),
+        diameter3: formatMeasurementOneDecimal(inspector.diameter3),
+        diameter4: formatMeasurementOneDecimal(inspector.diameter4),
+        diameter: formatMeasurementOneDecimal(inspector.diameter),
+        length: formatMeasurementOneDecimal(inspector.length),
+        volume: formatMeasurementOneDecimal(inspector.volume),
+        defectVolume: formatMeasurementOneDecimal(inspector.defectVolume),
+      },
+      inspectorComment:
+        item.status === "flagged"
+          ? "Minor end split recorded — accepted with note."
+          : "Sample verified against declared log details.",
+    };
+  });
 }
 
 const MEASUREMENT_ROWS: {
@@ -7385,10 +7468,12 @@ function QrDetailsScreen({
   record,
   onBack,
   onFinish,
+  viewOnly = false,
 }: {
   record: ScannedSampleLog;
   onBack: () => void;
   onFinish: (result: { measurements: MeasurementValues; comment: string }) => void;
+  viewOnly?: boolean;
 }) {
   const log = record.log;
   const exporter = record.previous;
@@ -7472,26 +7557,28 @@ function QrDetailsScreen({
             <MeasurementCompareTable
               exporter={exporterMeasurements}
               inspector={inspectorMeasurements}
-              onInspectorChange={patch => setInspectorMeasurements(prev => ({ ...prev, ...patch }))}
+              inspectorReadOnly={viewOnly}
+              onInspectorChange={viewOnly ? undefined : patch => setInspectorMeasurements(prev => ({ ...prev, ...patch }))}
             />
           </div>
 
           {hasChanges && (
-            <FormField label="Inspector comment" required>
+            <FormField label="Inspector comment" required={!viewOnly}>
               <textarea
                 className={inputCls}
                 style={{
-                  ...inputStyle,
+                  ...(viewOnly ? readOnlyStyle : inputStyle),
                   background: "#ffffff",
                   resize: "none",
                   minHeight: "96px",
-                  border: commentError ? "1px solid #ef4444" : inputStyle.border,
+                  border: commentError ? "1px solid #ef4444" : (viewOnly ? readOnlyStyle.border : inputStyle.border),
                 }}
                 rows={3}
                 value={inspectorComment}
                 placeholder="Add a comment about the changes…"
-                onChange={e => setInspectorComment(e.target.value)}
-                onBlur={() => setCommentTouched(true)}
+                readOnly={viewOnly}
+                onChange={e => !viewOnly && setInspectorComment(e.target.value)}
+                onBlur={() => !viewOnly && setCommentTouched(true)}
               />
               {commentError && (
                 <p className="text-[11px] font-medium" style={{ color: "#ef4444" }}>
@@ -7516,6 +7603,17 @@ function QrDetailsScreen({
           </FormField>
 
           <div className="flex items-center gap-3 pt-1">
+            {viewOnly ? (
+              <button
+                type="button"
+                onClick={onBack}
+                className="w-full min-h-[48px] rounded-xl text-sm font-bold text-white flex items-center justify-center focus:outline-none active:scale-[0.98] transition-all"
+                style={{ background: GRADIENT, boxShadow: "0 4px 16px rgba(15,47,143,0.35)" }}
+              >
+                Close
+              </button>
+            ) : (
+              <>
             <button
               type="button"
               onClick={onBack}
@@ -7534,6 +7632,8 @@ function QrDetailsScreen({
               <CheckCircle2 size={15} className="flex-shrink-0" />
               <span className="truncate">Verify & Submit</span>
             </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -8266,6 +8366,7 @@ function LoadingLogsScanScreen({
   onDamageSaved,
   onScanConsumed,
   onComplete,
+  viewOnly = false,
 }: {
   scanCount: number;
   allocatedLogs: AllocatedLoadedLog[];
@@ -8278,6 +8379,7 @@ function LoadingLogsScanScreen({
   onDamageSaved: (entry: DamagedLoadedLog) => void;
   onScanConsumed: () => void;
   onComplete: () => void;
+  viewOnly?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<LoadingInspectionTab>("loading");
   const [mode, setMode] = useState<LoadingScanMode>("allocate");
@@ -8320,7 +8422,7 @@ function LoadingLogsScanScreen({
   const damageComplete = damageStepVisited || damagedLogs.length > 0;
   const selectedBarge = bargeStacks.find(b => b.id === selectedBargeId) ?? null;
   const bargeReady = isDamageMode || selectedBargeId !== null;
-  const scanningActive = activeTab === "loading" && bargeReady;
+  const scanningActive = !viewOnly && activeTab === "loading" && bargeReady;
 
   const syncOverlayBox = () => {
     const device = document.querySelector(".mobile-device");
@@ -8459,6 +8561,7 @@ function LoadingLogsScanScreen({
   }, []);
 
   const switchMode = (nextMode: LoadingScanMode) => {
+    if (viewOnly) return;
     if (nextMode === "damage") setDamageStepVisited(true);
     if (nextMode === mode) return;
     setPendingDamage(null);
@@ -8492,6 +8595,10 @@ function LoadingLogsScanScreen({
   };
 
   const runFinishComplete = () => {
+    if (viewOnly) {
+      onBack();
+      return;
+    }
     if (finishPulse || activeCount === 0) return;
     setFinishPulse(true);
     window.setTimeout(() => {
@@ -8508,12 +8615,14 @@ function LoadingLogsScanScreen({
   };
 
   const openEvidenceSheet = () => {
+    if (viewOnly) return;
     setPhotoSheetPurpose("evidence");
     syncEvidenceSheetBox();
     setEvidenceSheetOpen(true);
   };
 
   const openAttachmentSheet = () => {
+    if (viewOnly) return;
     setPhotoSheetPurpose("attachment");
     syncEvidenceSheetBox();
     setEvidenceSheetOpen(true);
@@ -8631,6 +8740,7 @@ function LoadingLogsScanScreen({
   };
 
   const openNewBargeForm = () => {
+    if (viewOnly) return;
     setNewBargeName("");
     setNewBargeLoadType("");
     setNewBargeCapacity("");
@@ -8828,6 +8938,7 @@ function LoadingLogsScanScreen({
                     <p className="text-[14px] font-bold leading-snug" style={{ color: "#0a1a4a" }}>
                       Allocation Management
                     </p>
+                    {!viewOnly && (
                     <button
                       type="button"
                       onClick={openNewBargeForm}
@@ -8837,6 +8948,7 @@ function LoadingLogsScanScreen({
                       <Plus size={14} />
                       New
                     </button>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-1.5">
@@ -8845,8 +8957,9 @@ function LoadingLogsScanScreen({
                     </label>
                     <button
                       type="button"
-                      onClick={() => setBargePickerOpen(v => !v)}
-                      className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-sm text-left focus:outline-none"
+                      onClick={() => !viewOnly && setBargePickerOpen(v => !v)}
+                      disabled={viewOnly}
+                      className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-sm text-left focus:outline-none disabled:cursor-default"
                       style={{
                         background: "#f8faff",
                         border: `1.5px solid ${bargePickerOpen || selectedBarge ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.14)"}`,
@@ -9098,6 +9211,11 @@ function LoadingLogsScanScreen({
                 </div>
 
                 {phase === "idle" && !pendingDamage ? (
+                  viewOnly ? (
+                    <p className="text-center text-[12px] font-semibold py-2" style={{ color: "#94a3b8" }}>
+                      View only — scanning disabled
+                    </p>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => setPhase("scanning")}
@@ -9107,6 +9225,7 @@ function LoadingLogsScanScreen({
                     <ScanLine size={16} />
                     Start Scanning
                   </button>
+                  )
                 ) : scanning ? (
                   <button
                     type="button"
@@ -9222,18 +9341,19 @@ function LoadingLogsScanScreen({
               <button
                 type="button"
                 onClick={runFinishComplete}
-                disabled={activeCount === 0 || finishPulse}
+                disabled={!viewOnly && (activeCount === 0 || finishPulse)}
                 className={`w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-45 ${finishPulse ? "animate-finishSuccess" : ""}`}
-                style={{ background: GRADIENT, boxShadow: activeCount > 0 ? "0 6px 18px rgba(15,47,143,0.30)" : "none" }}
+                style={{ background: GRADIENT, boxShadow: viewOnly || activeCount > 0 ? "0 6px 18px rgba(15,47,143,0.30)" : "none" }}
               >
-                {finishPulse ? "Completed" : "Finish Loading Inspection"}
-                <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />
+                {viewOnly ? "Close" : finishPulse ? "Completed" : "Finish Loading Inspection"}
+                {!viewOnly && <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />}
               </button>
             </div>
           )}
 
           {activeTab === "non-compliance" && ncView === "list" && (
             <div className="flex flex-col gap-4 animate-panelIn">
+              {!viewOnly && (
               <button
                 type="button"
                 onClick={() => setNcView("create")}
@@ -9243,6 +9363,7 @@ function LoadingLogsScanScreen({
                 <Plus size={16} />
                 New issue report
               </button>
+              )}
 
               {filedNcs.length === 0 ? (
                 <div
@@ -9481,6 +9602,7 @@ function LoadingLogsScanScreen({
 
           {activeTab === "attachments" && (
             <div className="flex flex-col gap-4 animate-panelIn">
+              {!viewOnly && (
               <button
                 type="button"
                 onClick={openAttachmentSheet}
@@ -9500,6 +9622,7 @@ function LoadingLogsScanScreen({
                 <p className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>+ Add Photo or Document</p>
                 <p className="text-[10px]" style={{ color: "#94a3b8" }}>JPG, PNG, or PDF up to 10MB</p>
               </button>
+              )}
 
               {attachmentError && (
                 <p
@@ -9516,7 +9639,7 @@ function LoadingLogsScanScreen({
                   key={`${file.fileName}-${i}`}
                   file={file}
                   index={i}
-                  onDelete={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
+                  onDelete={viewOnly ? undefined : () => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
                 />
               ))}
             </div>
@@ -9835,6 +9958,7 @@ export default function App() {
   const [damagedLoadedLogs, setDamagedLoadedLogs] = useState<DamagedLoadedLog[]>([]);
   const [loadingDamageNc, setLoadingDamageNc] = useState<LoadingDamageNc | null>(null);
   const [autoStartLoadingScanner, setAutoStartLoadingScanner] = useState(true);
+  const [inspectionViewOnly, setInspectionViewOnly] = useState(false);
 
   const isCU = userType === "cu";
 
@@ -10078,25 +10202,35 @@ export default function App() {
           progress={getInspectionProgress(task.id)}
           onBack={() => setScreen("schedule-inspection")}
           onViewFullInfo={() => setScreen("inspection-info-details")}
-          onStartSession={(key, startDate) => {
+          onStartSession={(key, startDate, options) => {
+            const viewOnly = Boolean(options?.viewOnly);
+            setInspectionViewOnly(viewOnly);
             const current = getInspectionProgress(task.id)[key];
-            if (current === "not-started") {
+            if (viewOnly) {
+              // Completed View: show sample history that was already verified.
+              setScannedSampleLogs(prev => (prev.length > 0 ? prev : buildCompletedSampleScans()));
+              setSampleScanCount(SAMPLE_QR_POOL.length);
+              setActiveScannedCode(null);
+            } else if (current === "not-started") {
               advanceInspectionProgress(task.id, key, { startDate });
               // Fresh step → clear prior verification draft so data must be filled again.
               setPhysicalVerificationById(prev => ({
                 ...prev,
                 [task.id]: { ...EMPTY_PHYSICAL_VERIFICATION },
               }));
+              setScannedSampleLogs([]);
+              setSampleScanCount(0);
+              setActiveScannedCode(null);
             }
             setActiveInspectionStep(key);
             if (key === "loading") {
-              if (current === "not-started") {
+              if (!viewOnly && current === "not-started") {
                 setLoadingScanCount(0);
                 setAllocatedLoadedLogs([]);
                 setDamagedLoadedLogs([]);
                 setLoadingDamageNc(null);
               }
-              setAutoStartLoadingScanner(true);
+              setAutoStartLoadingScanner(!viewOnly);
               setScreen("loading-logs-scan");
               return;
             }
@@ -10126,16 +10260,18 @@ export default function App() {
           damageNc={loadingDamageNc}
           declaredVolume={LOADING_DECLARED_VOLUME_M3}
           autoStart={autoStartLoadingScanner}
+          viewOnly={inspectionViewOnly}
           onBack={() => {
             setAutoStartLoadingScanner(false);
             setScreen("inspection-details");
           }}
           onAllocated={entry => {
+            if (inspectionViewOnly) return;
             setAllocatedLoadedLogs(prev => [entry, ...prev]);
             setLoadingScanCount(n => n + 1);
           }}
           onDamageSaved={entry => {
-            setDamagedLoadedLogs(prev => {
+            if (inspectionViewOnly) return;            setDamagedLoadedLogs(prev => {
               if (prev.some(d => d.code === entry.code)) return prev;
               return [entry, ...prev];
             });
@@ -10172,8 +10308,15 @@ export default function App() {
               return next;
             });
           }}
-          onScanConsumed={() => setLoadingScanCount(n => n + 1)}
+          onScanConsumed={() => {
+            if (inspectionViewOnly) return;
+            setLoadingScanCount(n => n + 1);
+          }}
           onComplete={() => {
+            if (inspectionViewOnly) {
+              setScreen("inspection-details");
+              return;
+            }
             setActiveInspectionStep("loading");
             const current = getInspectionProgress(task.id);
             const today = todayISODate();
@@ -10208,18 +10351,33 @@ export default function App() {
         <PhysicalVerificationScreen
           task={task}
           draft={getPhysicalVerification(task.id)}
-          onDraftChange={patch => updatePhysicalVerification(task.id, patch)}
+          viewOnly={inspectionViewOnly}
+          onDraftChange={patch => {
+            if (inspectionViewOnly) return;
+            updatePhysicalVerification(task.id, patch);
+          }}
           onBack={() => setScreen("inspection-details")}
           onProceed={() => {
-            updatePhysicalVerification(task.id, { physicalStepComplete: true });
-            setAutoStartScanner(true);
+            if (!inspectionViewOnly) {
+              updatePhysicalVerification(task.id, { physicalStepComplete: true });
+            } else {
+              setScannedSampleLogs(prev => (prev.length > 0 ? prev : buildCompletedSampleScans()));
+            }
+            setAutoStartScanner(!inspectionViewOnly);
             setScreen("sample-verification-scan");
           }}
           onGoToSample={() => {
+            if (inspectionViewOnly) {
+              setScannedSampleLogs(prev => (prev.length > 0 ? prev : buildCompletedSampleScans()));
+            }
             setAutoStartScanner(false);
             setScreen("sample-verification-scan");
           }}
           onFinish={() => {
+            if (inspectionViewOnly) {
+              setScreen("inspection-details");
+              return;
+            }
             setActiveInspectionStep("preShipment");
             const inspectionComplete = finalizeActiveInspectionStep(task.id);
             setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
@@ -10248,15 +10406,23 @@ export default function App() {
             key={sampleScanCount}
             scanCount={sampleScanCount}
             records={scannedSampleLogs}
-            autoStart={autoStartScanner}
+            autoStart={autoStartScanner && !inspectionViewOnly}
+            viewOnly={inspectionViewOnly}
             targetVolumeM3={task.logs * 21.875}
             onBack={() => setScreen("physical-verification")}
-            onScanned={recordSampleScan}
+            onScanned={record => {
+              if (inspectionViewOnly) return;
+              recordSampleScan(record);
+            }}
             onOpenRecord={code => {
               setActiveScannedCode(code);
               setScreen("sample-verification-log");
             }}
             onFinishInspection={() => {
+              if (inspectionViewOnly) {
+                setScreen("physical-verification");
+                return;
+              }
               setActiveInspectionStep("preShipment");
               const inspectionComplete = finalizeActiveInspectionStep(task.id);
               setAutoStartScanner(false);
@@ -10272,8 +10438,10 @@ export default function App() {
       <>
         <QrDetailsScreen
           record={activeRecord}
+          viewOnly={inspectionViewOnly}
           onBack={() => { setAutoStartScanner(false); setScreen("sample-verification-scan"); }}
           onFinish={({ measurements, comment }) => {
+            if (inspectionViewOnly) return;
             // Verify this log only — do not complete Pre-Shipment here.
             setScannedSampleLogs(prev =>
               prev.map(r =>
