@@ -1273,7 +1273,7 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenInventorySheet, isCU
   );
 
   return (
-    <div className="min-h-screen w-full transition-colors duration-300 animate-fadeIn" style={{ background: bg, fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen w-full flex flex-col transition-colors duration-300 animate-fadeIn" style={{ background: bg, fontFamily: "'Inter', sans-serif" }}>
       <AppHeaderBar dark={dark}>
         <PageHeader
           dark={dark}
@@ -1283,12 +1283,12 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenInventorySheet, isCU
       </AppHeaderBar>
 
       <div
-        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 gap-6"
-        style={{ paddingBottom: BOTTOM_NAV_PAD }}
+        className="w-full max-w-[480px] mx-auto flex-1 flex flex-col px-5 pt-5 gap-6 min-h-0"
+        style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
       >
 
         {/* ── Greeting card ── */}
-        <div className="rounded-2xl px-5 py-5" style={{ background: GRADIENT, boxShadow: "0 4px 20px rgba(15,47,143,0.35)" }}>
+        <div className="rounded-2xl px-5 py-5 flex-shrink-0" style={{ background: GRADIENT, boxShadow: "0 4px 20px rgba(15,47,143,0.35)" }}>
           <p className="text-2xl font-bold tracking-tight text-white">
             <span className="aurora-text">Hello, Thilina</span>{" "}
             <span aria-hidden="true">👋</span>
@@ -1297,7 +1297,7 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenInventorySheet, isCU
         </div>
 
         {/* ── Action cards ── */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 flex-shrink-0">
           <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: dark ? "rgba(255,255,255,0.55)" : "#5a6a99" }}>Actions</p>
 
           {!isCU && (
@@ -1351,10 +1351,10 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenInventorySheet, isCU
           )}
         </div>
 
-        <div className="flex-1" />
+        <div className="flex-1 min-h-6" aria-hidden="true" />
 
         {/* ── Sync bar ── */}
-        <div className="rounded-2xl px-5 py-4 flex flex-col gap-3" style={{ ...subCardGlass, background: surface, border: `1px solid ${surfaceBorder}` }}>
+        <div className="rounded-2xl px-5 py-4 flex flex-col gap-3 flex-shrink-0 mt-auto" style={{ ...subCardGlass, background: surface, border: `1px solid ${surfaceBorder}` }}>
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: textMuted }}>Last synced</p>
             <p className="text-sm font-medium mt-0.5" style={{ color: textPrimary }}>{formatSyncTime(lastSync)}</p>
