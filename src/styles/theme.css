@@ -1132,8 +1132,15 @@
     .animate-iconWell,
     .aurora-text,
     .glow-footer-bar,
-    .glow-footer-bar::after {
+    .glow-footer-bar::after,
+    .scroll-focus-item {
       animation: none !important;
+    }
+
+    .scroll-focus-item {
+      transition: none !important;
+      transform: none !important;
+      opacity: 1 !important;
     }
 
     .glow-footer-bar {
@@ -1304,4 +1311,22 @@ body,
     padding-left: 1rem;
     padding-right: 1rem;
   }
+}
+
+/* Smooth scroll focus — cards scale and fade by distance from viewport center */
+.scroll-focus-list {
+  scroll-behavior: auto;
+}
+
+.scroll-focus-list__inner {
+  padding-top: 0;
+  padding-bottom: clamp(2rem, 10vh, 3.5rem);
+}
+
+.scroll-focus-item {
+  transform-origin: center center;
+  will-change: transform, opacity;
+  transition:
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }

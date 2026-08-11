@@ -110,6 +110,80 @@ function useCountUp(target: number, durationMs = 720, restartKey: string | numbe
   return value;
 }
 
+/** Opacity + scale focus effect for scrollable card lists (respects reduced motion). */
+function useScrollFocusList(itemCount: number, listKey: string) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const rafRef = useRef<number | null>(null);
+
+  const updateFocus = () => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      itemRefs.current.forEach(el => {
+        if (!el) return;
+        el.style.transform = "";
+        el.style.opacity = "";
+      });
+      return;
+    }
+
+    const rect = container.getBoundingClientRect();
+    const centerY = rect.top + rect.height * 0.46;
+    const focusRadius = Math.max(rect.height * 0.42, 140);
+
+    itemRefs.current.forEach(el => {
+      if (!el) return;
+      const itemRect = el.getBoundingClientRect();
+      const itemCenterY = itemRect.top + itemRect.height / 2;
+      const dist = Math.abs(itemCenterY - centerY);
+      const t = Math.min(1, dist / focusRadius);
+      const scale = 1 - t * 0.1;
+      const opacity = 1 - t * 0.52;
+      el.style.transform = `scale(${scale.toFixed(3)})`;
+      el.style.opacity = `${opacity.toFixed(3)}`;
+    });
+  };
+
+  useEffect(() => {
+    itemRefs.current = itemRefs.current.slice(0, itemCount);
+  }, [itemCount, listKey]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || itemCount === 0) return;
+
+    const onScroll = () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        updateFocus();
+      });
+    };
+
+    const raf = requestAnimationFrame(updateFocus);
+    container.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      container.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [itemCount, listKey]);
+
+  const setItemRef = (index: number) => (el: HTMLDivElement | null) => {
+    itemRefs.current[index] = el;
+  };
+
+  return { scrollRef, setItemRef };
+}
+
 function LiquidTabBar({
   items,
   value,
@@ -2221,6 +2295,9 @@ function ScheduleInspectionScreen({
     setSearchFocused(false);
   };
 
+  const listKey = `${dayFilter}-${statusFilter}-${qNorm}`;
+  const { scrollRef, setItemRef } = useScrollFocusList(filtered.length, listKey);
+
   const swipe = useSwipeBack(onBack);
 
   return (
@@ -2478,12 +2555,13 @@ function ScheduleInspectionScreen({
 
       {/* 6. Inspection Cards Scroll List */}
       <div
-        className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain"
+        ref={scrollRef}
+        className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain scroll-focus-list"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         <div
-          key={`insp-list-${dayFilter}-${statusFilter}-${qNorm}`}
-          className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-1 gap-3.5"
+          key={`insp-list-${listKey}`}
+          className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-1 gap-3.5 scroll-focus-list__inner"
           style={{ paddingBottom: BOTTOM_NAV_PAD }}
         >
           {filtered.length === 0 ? (
@@ -2519,8 +2597,12 @@ function ScheduleInspectionScreen({
               const status = resolveInspectionStatus(task, getProgress(task.id));
               const meta = statusTone(status);
               return (
-                <article
+                <div
                   key={task.id}
+                  ref={setItemRef(index)}
+                  className="scroll-focus-item"
+                >
+                <article
                   className="relative overflow-hidden rounded-2xl flex flex-col animate-riseIn"
                   style={{
                     ["--rise-delay" as string]: `${160 + index * 55}ms`,
@@ -2616,6 +2698,7 @@ function ScheduleInspectionScreen({
                     </button>
                   </div>
                 </article>
+                </div>
               );
             })
           )}
@@ -8441,7 +8524,6 @@ function LoadingLogsScanScreen({
   const [newBargeOpen, setNewBargeOpen] = useState(false);
   const [newBargeName, setNewBargeName] = useState("");
   const [newBargeLoadType, setNewBargeLoadType] = useState("");
-  const [newBargeCapacity, setNewBargeCapacity] = useState("");
   const [loadTypeOpen, setLoadTypeOpen] = useState(false);
   const [volumeFlash, setVolumeFlash] = useState(false);
   const [finishPulse, setFinishPulse] = useState(false);
@@ -8754,14 +8836,12 @@ function LoadingLogsScanScreen({
     const label = newBargeName.trim();
     if (!label) return;
     const id = `barge-${Date.now()}`;
-    const capacity = newBargeCapacity.trim();
     setBargeStacks(prev => [
       ...prev,
       {
         id,
         label,
         loadType: newBargeLoadType || undefined,
-        capacity: capacity || undefined,
       },
     ]);
     setSelectedBargeId(id);
@@ -8769,7 +8849,6 @@ function LoadingLogsScanScreen({
     setNewBargeOpen(false);
     setNewBargeName("");
     setNewBargeLoadType("");
-    setNewBargeCapacity("");
     setLoadTypeOpen(false);
     setPhase("idle");
     setToast(`Added ${label} — tap Start Scanning when ready`);
@@ -8779,7 +8858,6 @@ function LoadingLogsScanScreen({
     if (viewOnly) return;
     setNewBargeName("");
     setNewBargeLoadType("");
-    setNewBargeCapacity("");
     setLoadTypeOpen(false);
     syncOverlayBox();
     setNewBargeOpen(true);
@@ -9974,26 +10052,6 @@ function LoadingLogsScanScreen({
                   ))}
                 </div>
               )}
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-bold" style={{ color: textPrimary }}>
-                Capacity (Logs)
-              </label>
-              <input
-                type="number"
-                min={0}
-                inputMode="numeric"
-                value={newBargeCapacity}
-                onChange={e => setNewBargeCapacity(e.target.value)}
-                placeholder="--"
-                className="w-full px-4 py-3.5 text-sm rounded-xl focus:outline-none"
-                style={{
-                  background: fieldBg,
-                  border: `1.5px solid ${fieldBorder}`,
-                  color: textPrimary,
-                }}
-              />
             </div>
 
             <button
