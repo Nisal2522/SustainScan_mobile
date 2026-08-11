@@ -528,9 +528,18 @@ function Background() {
 
 function PoweredBy() {
   return (
-    <div className="flex flex-col items-center gap-2 pb-4">
-      <span className="text-[10px] font-medium uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.45)" }}>Powered by</span>
-      <img src={controlUnionLogo} alt="Control Union" className="h-7 object-contain drop-shadow-lg" />
+    <div
+      className="powered-by flex flex-col items-center gap-1.5 pt-3"
+      style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
+    >
+      <span className="text-[10px] font-medium uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.45)" }}>
+        Powered by
+      </span>
+      <img
+        src={controlUnionLogo}
+        alt="Control Union"
+        className="powered-by-logo object-contain drop-shadow-lg"
+      />
     </div>
   );
 }
