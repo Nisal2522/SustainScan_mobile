@@ -1689,10 +1689,10 @@ const PRODUCT_NAMES: Record<(typeof PRODUCT_GROUPS)[number], string[]> = {
   "Group 2": [...TIMBER_SPECIES.slice(17, 24)],
 };
 
-function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function FormField({ label, required, children, dark = false }: { label: string; required?: boolean; children: React.ReactNode; dark?: boolean }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-semibold" style={{ color: "#0a1a4a" }}>
+      <label className="text-sm font-semibold" style={{ color: dark ? "#ffffff" : "#0a1a4a" }}>
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {children}
@@ -2806,21 +2806,23 @@ function ScheduleInspectionScreen({
 
 // ─── Inspection Details Screen ────────────────────────────────────────────────
 
-const SUB_STATUS_CONFIG: Record<SubInspectionStatus, { label: string; bg: string; color: string }> = {
-  "not-started": { label: "Not Started", bg: "rgba(90,106,153,0.12)", color: "#5a6a99" },
-  "in-progress": { label: "In Progress", bg: "rgba(15,47,143,0.10)", color: "#0f2f8f" },
-  "completed": { label: "Completed", bg: "rgba(16,185,129,0.12)", color: "#059669" },
+const SUB_STATUS_CONFIG: Record<SubInspectionStatus, { label: string; bg: string; color: string; darkBg: string; darkColor: string }> = {
+  "not-started": { label: "Not Started", bg: "rgba(90,106,153,0.12)", color: "#5a6a99", darkBg: "rgba(255,255,255,0.08)", darkColor: "rgba(255,255,255,0.65)" },
+  "in-progress": { label: "In Progress", bg: "rgba(15,47,143,0.10)", color: "#0f2f8f", darkBg: "rgba(59,130,246,0.18)", darkColor: "#93c5fd" },
+  "completed": { label: "Completed", bg: "rgba(16,185,129,0.12)", color: "#059669", darkBg: "rgba(16,185,129,0.18)", darkColor: "#34d399" },
 };
 
-function SubInspectionStatusPill({ status }: { status: SubInspectionStatus }) {
+function SubInspectionStatusPill({ status, dark = false }: { status: SubInspectionStatus; dark?: boolean }) {
   const cfg = SUB_STATUS_CONFIG[status];
+  const bg = dark ? cfg.darkBg : cfg.bg;
+  const color = dark ? cfg.darkColor : cfg.color;
   return (
     <span
       key={status}
       className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11px] font-semibold flex-shrink-0 animate-statusMorph"
-      style={{ background: cfg.bg, color: cfg.color }}
+      style={{ background: bg, color }}
     >
-      {status === "in-progress" && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: cfg.color }} />}
+      {status === "in-progress" && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: color }} />}
       {status === "completed" && <CheckCircle2 size={12} />}
       Status: {cfg.label}
     </span>
@@ -5178,9 +5180,11 @@ function toISODateLocal(d: Date) {
 function CompactBlueDatePicker({
   value,
   onChange,
+  dark = false,
 }: {
   value: string;
   onChange: (iso: string) => void;
+  dark?: boolean;
 }) {
   const selected = value ? parseISODateLocal(value) : new Date();
   const [open, setOpen] = useState(false);
@@ -5215,6 +5219,16 @@ function CompactBlueDatePicker({
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
 
+  const fieldBg = dark ? "rgba(15, 23, 42, 0.85)" : "#f8faff";
+  const fieldBorder = dark ? "rgba(255,255,255,0.12)" : "#dce4f5";
+  const fieldBorderOpen = dark ? "rgba(96,165,250,0.55)" : "rgba(15,47,143,0.45)";
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#5a6a99";
+  const panelBg = dark ? "rgba(15, 23, 42, 0.98)" : "#f8faff";
+  const panelBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)";
+  const navBtnBg = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)";
+  const navBtnColor = dark ? "#93c5fd" : "#0f2f8f";
+
   return (
     <div className="relative" ref={rootRef}>
       <button
@@ -5222,25 +5236,28 @@ function CompactBlueDatePicker({
         onClick={() => setOpen(v => !v)}
         className="w-full h-12 rounded-xl px-4 text-sm text-left flex items-center justify-between focus:outline-none transition-all"
         style={{
-          ...inputStyle,
-          border: open ? "1.5px solid rgba(15,47,143,0.45)" : "1px solid #dce4f5",
-          boxShadow: open ? "0 0 0 3px rgba(15,47,143,0.10)" : "none",
+          background: fieldBg,
+          color: textPrimary,
+          border: open ? `1.5px solid ${fieldBorderOpen}` : `1px solid ${fieldBorder}`,
+          boxShadow: open
+            ? (dark ? "0 0 0 3px rgba(59,130,246,0.18)" : "0 0 0 3px rgba(15,47,143,0.10)")
+            : "none",
         }}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <span style={{ color: value ? "#0a1a4a" : "#94a3b8" }}>
+        <span style={{ color: value ? textPrimary : (dark ? "rgba(255,255,255,0.40)" : "#94a3b8") }}>
           {value ? formatDisplayDate(value) : "Select date"}
         </span>
-        <Calendar size={16} style={{ color: "#5a6a99", flexShrink: 0 }} />
+        <Calendar size={16} style={{ color: textMuted, flexShrink: 0 }} />
       </button>
 
       {open && (
         <div
           className="mt-2 rounded-2xl p-3 animate-riseIn"
           style={{
-            background: "#f8faff",
-            border: "1px solid rgba(15,47,143,0.12)",
+            background: panelBg,
+            border: `1px solid ${panelBorder}`,
           }}
           role="dialog"
           aria-label="Choose date"
@@ -5250,17 +5267,17 @@ function CompactBlueDatePicker({
               type="button"
               onClick={() => setView(new Date(year, month - 1, 1))}
               className="w-8 h-8 rounded-lg flex items-center justify-center focus:outline-none"
-              style={{ background: "rgba(15,47,143,0.06)", color: "#0f2f8f" }}
+              style={{ background: navBtnBg, color: navBtnColor }}
               aria-label="Previous month"
             >
               <ArrowLeft size={15} />
             </button>
-            <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>{monthLabel}</p>
+            <p className="text-[13px] font-bold" style={{ color: textPrimary }}>{monthLabel}</p>
             <button
               type="button"
               onClick={() => setView(new Date(year, month + 1, 1))}
               className="w-8 h-8 rounded-lg flex items-center justify-center focus:outline-none"
-              style={{ background: "rgba(15,47,143,0.06)", color: "#0f2f8f" }}
+              style={{ background: navBtnBg, color: navBtnColor }}
               aria-label="Next month"
             >
               <ArrowRight size={15} />
@@ -5269,7 +5286,7 @@ function CompactBlueDatePicker({
 
           <div className="grid grid-cols-7 gap-0.5 mb-1">
             {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-              <div key={`${d}-${i}`} className="h-7 flex items-center justify-center text-[10px] font-semibold" style={{ color: "#94a3b8" }}>
+              <div key={`${d}-${i}`} className="h-7 flex items-center justify-center text-[10px] font-semibold" style={{ color: dark ? "rgba(255,255,255,0.40)" : "#94a3b8" }}>
                 {d}
               </div>
             ))}
@@ -5291,8 +5308,8 @@ function CompactBlueDatePicker({
                   }}
                   className="h-8 rounded-lg text-[12px] font-semibold focus:outline-none transition-colors"
                   style={{
-                    background: isSelected ? GRADIENT : isToday ? "rgba(15,47,143,0.08)" : "transparent",
-                    color: isSelected ? "#ffffff" : "#0a1a4a",
+                    background: isSelected ? GRADIENT : isToday ? (dark ? "rgba(59,130,246,0.16)" : "rgba(15,47,143,0.08)") : "transparent",
+                    color: isSelected ? "#ffffff" : textPrimary,
                     boxShadow: isSelected ? "0 4px 10px rgba(15,47,143,0.28)" : "none",
                   }}
                 >
@@ -5315,6 +5332,7 @@ function StartSubInspectionDialog({
   onConfirm,
   overlayBox,
   mode = "start",
+  dark = false,
 }: {
   stepKey: "preShipment" | "loading";
   date: string;
@@ -5323,10 +5341,14 @@ function StartSubInspectionDialog({
   onConfirm: () => void;
   overlayBox: { top: number; left: number; width: number; height: number };
   mode?: "start" | "continue";
+  dark?: boolean;
 }) {
   const stepLabel = stepKey === "preShipment" ? "Pre-Shipment Inspection" : "Loading Inspection";
   const title = mode === "continue" ? `Continue ${stepLabel}` : `Start ${stepLabel}`;
   const confirmLabel = mode === "continue" ? "Continue" : "Start";
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const panelBg = dark ? "#1e293b" : "#ffffff";
+  const panelBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)";
 
   return createPortal(
     <div
@@ -5343,7 +5365,7 @@ function StartSubInspectionDialog({
         type="button"
         className="absolute inset-0 border-0 p-0 cursor-default"
         style={{
-          background: "rgba(10,22,70,0.45)",
+          background: dark ? "rgba(2,6,23,0.62)" : "rgba(10,22,70,0.45)",
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
         }}
@@ -5352,26 +5374,30 @@ function StartSubInspectionDialog({
       />
       <div
         className="relative z-10 w-full max-w-sm rounded-2xl p-5 flex flex-col gap-5 shadow-2xl animate-riseIn"
-        style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.14)" }}
+        style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="start-inspection-title"
         onClick={e => e.stopPropagation()}
       >
-        <h2 id="start-inspection-title" className="text-base font-bold leading-snug" style={{ color: "#0a1a4a" }}>
+        <h2 id="start-inspection-title" className="text-base font-bold leading-snug" style={{ color: textPrimary }}>
           {title}
         </h2>
 
-        <FormField label="Date" required>
-          <CompactBlueDatePicker value={date} onChange={onDateChange} />
+        <FormField label="Date" required dark={dark}>
+          <CompactBlueDatePicker value={date} onChange={onDateChange} dark={dark} />
         </FormField>
 
         <div className="flex gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-gray-50 focus:outline-none active:scale-[0.98]"
-            style={{ background: "#ffffff", color: "#0a1a4a", border: "1px solid rgba(15,47,143,0.22)" }}
+            className="flex-1 h-12 rounded-xl text-sm font-semibold transition-all duration-200 focus:outline-none active:scale-[0.98]"
+            style={{
+              background: dark ? "rgba(255,255,255,0.06)" : "#ffffff",
+              color: textPrimary,
+              border: `1px solid ${dark ? "rgba(255,255,255,0.14)" : "rgba(15,47,143,0.22)"}`,
+            }}
           >
             Cancel
           </button>
@@ -5391,18 +5417,40 @@ function StartSubInspectionDialog({
   );
 }
 
-function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onStartSession }: {
+function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onStartSession, dark = false }: {
   task: InspectionTask;
   progress: InspectionProgress;
   onBack: () => void;
   onViewFullInfo: () => void;
   onStartSession: (key: "preShipment" | "loading", startDate: string, options?: { viewOnly?: boolean }) => void;
+  dark?: boolean;
 }) {
   const info = getShipmentDetailsData(task);
   const preShipmentDone = progress.preShipment === "completed";
   const [startDialogKey, setStartDialogKey] = useState<"preShipment" | "loading" | null>(null);
   const [startDate, setStartDate] = useState(todayISODate);
   const [overlayBox, setOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+
+  const pageBg = dark
+    ? "linear-gradient(165deg, #0b1224 0%, #0f172a 42%, #111827 100%)"
+    : undefined;
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
+  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.14)";
+  const cardBorderActive = dark ? "rgba(96,165,250,0.35)" : "rgba(15,47,143,0.22)";
+  const metaBg = dark ? "rgba(255,255,255,0.05)" : "#f5f8ff";
+  const metaBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.10)";
+  const nodeBg = dark ? "rgba(15, 23, 42, 0.95)" : "#ffffff";
+  const lockedBtnBg = dark ? "rgba(255,255,255,0.06)" : "#eef1f6";
+  const lockedBtnColor = dark ? "rgba(255,255,255,0.40)" : "#94a3b8";
+  const lockedBtnBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.10)";
+  const timelineLine = dark
+    ? "linear-gradient(180deg, rgba(96,165,250,0.45), rgba(96,165,250,0.18))"
+    : "linear-gradient(180deg, rgba(15,47,143,0.35), rgba(15,47,143,0.15))";
+  const timelineLineGap = dark
+    ? "linear-gradient(180deg, rgba(96,165,250,0.18), rgba(96,165,250,0.45))"
+    : "linear-gradient(180deg, rgba(15,47,143,0.15), rgba(15,47,143,0.35))";
 
   const syncOverlayBox = () => {
     const device = document.querySelector(".mobile-device");
@@ -5461,15 +5509,15 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
 
   return (
     <div
-      className="relative min-h-screen w-full animate-fadeIn inspection-surface"
-      style={{ fontFamily: "'Inter', sans-serif" }}
+      className={`relative min-h-screen w-full animate-fadeIn ${dark ? "" : "inspection-surface"}`}
+      style={{ fontFamily: "'Inter', sans-serif", background: pageBg }}
       {...swipe}
     >
-      <AppHeaderBar>
+      <AppHeaderBar dark={dark}>
         <div className="flex items-center gap-3">
-          <BackCardButton onClick={onBack} />
+          <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
-            <h1 className="text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>{task.shipment}</h1>
+            <h1 className="text-[18px] font-bold tracking-tight truncate" style={{ color: textPrimary }}>{task.shipment}</h1>
           </div>
         </div>
       </AppHeaderBar>
@@ -5496,7 +5544,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
 
         <p
           className="mb-2 text-xs font-bold uppercase tracking-wider animate-riseIn"
-          style={{ color: "#5a6a99", ["--rise-delay" as string]: "90ms" }}
+          style={{ color: textMuted, ["--rise-delay" as string]: "90ms" }}
         >
           Inspection Type
         </p>
@@ -5529,12 +5577,24 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                     <div
                       className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${isActive ? "animate-softPulse" : ""} ${!isLocked && step.key === "loading" ? "animate-unlockPop" : ""}`}
                       style={{
-                        background: "#ffffff",
-                        color: isDone ? "#059669" : isLocked ? "#94a3b8" : "#0f2f8f",
-                        border: `2px solid ${isDone ? "rgba(5,150,105,0.35)" : isLocked ? "rgba(15,47,143,0.12)" : "rgba(15,47,143,0.18)"}`,
+                        background: nodeBg,
+                        color: isDone
+                          ? (dark ? "#34d399" : "#059669")
+                          : isLocked
+                            ? (dark ? "rgba(255,255,255,0.35)" : "#94a3b8")
+                            : (dark ? "#93c5fd" : "#0f2f8f"),
+                        border: `2px solid ${
+                          isDone
+                            ? (dark ? "rgba(52,211,153,0.40)" : "rgba(5,150,105,0.35)")
+                            : isLocked
+                              ? (dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.12)")
+                              : (dark ? "rgba(147,197,253,0.35)" : "rgba(15,47,143,0.18)")
+                        }`,
                         boxShadow: isActive
-                          ? "0 0 0 4px rgba(15,47,143,0.12), 0 0 16px rgba(15,47,143,0.35)"
-                          : "0 1px 4px rgba(15,47,143,0.10)",
+                          ? (dark
+                            ? "0 0 0 4px rgba(59,130,246,0.18), 0 0 16px rgba(59,130,246,0.35)"
+                            : "0 0 0 4px rgba(15,47,143,0.12), 0 0 16px rgba(15,47,143,0.35)")
+                          : (dark ? "0 1px 4px rgba(0,0,0,0.35)" : "0 1px 4px rgba(15,47,143,0.10)"),
                       }}
                     >
                       {isDone ? <CheckCircle2 size={20} /> : isLocked ? <Lock size={18} /> : step.icon}
@@ -5543,7 +5603,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                       <div
                         className="w-0.5 flex-1 timeline-connector"
                         style={{
-                          background: "linear-gradient(180deg, rgba(15,47,143,0.35), rgba(15,47,143,0.15))",
+                          background: timelineLine,
                           ["--rise-delay" as string]: `${180 + idx * 90}ms`,
                         }}
                         aria-hidden="true"
@@ -5554,19 +5614,19 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                   <div
                     className="flex-1 min-w-0 rounded-2xl p-4 flex flex-col gap-2 transition-shadow duration-300"
                     style={{
-                      background: "#ffffff",
-                      border: `1px solid ${isActive ? "rgba(15,47,143,0.22)" : "rgba(15,47,143,0.14)"}`,
+                      background: cardBg,
+                      border: `1px solid ${isActive ? cardBorderActive : cardBorder}`,
                       boxShadow: isActive
-                        ? "0 8px 24px rgba(15,47,143,0.12)"
-                        : "0 1px 4px rgba(15,47,143,0.06)",
+                        ? (dark ? "0 8px 24px rgba(0,0,0,0.35)" : "0 8px 24px rgba(15,47,143,0.12)")
+                        : (dark ? "0 1px 4px rgba(0,0,0,0.25)" : "0 1px 4px rgba(15,47,143,0.06)"),
                     }}
                   >
                     <div className="flex items-start justify-between gap-2 flex-wrap">
-                      <h3 className="text-[15px] font-bold" style={{ color: "#0a1a4a" }}>
+                      <h3 className="text-[15px] font-bold" style={{ color: textPrimary }}>
                         {idx + 1}. {step.title}
                       </h3>
                     </div>
-                    <p className="text-xs leading-relaxed" style={{ color: "#5a6a99" }}>{step.description}</p>
+                    <p className="text-xs leading-relaxed" style={{ color: textMuted }}>{step.description}</p>
 
                     {(() => {
                       const startIso = step.key === "preShipment"
@@ -5584,26 +5644,26 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                         <div
                           className="rounded-xl px-2.5 py-1.5 grid grid-cols-2 gap-2"
                           style={{
-                            background: "#f5f8ff",
-                            border: "1px solid rgba(15,47,143,0.10)",
+                            background: metaBg,
+                            border: `1px solid ${metaBorder}`,
                           }}
                         >
                           <div className="min-w-0">
-                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
                               Start Date
                             </p>
-                            <p className="text-[12px] font-bold mt-0.5 tabular-nums leading-tight" style={{ color: "#0a1a4a" }}>
+                            <p className="text-[12px] font-bold mt-0.5 tabular-nums leading-tight" style={{ color: textPrimary }}>
                               {formatDisplayDate(displayStartIso)}
                             </p>
                           </div>
                           <div
                             className="min-w-0 pl-2"
-                            style={{ borderLeft: "1px solid rgba(15,47,143,0.10)" }}
+                            style={{ borderLeft: `1px solid ${metaBorder}` }}
                           >
-                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
                               End Date
                             </p>
-                            <p className="text-[12px] font-bold mt-0.5 tabular-nums leading-tight" style={{ color: "#0a1a4a" }}>
+                            <p className="text-[12px] font-bold mt-0.5 tabular-nums leading-tight" style={{ color: textPrimary }}>
                               {formatDisplayDate(displayEndIso)}
                             </p>
                           </div>
@@ -5611,7 +5671,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                       );
                     })()}
 
-                    <div><SubInspectionStatusPill status={status} /></div>
+                    <div><SubInspectionStatusPill status={status} dark={dark} /></div>
 
                     <button
                       type="button"
@@ -5619,11 +5679,11 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                       disabled={isDisabled}
                       className="pressable w-full h-12 mt-1 rounded-xl text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2 focus:outline-none hover:brightness-110 disabled:hover:brightness-100 disabled:cursor-not-allowed"
                       style={{
-                        background: isLocked ? "#eef1f6" : GRADIENT,
-                        color: isLocked ? "#94a3b8" : "#ffffff",
+                        background: isLocked ? lockedBtnBg : GRADIENT,
+                        color: isLocked ? lockedBtnColor : "#ffffff",
                         boxShadow: isLocked ? "none" : "0 4px 16px rgba(15,47,143,0.30)",
                         opacity: isLocked ? 0.55 : 1,
-                        border: isLocked ? "1px solid rgba(15,47,143,0.10)" : "none",
+                        border: isLocked ? `1px solid ${lockedBtnBorder}` : "none",
                       }}
                       aria-disabled={isDisabled}
                       aria-label={isDone ? "View completed inspection" : undefined}
@@ -5645,7 +5705,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                       <div
                         className="w-0.5 h-8 timeline-connector"
                         style={{
-                          background: "linear-gradient(180deg, rgba(15,47,143,0.15), rgba(15,47,143,0.35))",
+                          background: timelineLineGap,
                           ["--rise-delay" as string]: `${220 + idx * 90}ms`,
                         }}
                       />
@@ -5668,6 +5728,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
           onCancel={() => setStartDialogKey(null)}
           onConfirm={confirmStart}
           overlayBox={overlayBox}
+          dark={dark}
           mode={
             progress[startDialogKey] === "completed" || progress[startDialogKey] === "in-progress"
               ? "continue"
@@ -5829,6 +5890,7 @@ function PhysicalVerificationScreen({
   onGoToSample,
   onFinish,
   viewOnly = false,
+  dark = false,
 }: {
   task: InspectionTask;
   draft: PhysicalVerificationDraft;
@@ -5838,6 +5900,7 @@ function PhysicalVerificationScreen({
   onGoToSample: () => void;
   onFinish: () => void;
   viewOnly?: boolean;
+  dark?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<PreShipmentTab>("verification");
   const { volumeOk, photoAdded, nonConformanceReason, physicalStepComplete, sampleStepComplete } = draft;
@@ -6038,17 +6101,35 @@ function PhysicalVerificationScreen({
   };
   const swipe = useSwipeBack(handleBack);
 
+  const pageBg = dark
+    ? "linear-gradient(165deg, #0b1224 0%, #0f172a 42%, #111827 100%)"
+    : undefined;
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
+  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)";
+  const cardShadow = dark ? "0 2px 12px rgba(0,0,0,0.28)" : "0 2px 12px rgba(15,47,143,0.06)";
+  const chipBg = dark ? "rgba(255,255,255,0.06)" : "#f3f5f9";
+  const choiceIdleBg = dark ? "rgba(255,255,255,0.05)" : "#f8fafc";
+  const choiceIdleBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)";
+  const choiceIdleText = dark ? "#93c5fd" : "#0f2f8f";
+  const checkIdleBg = dark ? "rgba(15,23,42,0.9)" : "#ffffff";
+  const fieldBg = dark ? "rgba(15, 23, 42, 0.85)" : "#ffffff";
+  const fieldBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.16)";
+  const dashedBorder = dark ? "rgba(255,255,255,0.16)" : "rgba(15,47,143,0.18)";
+  const iconMutedBg = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)";
+
   return (
     <div
-      className="h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn inspection-surface"
-      style={{ fontFamily: "'Inter', sans-serif" }}
+      className={`h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn ${dark ? "" : "inspection-surface"}`}
+      style={{ fontFamily: "'Inter', sans-serif", background: pageBg }}
       {...swipe}
     >
-      <AppHeaderBar>
+      <AppHeaderBar dark={dark}>
         <div className="flex items-center gap-3 min-w-0">
-          <BackCardButton onClick={handleBack} />
+          <BackCardButton onClick={handleBack} dark={dark} />
           <div className="min-w-0">
-            <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
+            <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: textPrimary }}>
               Pre-Shipment Inspection
             </h1>
           </div>
@@ -6063,6 +6144,7 @@ function PhysicalVerificationScreen({
         {/* Tabs — liquid sliding indicator */}
         <LiquidTabBar
           ariaLabel="Pre-shipment sections"
+          dark={dark}
           value={activeTab}
           onChange={id => {
             setActiveTab(id as PreShipmentTab);
@@ -6093,32 +6175,32 @@ function PhysicalVerificationScreen({
         {/* Declared volume card */}
         <div
           className="rounded-2xl p-3.5 sm:p-4 flex flex-col gap-4"
-          style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.08)", boxShadow: "0 2px 12px rgba(15,47,143,0.06)" }}
+          style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: cardShadow }}
         >
-          <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+          <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
             Declared Volume
           </p>
           <div className="flex items-end gap-2 sm:gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-[22px] sm:text-[28px] font-bold leading-none tabular-nums break-all" style={{ color: "#0a1a4a" }}>
+              <p className="text-[22px] sm:text-[28px] font-bold leading-none tabular-nums break-all" style={{ color: textPrimary }}>
                 {formatVol(declaredAnim)}
               </p>
-              <p className="text-[11px] sm:text-xs mt-1.5" style={{ color: "#5a6a99" }}>m³ declared</p>
+              <p className="text-[11px] sm:text-xs mt-1.5" style={{ color: textMuted }}>m³ declared</p>
             </div>
-            <ArrowRight size={18} className="mb-4 sm:mb-5 flex-shrink-0" style={{ color: "#94a3b8" }} />
+            <ArrowRight size={18} className="mb-4 sm:mb-5 flex-shrink-0" style={{ color: dark ? "rgba(255,255,255,0.35)" : "#94a3b8" }} />
             <div className="flex-1 min-w-0 text-right">
-              <p className="text-[22px] sm:text-[28px] font-bold leading-none tabular-nums break-all" style={{ color: "#059669" }}>
+              <p className="text-[22px] sm:text-[28px] font-bold leading-none tabular-nums break-all" style={{ color: dark ? "#34d399" : "#059669" }}>
                 {formatVol(thresholdAnim)}
               </p>
-              <p className="text-[11px] sm:text-xs mt-1.5" style={{ color: "#5a6a99" }}>m³ threshold (95%)</p>
+              <p className="text-[11px] sm:text-xs mt-1.5" style={{ color: textMuted }}>m³ threshold (95%)</p>
             </div>
           </div>
           <div
             className="flex items-center gap-2.5 rounded-xl px-3 py-2.5"
-            style={{ background: "#f3f5f9" }}
+            style={{ background: chipBg }}
           >
             <MapPin size={14} className="flex-shrink-0" style={{ color: "#d4183d" }} />
-            <p className="text-xs font-medium leading-snug" style={{ color: "#0a1a4a" }}>
+            <p className="text-xs font-medium leading-snug" style={{ color: textPrimary }}>
               {task.location} — {task.exporter}
             </p>
           </div>
@@ -6127,10 +6209,10 @@ function PhysicalVerificationScreen({
         {/* Confirmation card */}
         <div
           className="rounded-2xl p-4 flex flex-col gap-4"
-          style={{ background: "#ffffff", border: "1px solid rgba(15,47,143,0.08)", boxShadow: "0 2px 12px rgba(15,47,143,0.06)" }}
+          style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: cardShadow }}
         >
           <div>
-            <h2 className="text-[15px] font-bold leading-snug" style={{ color: "#0a1a4a" }}>
+            <h2 className="text-[15px] font-bold leading-snug" style={{ color: textPrimary }}>
               Is ≥ 95% of declared volume physically present?
             </h2>
           </div>
@@ -6142,8 +6224,8 @@ function PhysicalVerificationScreen({
               disabled={viewOnly}
               className={`rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "yes" ? "animate-selectSpring" : ""} ${viewOnly ? "cursor-default" : ""}`}
               style={{
-                background: volumeOk === "yes" ? "rgba(22,163,74,0.10)" : "#f8fafc",
-                borderColor: volumeOk === "yes" ? "rgba(22,163,74,0.55)" : "rgba(15,47,143,0.14)",
+                background: volumeOk === "yes" ? "rgba(22,163,74,0.10)" : choiceIdleBg,
+                borderColor: volumeOk === "yes" ? "rgba(22,163,74,0.55)" : choiceIdleBorder,
                 boxShadow: volumeOk === "yes" ? "0 6px 16px rgba(22,163,74,0.20)" : "none",
                 opacity: viewOnly ? 0.92 : 1,
               }}
@@ -6152,14 +6234,14 @@ function PhysicalVerificationScreen({
               <span
                 className={`h-5 w-5 rounded-md border flex items-center justify-center text-[12px] font-black leading-none transition-all duration-200 ${volumeOk === "yes" ? "animate-checkPop" : ""}`}
                 style={{
-                  background: volumeOk === "yes" ? "#16a34a" : "#ffffff",
-                  borderColor: volumeOk === "yes" ? "#16a34a" : "rgba(15,47,143,0.25)",
+                  background: volumeOk === "yes" ? "#16a34a" : checkIdleBg,
+                  borderColor: volumeOk === "yes" ? "#16a34a" : (dark ? "rgba(255,255,255,0.25)" : "rgba(15,47,143,0.25)"),
                   color: "#ffffff",
                 }}
               >
                 {volumeOk === "yes" ? "✓" : ""}
               </span>
-              <span className="text-sm font-bold" style={{ color: volumeOk === "yes" ? "#166534" : "#0f2f8f" }}>
+              <span className="text-sm font-bold" style={{ color: volumeOk === "yes" ? (dark ? "#86efac" : "#166534") : choiceIdleText }}>
                 Yes
               </span>
             </button>
@@ -6170,8 +6252,8 @@ function PhysicalVerificationScreen({
               disabled={viewOnly}
               className={`rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "no" ? "animate-selectSpring" : ""} ${viewOnly ? "cursor-default" : ""}`}
               style={{
-                background: volumeOk === "no" ? "rgba(212,24,61,0.08)" : "#f8fafc",
-                borderColor: volumeOk === "no" ? "rgba(212,24,61,0.45)" : "rgba(15,47,143,0.14)",
+                background: volumeOk === "no" ? "rgba(212,24,61,0.08)" : choiceIdleBg,
+                borderColor: volumeOk === "no" ? "rgba(212,24,61,0.45)" : choiceIdleBorder,
                 boxShadow: volumeOk === "no" ? "0 6px 16px rgba(212,24,61,0.16)" : "none",
                 opacity: viewOnly ? 0.92 : 1,
               }}
@@ -6180,14 +6262,14 @@ function PhysicalVerificationScreen({
               <span
                 className={`h-5 w-5 rounded-md border flex items-center justify-center text-[12px] font-black leading-none transition-all duration-200 ${volumeOk === "no" ? "animate-checkPop" : ""}`}
                 style={{
-                  background: volumeOk === "no" ? "#d4183d" : "#ffffff",
-                  borderColor: volumeOk === "no" ? "#d4183d" : "rgba(15,47,143,0.25)",
+                  background: volumeOk === "no" ? "#d4183d" : checkIdleBg,
+                  borderColor: volumeOk === "no" ? "#d4183d" : (dark ? "rgba(255,255,255,0.25)" : "rgba(15,47,143,0.25)"),
                   color: "#ffffff",
                 }}
               >
                 {volumeOk === "no" ? "✓" : ""}
               </span>
-              <span className="text-sm font-bold" style={{ color: volumeOk === "no" ? "#9f1239" : "#0f2f8f" }}>
+              <span className="text-sm font-bold" style={{ color: volumeOk === "no" ? (dark ? "#fda4af" : "#9f1239") : choiceIdleText }}>
                 No
               </span>
             </button>
@@ -6216,9 +6298,9 @@ function PhysicalVerificationScreen({
                   readOnly={viewOnly}
                   className="w-full mt-2 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none"
                   style={{
-                    background: "#ffffff",
+                    background: fieldBg,
                     border: volumeOk === "no" ? "1px solid rgba(212,24,61,0.25)" : "1px solid rgba(22,163,74,0.30)",
-                    color: "#0a1a4a",
+                    color: textPrimary,
                     cursor: viewOnly ? "default" : undefined,
                   }}
                 />
@@ -6335,18 +6417,18 @@ function PhysicalVerificationScreen({
             <div
               className="rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-2"
               style={{
-                background: "#ffffff",
-                border: "2px dashed rgba(15,47,143,0.18)",
-                boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+                background: cardBg,
+                border: `2px dashed ${dashedBorder}`,
+                boxShadow: cardShadow,
               }}
             >
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-1"
-                style={{ background: "rgba(15,47,143,0.06)", color: "#94a3b8" }}
+                style={{ background: iconMutedBg, color: dark ? "rgba(255,255,255,0.45)" : "#94a3b8" }}
               >
                 <ClipboardList size={22} />
               </div>
-              <p className="text-[12px] font-medium" style={{ color: "#94a3b8" }}>
+              <p className="text-[12px] font-medium" style={{ color: dark ? "rgba(255,255,255,0.45)" : "#94a3b8" }}>
                 No Notices of Discrepancy filed yet.
               </p>
             </div>
@@ -6356,7 +6438,7 @@ function PhysicalVerificationScreen({
         {activeTab === "non-compliance" && ncView === "create" && (
           <div className="flex flex-col gap-4 animate-panelIn">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
+              <label className="text-[12px] font-bold" style={{ color: textPrimary }}>
                 Non-Compliance Description <span style={{ color: "#d4183d" }}>*</span>
               </label>
               <textarea
@@ -6366,28 +6448,28 @@ function PhysicalVerificationScreen({
                 placeholder="Describe the discrepancy observed..."
                 className="w-full p-3 text-[12px] rounded-xl focus:outline-none resize-none"
                 style={{
-                  background: "#ffffff",
-                  border: "1px solid rgba(15,47,143,0.16)",
-                  color: "#0a1a4a",
-                  boxShadow: "0 2px 8px rgba(15,47,143,0.04)",
+                  background: fieldBg,
+                  border: `1px solid ${fieldBorder}`,
+                  color: textPrimary,
+                  boxShadow: cardShadow,
                 }}
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+              <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
                 Type of Non-Compliance
               </label>
               <div
                 className="rounded-2xl overflow-hidden flex flex-col"
                 style={{
-                  background: "#ffffff",
-                  border: "1px solid rgba(15,47,143,0.12)",
-                  boxShadow: "0 2px 12px rgba(15,47,143,0.05)",
+                  background: cardBg,
+                  border: `1px solid ${cardBorder}`,
+                  boxShadow: cardShadow,
                 }}
               >
                 <div className="px-3.5 pt-3 pb-2">
-                  <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+                  <p className="text-[13px] font-bold" style={{ color: textPrimary }}>
                     Non-Compliance Records
                   </p>
                 </div>
@@ -6400,10 +6482,12 @@ function PhysicalVerificationScreen({
                         key={type}
                         className="flex items-center gap-3 cursor-pointer rounded-full px-3 py-2.5 transition-all active:scale-[0.99]"
                         style={{
-                          background: checked ? "rgba(15,47,143,0.06)" : "#ffffff",
+                          background: checked
+                            ? (dark ? "rgba(59,130,246,0.16)" : "rgba(15,47,143,0.06)")
+                            : (dark ? "rgba(255,255,255,0.03)" : "#ffffff"),
                           border: checked
-                            ? "1.5px solid rgba(15,47,143,0.35)"
-                            : "1.5px solid rgba(15,47,143,0.12)",
+                            ? (dark ? "1.5px solid rgba(96,165,250,0.45)" : "1.5px solid rgba(15,47,143,0.35)")
+                            : (dark ? "1.5px solid rgba(255,255,255,0.10)" : "1.5px solid rgba(15,47,143,0.12)"),
                         }}
                       >
                         <input
@@ -6412,7 +6496,7 @@ function PhysicalVerificationScreen({
                           onChange={() => handleNcTypeToggle(type)}
                           className="w-4 h-4 flex-shrink-0 rounded accent-[#0f2f8f]"
                         />
-                        <span className="text-[14px] font-medium leading-snug" style={{ color: "#0a1a4a" }}>
+                        <span className="text-[14px] font-medium leading-snug" style={{ color: textPrimary }}>
                           {type}
                         </span>
                       </label>
@@ -6423,13 +6507,13 @@ function PhysicalVerificationScreen({
                 <div
                   className="px-3.5 py-2.5"
                   style={{
-                    background: "rgba(15,47,143,0.05)",
-                    borderTop: "1px solid rgba(15,47,143,0.08)",
+                    background: dark ? "rgba(255,255,255,0.04)" : "rgba(15,47,143,0.05)",
+                    borderTop: `1px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)"}`,
                   }}
                 >
-                  <p className="text-[12px] font-semibold" style={{ color: "#5a6a99" }}>
+                  <p className="text-[12px] font-semibold" style={{ color: textMuted }}>
                     Summary:{" "}
-                    <span style={{ color: "#0f2f8f" }}>
+                    <span style={{ color: dark ? "#93c5fd" : "#0f2f8f" }}>
                       {selectedNcTypes.length} selected
                     </span>
                   </p>
@@ -6438,7 +6522,7 @@ function PhysicalVerificationScreen({
             </div>
 
             <div className="flex flex-col gap-2.5">
-              <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+              <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
                 Evidence Photos
               </p>
 
@@ -6447,21 +6531,21 @@ function PhysicalVerificationScreen({
                 onClick={openEvidenceSheet}
                 className="rounded-2xl px-4 py-5 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
                 style={{
-                  background: "#ffffff",
-                  border: "2px dashed rgba(15,47,143,0.22)",
-                  boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+                  background: cardBg,
+                  border: `2px dashed ${dashedBorder}`,
+                  boxShadow: cardShadow,
                 }}
               >
                 <span
                   className="w-11 h-11 rounded-2xl flex items-center justify-center"
-                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  style={{ background: iconMutedBg, color: dark ? "#93c5fd" : "#0f2f8f" }}
                 >
                   <Camera size={20} />
                 </span>
-                <span className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+                <span className="text-[13px] font-bold" style={{ color: textPrimary }}>
                   Add Evidence Photo
                 </span>
-                <span className="text-[11px] font-medium text-center" style={{ color: "#5a6a99" }}>
+                <span className="text-[11px] font-medium text-center" style={{ color: textMuted }}>
                   Take a photo or upload from gallery
                 </span>
               </button>
@@ -6475,7 +6559,7 @@ function PhysicalVerificationScreen({
               {evidencePhotos.length > 0 && (
                 <div className="flex flex-col gap-2 animate-riseIn">
                   <div className="flex items-center justify-between px-0.5">
-                    <p className="text-[11px] font-semibold" style={{ color: "#5a6a99" }}>
+                    <p className="text-[11px] font-semibold" style={{ color: textMuted }}>
                       {evidencePhotos.length} photo{evidencePhotos.length === 1 ? "" : "s"} attached
                     </p>
                     <button
@@ -6562,19 +6646,19 @@ function PhysicalVerificationScreen({
               onClick={() => attachmentInputRef.current?.click()}
               className="rounded-2xl p-6 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
               style={{
-                background: "#ffffff",
-                border: "2px dashed rgba(15,47,143,0.22)",
-                boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+                background: cardBg,
+                border: `2px dashed ${dashedBorder}`,
+                boxShadow: cardShadow,
               }}
             >
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ background: "#e8edf9", color: "#5a6a99" }}
+                style={{ background: iconMutedBg, color: textMuted }}
               >
                 <Upload size={18} />
               </div>
-              <p className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>+ Add Photo or Document</p>
-              <p className="text-[10px]" style={{ color: "#94a3b8" }}>JPG, PNG, or PDF up to 10MB</p>
+              <p className="text-[12px] font-bold" style={{ color: textPrimary }}>+ Add Photo or Document</p>
+              <p className="text-[10px]" style={{ color: dark ? "rgba(255,255,255,0.40)" : "#94a3b8" }}>JPG, PNG, or PDF up to 10MB</p>
             </button>
             )}
 
@@ -6593,6 +6677,7 @@ function PhysicalVerificationScreen({
                 key={`${file.fileName}-${i}`}
                 file={file}
                 index={i}
+                dark={dark}
                 onDelete={viewOnly ? undefined : () => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
               />
             ))}
@@ -6616,7 +6701,7 @@ function PhysicalVerificationScreen({
             type="button"
             className="absolute inset-0 border-0 p-0 cursor-default"
             style={{
-              background: "rgba(10,22,70,0.45)",
+              background: dark ? "rgba(2,6,23,0.62)" : "rgba(10,22,70,0.45)",
               backdropFilter: "blur(8px)",
               WebkitBackdropFilter: "blur(8px)",
             }}
@@ -6626,24 +6711,24 @@ function PhysicalVerificationScreen({
           <div
             className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-sheetUp"
             style={{
-              background: "#ffffff",
-              boxShadow: "0 -12px 40px rgba(15,47,143,0.18)",
+              background: dark ? "#1e293b" : "#ffffff",
+              boxShadow: dark ? "0 -12px 40px rgba(0,0,0,0.45)" : "0 -12px 40px rgba(15,47,143,0.18)",
             }}
             role="dialog"
             aria-modal="true"
             aria-label={photoSheetPurpose === "verification" ? "Add photo" : "Add evidence photo"}
           >
             <div className="flex flex-col items-center gap-3">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
+              <div className="w-10 h-1 rounded-full" style={{ background: dark ? "rgba(255,255,255,0.20)" : "rgba(15,47,143,0.18)" }} />
               <div className="w-full flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: textMuted }}>
                   {photoSheetPurpose === "verification" ? "Add Photo" : "Add Evidence Photo"}
                 </p>
                 <button
                   type="button"
                   onClick={closeEvidenceSheet}
                   className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
-                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  style={{ background: iconMutedBg, color: dark ? "#93c5fd" : "#0f2f8f" }}
                   aria-label="Close"
                 >
                   <X size={16} />
@@ -6652,16 +6737,16 @@ function PhysicalVerificationScreen({
             </div>
 
             <div className="flex flex-col gap-2.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
                 Source
               </p>
               {/* Label + capture input keeps the tap in the same user gesture so mobile OS opens the camera. */}
               <label
                 className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left focus-within:outline-none active:scale-[0.99] transition-all cursor-pointer"
                 style={{
-                  background: "#ffffff",
-                  border: "1.5px solid rgba(15,47,143,0.12)",
-                  boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+                  background: dark ? "rgba(15,23,42,0.85)" : "#ffffff",
+                  border: `1.5px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)"}`,
+                  boxShadow: dark ? "none" : "0 2px 10px rgba(15,47,143,0.04)",
                 }}
               >
                 <input
@@ -6673,21 +6758,21 @@ function PhysicalVerificationScreen({
                 />
                 <span
                   className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  style={{ background: iconMutedBg, color: dark ? "#93c5fd" : "#0f2f8f" }}
                 >
                   <Camera size={16} />
                 </span>
-                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: "#0a1a4a" }}>
+                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: textPrimary }}>
                   Take Photo
                 </span>
-                <ChevronRight size={16} style={{ color: "#5a6a99" }} />
+                <ChevronRight size={16} style={{ color: textMuted }} />
               </label>
               <label
                 className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left focus-within:outline-none active:scale-[0.99] transition-all cursor-pointer"
                 style={{
-                  background: "#ffffff",
-                  border: "1.5px solid rgba(15,47,143,0.12)",
-                  boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+                  background: dark ? "rgba(15,23,42,0.85)" : "#ffffff",
+                  border: `1.5px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)"}`,
+                  boxShadow: dark ? "none" : "0 2px 10px rgba(15,47,143,0.04)",
                 }}
               >
                 <input
@@ -6699,14 +6784,14 @@ function PhysicalVerificationScreen({
                 />
                 <span
                   className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  style={{ background: iconMutedBg, color: dark ? "#93c5fd" : "#0f2f8f" }}
                 >
                   <ImageIcon size={16} />
                 </span>
-                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: "#0a1a4a" }}>
+                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: textPrimary }}>
                   Upload from Gallery
                 </span>
-                <ChevronRight size={16} style={{ color: "#5a6a99" }} />
+                <ChevronRight size={16} style={{ color: textMuted }} />
               </label>
             </div>
           </div>
@@ -6880,10 +6965,12 @@ function ScannedHistoryList({
   records,
   targetVolumeM3,
   onSelect,
+  dark = false,
 }: {
   records: ScannedSampleLog[];
   targetVolumeM3: number;
   onSelect: (code: string) => void;
+  dark?: boolean;
 }) {
   const scanned = records.length;
   const scannedVolume = records.reduce((sum, record) => {
@@ -6896,37 +6983,52 @@ function ScannedHistoryList({
   const formatVol = (n: number) =>
     n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const accent = dark ? "#93c5fd" : "#0f2f8f";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
+  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.14)";
+  const rowGlass = dark
+    ? {
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        background: "rgba(30, 41, 59, 0.72)",
+        border: "1px solid rgba(255,255,255,0.10)",
+        boxShadow: "0 8px 28px rgba(0,0,0,0.28)",
+      }
+    : SCAN_GLASS;
+
   return (
     <div className="flex flex-col gap-3">
       <div
         className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-2.5"
         style={{
-          background: "#ffffff",
-          border: "1px solid rgba(15,47,143,0.14)",
-          boxShadow: "0 2px 12px rgba(15,47,143,0.05)",
+          background: cardBg,
+          border: `1px solid ${cardBorder}`,
+          boxShadow: dark ? "0 2px 12px rgba(0,0,0,0.28)" : "0 2px 12px rgba(15,47,143,0.05)",
         }}
       >
-        <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#0f2f8f" }}>
+        <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: accent }}>
           Total Scanned Volume
         </p>
 
         <div className="flex items-end justify-between gap-2">
           <p className="min-w-0 leading-none">
-            <span className="text-[22px] font-bold tabular-nums" style={{ color: "#0a1a4a" }}>
+            <span className="text-[22px] font-bold tabular-nums" style={{ color: textPrimary }}>
               {formatVol(scannedVolume)} m³
             </span>
-            <span className="text-[13px] font-medium ml-1.5" style={{ color: "#94a3b8" }}>
+            <span className="text-[13px] font-medium ml-1.5" style={{ color: dark ? "rgba(255,255,255,0.40)" : "#94a3b8" }}>
               / {formatVol(safeTarget)} m³ target
             </span>
           </p>
-          <span className="text-[15px] font-bold tabular-nums flex-shrink-0" style={{ color: "#0a1a4a" }}>
+          <span className="text-[15px] font-bold tabular-nums flex-shrink-0" style={{ color: textPrimary }}>
             {percent.toFixed(1)}%
           </span>
         </div>
 
         <div
           className="h-2.5 w-full rounded-full overflow-hidden"
-          style={{ background: "rgba(15,47,143,0.10)" }}
+          style={{ background: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.10)" }}
           role="progressbar"
           aria-valuenow={Number(percent.toFixed(1))}
           aria-valuemin={0}
@@ -6937,31 +7039,31 @@ function ScannedHistoryList({
             className="h-full rounded-full transition-all duration-500"
             style={{
               width: `${progress * 100}%`,
-              background: "#0f2f8f",
+              background: dark ? "#60a5fa" : "#0f2f8f",
             }}
           />
         </div>
       </div>
 
       <div className="flex items-baseline justify-between gap-2 px-0.5">
-        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: textMuted }}>
           Scanned QR Codes
         </p>
-        <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: "#94a3b8" }}>
+        <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: dark ? "rgba(255,255,255,0.40)" : "#94a3b8" }}>
           {scanned} scanned
         </span>
       </div>
 
       {records.length === 0 ? (
-        <div className="rounded-2xl px-4 py-7 flex flex-col items-center gap-2 text-center" style={SCAN_GLASS}>
+        <div className="rounded-2xl px-4 py-7 flex flex-col items-center gap-2 text-center" style={rowGlass}>
           <span
             className="w-11 h-11 rounded-2xl flex items-center justify-center"
-            style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+            style={{ background: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)", color: accent }}
           >
             <QrCode size={20} />
           </span>
-          <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>No QR codes scanned yet</p>
-          <p className="text-[11px] leading-relaxed max-w-[220px]" style={{ color: "#5a6a99" }}>
+          <p className="text-[13px] font-bold" style={{ color: textPrimary }}>No QR codes scanned yet</p>
+          <p className="text-[11px] leading-relaxed max-w-[220px]" style={{ color: textMuted }}>
             Align a log QR in the frame above — captures show up here.
           </p>
         </div>
@@ -6975,19 +7077,19 @@ function ScannedHistoryList({
               type="button"
               onClick={() => onSelect(record.code)}
               className="w-full text-left rounded-2xl px-3.5 py-3.5 flex items-center gap-3 animate-riseIn focus:outline-none active:scale-[0.99] transition-transform"
-              style={{ ...SCAN_GLASS, ["--rise-delay" as string]: `${40 + i * 45}ms` }}
+              style={{ ...rowGlass, ["--rise-delay" as string]: `${40 + i * 45}ms` }}
               aria-label={`View details for ${record.code}`}
             >
               <span
                 className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(15,47,143,0.10)", color: "#0f2f8f" }}
+                style={{ background: dark ? "rgba(59,130,246,0.18)" : "rgba(15,47,143,0.10)", color: accent }}
               >
                 <QrCode size={20} />
               </span>
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                  <p className="text-[14px] font-bold truncate" style={{ color: "#0a1a4a" }}>
+                  <p className="text-[14px] font-bold truncate" style={{ color: textPrimary }}>
                     {record.code}
                   </p>
                   <span
@@ -6999,18 +7101,21 @@ function ScannedHistoryList({
                   {hasEdits && (
                     <span
                       className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
-                      style={{ background: "rgba(15,47,143,0.12)", color: "#0f2f8f" }}
+                      style={{
+                        background: dark ? "rgba(59,130,246,0.18)" : "rgba(15,47,143,0.12)",
+                        color: accent,
+                      }}
                     >
                       Edited
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] mt-1 truncate" style={{ color: "#5a6a99" }}>
+                <p className="text-[11px] mt-1 truncate" style={{ color: textMuted }}>
                   {record.scannedAt} <span aria-hidden>·</span> {record.log.productName}
                 </p>
               </div>
 
-              <ChevronRight size={17} className="flex-shrink-0" style={{ color: "#94a3b8" }} />
+              <ChevronRight size={17} className="flex-shrink-0" style={{ color: dark ? "rgba(255,255,255,0.35)" : "#94a3b8" }} />
             </button>
           );
         })
@@ -7029,6 +7134,7 @@ function SampleVerificationScanScreen({
   onOpenRecord,
   onFinishInspection,
   viewOnly = false,
+  dark = false,
 }: {
   scanCount: number;
   records: ScannedSampleLog[];
@@ -7039,6 +7145,7 @@ function SampleVerificationScanScreen({
   onOpenRecord: (code: string) => void;
   onFinishInspection: () => void;
   viewOnly?: boolean;
+  dark?: boolean;
 }) {
   // Arms itself when the user arrived here to scan; otherwise it waits so the history stays browsable.
   const [phase, setPhase] = useState<ScannerPhase>(viewOnly || !autoStart ? "idle" : "scanning");
@@ -7069,8 +7176,17 @@ function SampleVerificationScanScreen({
 
   const detected = phase === "detected";
   const scanning = phase === "scanning";
-  const frameColor = detected ? "#16a34a" : scanning ? "#0f2f8f" : "#c3cee6";
+  const frameColor = detected
+    ? "#16a34a"
+    : scanning
+      ? (dark ? "#93c5fd" : "#0f2f8f")
+      : (dark ? "rgba(255,255,255,0.28)" : "#c3cee6");
   const swipe = useSwipeBack(onBack);
+  const pageBg = dark
+    ? "linear-gradient(165deg, #0b1224 0%, #0f172a 42%, #111827 100%)"
+    : "#f0f4ff";
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
 
   const runFinishInspection = () => {
     if (viewOnly) {
@@ -7085,14 +7201,14 @@ function SampleVerificationScanScreen({
   return (
     <div
       className="min-h-screen w-full animate-fadeIn"
-      style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
+      style={{ background: pageBg, fontFamily: "'Inter', sans-serif" }}
       {...swipe}
     >
-      <AppHeaderBar>
+      <AppHeaderBar dark={dark}>
         <div className="flex items-center gap-3 min-w-0">
-          <BackCardButton onClick={onBack} />
+          <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
-            <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
+            <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: textPrimary }}>
               Sample Verification
             </h1>
           </div>
@@ -7115,8 +7231,12 @@ function SampleVerificationScanScreen({
                 background: detected
                   ? "radial-gradient(circle, rgba(22,163,74,0.18) 0%, transparent 68%)"
                   : scanning
-                    ? "radial-gradient(circle, rgba(26,69,181,0.16) 0%, transparent 68%)"
-                    : "radial-gradient(circle, rgba(15,47,143,0.08) 0%, transparent 68%)",
+                    ? (dark
+                      ? "radial-gradient(circle, rgba(59,130,246,0.22) 0%, transparent 68%)"
+                      : "radial-gradient(circle, rgba(26,69,181,0.16) 0%, transparent 68%)")
+                    : (dark
+                      ? "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 68%)"
+                      : "radial-gradient(circle, rgba(15,47,143,0.08) 0%, transparent 68%)"),
                 transition: "background 0.35s ease",
               }}
               aria-hidden="true"
@@ -7129,11 +7249,13 @@ function SampleVerificationScanScreen({
             <div
               className="absolute inset-0 rounded-[1.75rem] overflow-hidden transition-all duration-300"
               style={{
-                background: "rgba(255,255,255,0.28)",
-                border: `1px solid ${detected ? "rgba(22,163,74,0.40)" : "rgba(15,47,143,0.12)"}`,
+                background: dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255,255,255,0.28)",
+                border: `1px solid ${detected
+                  ? "rgba(22,163,74,0.40)"
+                  : (dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)")}`,
                 boxShadow: detected
                   ? "0 12px 36px rgba(22,163,74,0.18)"
-                  : "0 12px 36px rgba(15,47,143,0.10)",
+                  : (dark ? "0 12px 36px rgba(0,0,0,0.35)" : "0 12px 36px rgba(15,47,143,0.10)"),
                 backdropFilter: "blur(10px)",
                 WebkitBackdropFilter: "blur(10px)",
               }}
@@ -7158,7 +7280,10 @@ function SampleVerificationScanScreen({
               )}
 
               {detected && (
-                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(240,244,255,0.55)" }}>
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ background: dark ? "rgba(15,23,42,0.55)" : "rgba(240,244,255,0.55)" }}
+                >
                   <span
                     className="w-14 h-14 rounded-full flex items-center justify-center animate-fadeIn"
                     style={{ background: "#16a34a", boxShadow: "0 8px 24px rgba(22,163,74,0.40)" }}
@@ -7190,13 +7315,13 @@ function SampleVerificationScanScreen({
               </>
             ) : scanning ? (
               <>
-                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#0f2f8f" }} />
-                <p className="text-[12px] font-semibold" style={{ color: "#5a6a99" }}>
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: dark ? "#93c5fd" : "#0f2f8f" }} />
+                <p className="text-[12px] font-semibold" style={{ color: textMuted }}>
                   Searching for a QR code…
                 </p>
               </>
             ) : (
-              <p className="text-[12px] font-semibold" style={{ color: "#94a3b8" }}>
+              <p className="text-[12px] font-semibold" style={{ color: dark ? "rgba(255,255,255,0.45)" : "#94a3b8" }}>
                 {viewOnly ? "View only — scanning disabled" : "Scanner paused"}
               </p>
             )}
@@ -7204,7 +7329,7 @@ function SampleVerificationScanScreen({
         </section>
 
         {/* Scanned history — stays below the scanner and grows with every capture */}
-        <ScannedHistoryList records={records} targetVolumeM3={targetVolumeM3} onSelect={onOpenRecord} />
+        <ScannedHistoryList records={records} targetVolumeM3={targetVolumeM3} onSelect={onOpenRecord} dark={dark} />
 
         <button
           type="button"
@@ -7327,36 +7452,47 @@ function MeasurementCompareTable({
   inspector,
   onInspectorChange,
   inspectorReadOnly = false,
+  dark = false,
 }: {
   exporter: MeasurementValues;
   inspector: MeasurementValues;
   onInspectorChange?: (patch: Partial<MeasurementValues>) => void;
   inspectorReadOnly?: boolean;
+  dark?: boolean;
 }) {
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const accent = dark ? "#93c5fd" : "#0f2f8f";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
+  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.10)";
+  const rowBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)";
+  const exporterCellBg = dark ? "rgba(255,255,255,0.05)" : "rgba(15,47,143,0.04)";
+  const exporterCellBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)";
+
   return (
     <div
       className="w-full overflow-hidden rounded-2xl"
       style={{
-        background: "#ffffff",
-        border: "1px solid rgba(15,47,143,0.10)",
-        boxShadow: "0 2px 12px rgba(15,47,143,0.05)",
+        background: cardBg,
+        border: `1px solid ${cardBorder}`,
+        boxShadow: dark ? "0 2px 12px rgba(0,0,0,0.28)" : "0 2px 12px rgba(15,47,143,0.05)",
       }}
     >
       <div
         className="grid items-center px-3 py-2.5"
         style={{
           gridTemplateColumns: "minmax(4.5rem, 1.1fr) 1fr 1fr",
-          background: "#ffffff",
-          borderBottom: "1px solid rgba(15,47,143,0.10)",
+          background: cardBg,
+          borderBottom: `1px solid ${cardBorder}`,
         }}
       >
-        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
           Parameters
         </p>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-center" style={{ color: "#5a6a99" }}>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-center" style={{ color: textMuted }}>
           Exporter
         </p>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-center" style={{ color: "#0f2f8f" }}>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-center" style={{ color: accent }}>
           Inspector
         </p>
       </div>
@@ -7374,26 +7510,28 @@ function MeasurementCompareTable({
             style={{
               gridTemplateColumns: "minmax(4.5rem, 1.1fr) 1fr 1fr",
               gap: "0.5rem",
-              background: changed ? "rgba(15,47,143,0.035)" : "#ffffff",
-              borderBottom: index === MEASUREMENT_ROWS.length - 1 ? "none" : "1px solid rgba(15,47,143,0.06)",
+              background: changed
+                ? (dark ? "rgba(59,130,246,0.10)" : "rgba(15,47,143,0.035)")
+                : cardBg,
+              borderBottom: index === MEASUREMENT_ROWS.length - 1 ? "none" : `1px solid ${rowBorder}`,
             }}
           >
             <div className="min-w-0 flex items-start gap-1.5">
               <span
                 className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0"
                 style={{
-                  background: changed ? "#0f2f8f" : "transparent",
-                  boxShadow: changed ? "0 0 0 3px rgba(15,47,143,0.14)" : undefined,
+                  background: changed ? accent : "transparent",
+                  boxShadow: changed ? (dark ? "0 0 0 3px rgba(59,130,246,0.22)" : "0 0 0 3px rgba(15,47,143,0.14)") : undefined,
                 }}
                 aria-hidden
               />
               <div className="min-w-0">
-                <p className="text-[12px] font-semibold leading-tight" style={{ color: "#0a1a4a" }}>
+                <p className="text-[12px] font-semibold leading-tight" style={{ color: textPrimary }}>
                   {row.label}
                   {row.required && <span className="text-red-500 ml-0.5">*</span>}
                 </p>
                 {row.unit && (
-                  <p className="text-[9px] font-medium mt-0.5" style={{ color: "#94a3b8" }}>
+                  <p className="text-[9px] font-medium mt-0.5" style={{ color: dark ? "rgba(255,255,255,0.40)" : "#94a3b8" }}>
                     {row.unit}
                   </p>
                 )}
@@ -7403,9 +7541,9 @@ function MeasurementCompareTable({
             <div
               className="min-h-[36px] rounded-xl px-2 flex items-center justify-center text-[12px] font-semibold tabular-nums"
               style={{
-                background: "rgba(15,47,143,0.04)",
-                border: "1px solid rgba(15,47,143,0.08)",
-                color: "#5a6a99",
+                background: exporterCellBg,
+                border: `1px solid ${exporterCellBorder}`,
+                color: textMuted,
                 fontSize: "12px",
                 fontWeight: 600,
                 lineHeight: "16px",
@@ -7418,10 +7556,14 @@ function MeasurementCompareTable({
               <input
                 className="w-full min-h-[36px] rounded-xl px-2 text-center tabular-nums outline-none focus:border-blue-400"
                 style={{
-                  background: changed ? "rgba(15,47,143,0.06)" : "#ffffff",
-                  border: `1px solid ${changed ? "rgba(15,47,143,0.35)" : "#dce4f5"}`,
-                  color: "#5a6a99",
-                  boxShadow: changed ? "0 0 0 2px rgba(15,47,143,0.08)" : undefined,
+                  background: changed
+                    ? (dark ? "rgba(59,130,246,0.12)" : "rgba(15,47,143,0.06)")
+                    : (dark ? "rgba(15,23,42,0.85)" : "#ffffff"),
+                  border: `1px solid ${changed
+                    ? (dark ? "rgba(96,165,250,0.45)" : "rgba(15,47,143,0.35)")
+                    : (dark ? "rgba(255,255,255,0.12)" : "#dce4f5")}`,
+                  color: textMuted,
+                  boxShadow: changed ? (dark ? "0 0 0 2px rgba(59,130,246,0.14)" : "0 0 0 2px rgba(15,47,143,0.08)") : undefined,
                   fontSize: "12px",
                   fontWeight: 600,
                   lineHeight: "16px",
@@ -7442,9 +7584,13 @@ function MeasurementCompareTable({
               <div
                 className="min-h-[36px] rounded-xl px-2 flex items-center justify-center text-[12px] font-semibold tabular-nums"
                 style={{
-                  background: changed ? "rgba(15,47,143,0.08)" : "#ffffff",
-                  border: `1px solid ${changed ? "rgba(15,47,143,0.28)" : "#dce4f5"}`,
-                  color: changed ? "#0f2f8f" : "#5a6a99",
+                  background: changed
+                    ? (dark ? "rgba(59,130,246,0.12)" : "rgba(15,47,143,0.08)")
+                    : (dark ? "rgba(15,23,42,0.85)" : "#ffffff"),
+                  border: `1px solid ${changed
+                    ? (dark ? "rgba(96,165,250,0.40)" : "rgba(15,47,143,0.28)")
+                    : (dark ? "rgba(255,255,255,0.12)" : "#dce4f5")}`,
+                  color: changed ? accent : textMuted,
                   fontSize: "12px",
                   fontWeight: 600,
                   lineHeight: "16px",
@@ -7465,11 +7611,13 @@ function QrDetailsScreen({
   onBack,
   onFinish,
   viewOnly = false,
+  dark = false,
 }: {
   record: ScannedSampleLog;
   onBack: () => void;
   onFinish: (result: { measurements: MeasurementValues; comment: string }) => void;
   viewOnly?: boolean;
+  dark?: boolean;
 }) {
   const log = record.log;
   const exporter = record.previous;
@@ -7484,8 +7632,24 @@ function QrDetailsScreen({
   });
   const [inspectorComment, setInspectorComment] = useState(record.inspectorComment ?? "");
   const [commentTouched, setCommentTouched] = useState(false);
-  // White fills keep the read-only fields legible against the tinted page.
-  const readOnlyStyle = { ...inputStyle, background: "#ffffff", color: "#5a6a99", cursor: "not-allowed" as const };
+  const pageBg = dark
+    ? "linear-gradient(165deg, #0b1224 0%, #0f172a 42%, #111827 100%)"
+    : "#f0f4ff";
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const fieldBg = dark ? "rgba(15, 23, 42, 0.85)" : "#ffffff";
+  const fieldBorder = dark ? "rgba(255,255,255,0.12)" : "#dce4f5";
+  const readOnlyStyle = {
+    background: fieldBg,
+    border: `1px solid ${fieldBorder}`,
+    color: textMuted,
+    cursor: "not-allowed" as const,
+  };
+  const editableStyle = {
+    background: fieldBg,
+    border: `1px solid ${fieldBorder}`,
+    color: textPrimary,
+  };
   const swipe = useSwipeBack(onBack);
 
   const hasChanges = MEASUREMENT_ROWS.some(row =>
@@ -7507,14 +7671,14 @@ function QrDetailsScreen({
   return (
     <div
       className="min-h-screen w-full animate-fadeIn"
-      style={{ background: "#f0f4ff", fontFamily: "'Inter', sans-serif" }}
+      style={{ background: pageBg, fontFamily: "'Inter', sans-serif" }}
       {...swipe}
     >
-      <AppHeaderBar>
+      <AppHeaderBar dark={dark}>
         <div className="flex items-center gap-3 min-w-0">
-          <BackCardButton onClick={onBack} />
+          <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
-            <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
+            <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: textPrimary }}>
               {isEditingSaved ? "Edit QR Verification" : "Scanned QR Details"}
             </h1>
           </div>
@@ -7524,50 +7688,50 @@ function QrDetailsScreen({
       <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col">
         <div className="flex flex-col gap-5 px-5 pt-6" style={{ paddingBottom: BOTTOM_NAV_PAD }}>
 
-          <FormField label="Serial No" required>
+          <FormField label="Serial No" required dark={dark}>
             <input className={inputCls} style={readOnlyStyle} value={log.serialNo} readOnly />
           </FormField>
 
-          <FormField label="Reg Date" required>
+          <FormField label="Reg Date" required dark={dark}>
             <input type="date" className={inputCls} style={{ ...readOnlyStyle, paddingRight: "2.5rem" }} value={log.regDate} readOnly />
           </FormField>
 
-          <FormField label="Product Group" required>
+          <FormField label="Product Group" required dark={dark}>
             <input className={inputCls} style={readOnlyStyle} value={log.productGroup} readOnly />
           </FormField>
 
-          <FormField label="Product Type" required>
+          <FormField label="Product Type" required dark={dark}>
             <input className={inputCls} style={readOnlyStyle} value={log.productType} readOnly />
           </FormField>
 
-          <FormField label="Product Name" required>
+          <FormField label="Product Name" required dark={dark}>
             <input className={inputCls} style={readOnlyStyle} value={log.productName} readOnly />
           </FormField>
 
-          <FormField label="Lot Number">
+          <FormField label="Lot Number" dark={dark}>
             <input className={inputCls} style={readOnlyStyle} value={log.lotNumber} readOnly />
           </FormField>
 
           <div className="flex flex-col gap-2.5">
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>Measurements</p>
+            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: textMuted }}>Measurements</p>
             <MeasurementCompareTable
               exporter={exporterMeasurements}
               inspector={inspectorMeasurements}
               inspectorReadOnly={viewOnly}
+              dark={dark}
               onInspectorChange={viewOnly ? undefined : patch => setInspectorMeasurements(prev => ({ ...prev, ...patch }))}
             />
           </div>
 
           {hasChanges && (
-            <FormField label="Inspector comment" required={!viewOnly}>
+            <FormField label="Inspector comment" required={!viewOnly} dark={dark}>
               <textarea
                 className={inputCls}
                 style={{
-                  ...(viewOnly ? readOnlyStyle : inputStyle),
-                  background: "#ffffff",
+                  ...(viewOnly ? readOnlyStyle : editableStyle),
                   resize: "none",
                   minHeight: "96px",
-                  border: commentError ? "1px solid #ef4444" : (viewOnly ? readOnlyStyle.border : inputStyle.border),
+                  border: commentError ? "1px solid #ef4444" : (viewOnly ? readOnlyStyle.border : editableStyle.border),
                 }}
                 rows={3}
                 value={inspectorComment}
@@ -7584,16 +7748,19 @@ function QrDetailsScreen({
             </FormField>
           )}
 
-          <FormField label="Note" required>
+          <FormField label="Note" required dark={dark}>
             <textarea className={inputCls} style={{ ...readOnlyStyle, resize: "none" }} rows={3} value={log.note} readOnly />
           </FormField>
 
-          <FormField label="Status">
+          <FormField label="Status" dark={dark}>
             <input className={inputCls} style={readOnlyStyle} value={log.status} readOnly />
           </FormField>
 
-          <FormField label="Image">
-            <div className="w-full rounded-xl overflow-hidden" style={{ border: "1px solid #dce4f5", background: "#ffffff" }}>
+          <FormField label="Image" dark={dark}>
+            <div
+              className="w-full rounded-xl overflow-hidden"
+              style={{ border: `1px solid ${fieldBorder}`, background: fieldBg }}
+            >
               <img src={logEntryPhoto} alt="Scanned log — timber" className="w-full h-52 object-contain p-2" />
             </div>
           </FormField>
@@ -7614,7 +7781,11 @@ function QrDetailsScreen({
               type="button"
               onClick={onBack}
               className="flex-1 min-h-[48px] rounded-xl text-sm font-bold flex items-center justify-center focus:outline-none active:scale-[0.98] transition-all"
-              style={{ background: "#ffffff", border: "1px solid #dce4f5", color: "#0f2f8f" }}
+              style={{
+                background: dark ? "rgba(255,255,255,0.06)" : "#ffffff",
+                border: `1px solid ${fieldBorder}`,
+                color: dark ? "#93c5fd" : "#0f2f8f",
+              }}
             >
               Cancel
             </button>
@@ -8363,6 +8534,7 @@ function LoadingLogsScanScreen({
   onScanConsumed,
   onComplete,
   viewOnly = false,
+  dark = false,
 }: {
   scanCount: number;
   allocatedLogs: AllocatedLoadedLog[];
@@ -8376,6 +8548,7 @@ function LoadingLogsScanScreen({
   onScanConsumed: () => void;
   onComplete: () => void;
   viewOnly?: boolean;
+  dark?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<LoadingInspectionTab>("loading");
   const [mode, setMode] = useState<LoadingScanMode>("allocate");
@@ -8750,9 +8923,34 @@ function LoadingLogsScanScreen({
   const frameColor = detected
     ? (isDamageMode ? "#d4183d" : "#16a34a")
     : scanning
-      ? "#0f2f8f"
-      : "#c3cee6";
+      ? (dark ? "#93c5fd" : "#0f2f8f")
+      : (dark ? "rgba(255,255,255,0.28)" : "#c3cee6");
   const swipe = useSwipeBack(handleBack);
+
+  const pageBg = dark
+    ? "linear-gradient(165deg, #0b1224 0%, #0f172a 42%, #111827 100%)"
+    : undefined;
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
+  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.12)";
+  const cardShadow = dark ? "0 2px 12px rgba(0,0,0,0.28)" : "0 2px 12px rgba(15,47,143,0.06)";
+  const chipBg = dark ? "rgba(255,255,255,0.06)" : "#f3f5f9";
+  const fieldBg = dark ? "rgba(15, 23, 42, 0.85)" : "#f8faff";
+  const fieldBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)";
+  const dashedBorder = dark ? "rgba(255,255,255,0.16)" : "rgba(15,47,143,0.18)";
+  const iconMutedBg = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)";
+  const accent = dark ? "#93c5fd" : "#0f2f8f";
+  const subtleText = dark ? "rgba(255,255,255,0.40)" : "#94a3b8";
+  const rowGlass = dark
+    ? {
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        background: "rgba(30, 41, 59, 0.72)",
+        border: "1px solid rgba(255,255,255,0.10)",
+        boxShadow: "0 8px 28px rgba(0,0,0,0.28)",
+      }
+    : SCAN_GLASS;
 
   const tabs: { id: LoadingInspectionTab; label: string; short: string; badge?: number }[] = [
     { id: "loading", label: "Scan logs", short: "Scan" },
@@ -8774,25 +8972,25 @@ function LoadingLogsScanScreen({
     ? { label: "Outside limit — review needed", color: "#d4183d", bg: "rgba(212,24,61,0.08)" }
     : activeCount > 0
       ? { label: "On track", color: "#16a34a", bg: "rgba(22,163,74,0.08)" }
-      : { label: "Start scanning logs", color: "#5a6a99", bg: "rgba(15,47,143,0.06)" };
+      : { label: "Start scanning logs", color: textMuted, bg: chipBg };
   const loadedAnim = useCountUp(stats.loadedVolume, 520, `${stats.loadedVolume}-${activeCount}`);
   const declaredAnim = useCountUp(declaredVolume, 640, declaredVolume);
 
   return (
     <div
-      className="h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn inspection-surface"
-      style={{ fontFamily: "'Inter', sans-serif" }}
+      className={`h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn ${dark ? "" : "inspection-surface"}`}
+      style={{ fontFamily: "'Inter', sans-serif", background: pageBg }}
       {...swipe}
     >
-      <AppHeaderBar>
+      <AppHeaderBar dark={dark}>
         <div className="flex items-center gap-3 min-w-0">
-          <BackCardButton onClick={handleBack} />
+          <BackCardButton onClick={handleBack} dark={dark} />
           <div className="min-w-0">
-            <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: "#0a1a4a" }}>
+            <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: textPrimary }}>
               Loading Inspection
             </h1>
             {activeTab === "loading" && (
-              <p className="text-[11px] truncate mt-0.5" style={{ color: "#5a6a99" }}>
+              <p className="text-[11px] truncate mt-0.5" style={{ color: textMuted }}>
                 {isDamageMode ? "Step 2 · Report damaged logs" : "Step 1 · Scan loaded logs"}
               </p>
             )}
@@ -8807,6 +9005,7 @@ function LoadingLogsScanScreen({
         >
           <LiquidTabBar
             ariaLabel="Loading sections"
+            dark={dark}
             value={activeTab}
             onChange={id => {
               const nextTab = id as LoadingInspectionTab;
@@ -8853,13 +9052,13 @@ function LoadingLogsScanScreen({
               <div
                 className={`rounded-2xl p-3.5 sm:p-4 flex flex-col gap-3 ${volumeFlash ? "animate-volumeFlash" : ""}`}
                 style={{
-                  background: "#ffffff",
-                  border: `1px solid ${stats.outsideTolerance || volumeFlash ? "rgba(212,24,61,0.28)" : "rgba(15,47,143,0.12)"}`,
-                  boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
+                  background: cardBg,
+                  border: `1px solid ${stats.outsideTolerance || volumeFlash ? "rgba(212,24,61,0.28)" : cardBorder}`,
+                  boxShadow: cardShadow,
                 }}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+                  <p className="text-[13px] font-bold" style={{ color: textPrimary }}>
                     Loaded volume
                   </p>
                   <span
@@ -8872,17 +9071,17 @@ function LoadingLogsScanScreen({
 
                 <div className="flex items-end gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[22px] font-bold leading-none tabular-nums" style={{ color: "#0a1a4a" }}>
+                    <p className="text-[22px] font-bold leading-none tabular-nums" style={{ color: textPrimary }}>
                       {formatVolumeM3(loadedAnim)}
                     </p>
-                    <p className="text-[11px] mt-1.5" style={{ color: "#5a6a99" }}>loaded so far</p>
+                    <p className="text-[11px] mt-1.5" style={{ color: textMuted }}>loaded so far</p>
                   </div>
-                  <ArrowRight size={16} className="mb-3 flex-shrink-0" style={{ color: "#94a3b8" }} />
+                  <ArrowRight size={16} className="mb-3 flex-shrink-0" style={{ color: subtleText }} />
                   <div className="flex-1 min-w-0 text-right">
-                    <p className="text-[22px] font-bold leading-none tabular-nums" style={{ color: "#5a6a99" }}>
+                    <p className="text-[22px] font-bold leading-none tabular-nums" style={{ color: textMuted }}>
                       {formatVolumeM3(declaredAnim)}
                     </p>
-                    <p className="text-[11px] mt-1.5" style={{ color: "#5a6a99" }}>expected total</p>
+                    <p className="text-[11px] mt-1.5" style={{ color: textMuted }}>expected total</p>
                   </div>
                 </div>
 
@@ -8900,15 +9099,15 @@ function LoadingLogsScanScreen({
 
                 <div
                   className="grid grid-cols-2 gap-2 rounded-xl px-3 py-2.5"
-                  style={{ background: "#f8faff", border: "1px solid rgba(15,47,143,0.08)" }}
+                  style={{ background: chipBg, border: `1px solid ${cardBorder}` }}
                 >
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>Logs scanned</p>
-                    <p className="text-[15px] font-bold tabular-nums mt-0.5" style={{ color: "#0a1a4a" }}>{activeCount}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Logs scanned</p>
+                    <p className="text-[15px] font-bold tabular-nums mt-0.5" style={{ color: textPrimary }}>{activeCount}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>Damaged</p>
-                    <p className="text-[15px] font-bold tabular-nums mt-0.5" style={{ color: damagedLogs.length ? "#d4183d" : "#0a1a4a" }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Damaged</p>
+                    <p className="text-[15px] font-bold tabular-nums mt-0.5" style={{ color: damagedLogs.length ? "#d4183d" : textPrimary }}>
                       {damagedLogs.length}
                     </p>
                   </div>
@@ -8925,13 +9124,13 @@ function LoadingLogsScanScreen({
                 <div
                   className="rounded-2xl p-3.5 sm:p-4 flex flex-col gap-3"
                   style={{
-                    background: "#ffffff",
-                    border: "1px solid rgba(15,47,143,0.12)",
-                    boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
+                    background: cardBg,
+                    border: `1px solid ${cardBorder}`,
+                    boxShadow: cardShadow,
                   }}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-[14px] font-bold leading-snug" style={{ color: "#0a1a4a" }}>
+                    <p className="text-[14px] font-bold leading-snug" style={{ color: textPrimary }}>
                       Allocation Management
                     </p>
                     {!viewOnly && (
@@ -8948,7 +9147,7 @@ function LoadingLogsScanScreen({
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-semibold" style={{ color: "#5a6a99" }}>
+                    <label className="text-[11px] font-semibold" style={{ color: textMuted }}>
                       Select Barge / Stack
                     </label>
                     <button
@@ -8957,9 +9156,9 @@ function LoadingLogsScanScreen({
                       disabled={viewOnly}
                       className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-sm text-left focus:outline-none disabled:cursor-default"
                       style={{
-                        background: "#f8faff",
-                        border: `1.5px solid ${bargePickerOpen || selectedBarge ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.14)"}`,
-                        color: selectedBarge ? "#0f2f8f" : "#5a6a99",
+                        background: fieldBg,
+                        border: `1.5px solid ${bargePickerOpen || selectedBarge ? (dark ? "rgba(96,165,250,0.55)" : "rgba(15,47,143,0.35)") : fieldBorder}`,
+                        color: selectedBarge ? accent : textMuted,
                       }}
                     >
                       <span className="truncate font-semibold">
@@ -8968,7 +9167,7 @@ function LoadingLogsScanScreen({
                       <ChevronDown
                         size={16}
                         style={{
-                          color: "#5a6a99",
+                          color: textMuted,
                           transform: bargePickerOpen ? "rotate(180deg)" : "rotate(0deg)",
                           transition: "transform 0.2s",
                           flexShrink: 0,
@@ -8980,9 +9179,9 @@ function LoadingLogsScanScreen({
                       <div
                         className="rounded-2xl overflow-hidden flex flex-col"
                         style={{
-                          background: "#ffffff",
-                          border: "1px solid rgba(15,47,143,0.12)",
-                          boxShadow: "0 2px 12px rgba(15,47,143,0.06)",
+                          background: cardBg,
+                          border: `1px solid ${cardBorder}`,
+                          boxShadow: cardShadow,
                           maxHeight: 200,
                           overflowY: "auto",
                         }}
@@ -9001,15 +9200,17 @@ function LoadingLogsScanScreen({
                               }}
                               className={`chip-settle w-full text-left px-4 py-3 text-sm font-medium focus:outline-none ${active ? "is-active animate-selectSpring" : ""}`}
                               style={{
-                                color: active ? "#0f2f8f" : "#0a1a4a",
-                                background: active ? "rgba(15,47,143,0.08)" : "transparent",
-                                borderBottom: "1px solid rgba(15,47,143,0.08)",
-                                boxShadow: active ? "inset 3px 0 0 #0f2f8f" : "none",
+                                color: active ? accent : textPrimary,
+                                background: active
+                                  ? (dark ? "rgba(59,130,246,0.16)" : "rgba(15,47,143,0.08)")
+                                  : "transparent",
+                                borderBottom: `1px solid ${cardBorder}`,
+                                boxShadow: active ? `inset 3px 0 0 ${accent}` : "none",
                               }}
                             >
                               <span className="inline-flex items-center gap-2">
                                 {active ? (
-                                  <span className="animate-checkPop text-[12px] font-black" style={{ color: "#0f2f8f" }}>✓</span>
+                                  <span className="animate-checkPop text-[12px] font-black" style={{ color: accent }}>✓</span>
                                 ) : null}
                                 {stack.label}
                               </span>
@@ -9021,7 +9222,7 @@ function LoadingLogsScanScreen({
                   </div>
 
                   {!selectedBarge ? (
-                    <p className="text-[11px] leading-snug" style={{ color: "#5a6a99" }}>
+                    <p className="text-[11px] leading-snug" style={{ color: textMuted }}>
                       Select a destination before scanning logs.
                     </p>
                   ) : null}
@@ -9042,7 +9243,7 @@ function LoadingLogsScanScreen({
                       Volume issue detected
                     </p>
                   </div>
-                  <p className="text-[12px] leading-snug" style={{ color: "#5a6a99" }}>
+                  <p className="text-[12px] leading-snug" style={{ color: textMuted }}>
                     Too many damaged logs were removed. The client has been notified.
                   </p>
                   <button
@@ -9052,7 +9253,7 @@ function LoadingLogsScanScreen({
                       setNcView("list");
                     }}
                     className="w-full h-10 rounded-xl text-[12px] font-bold focus:outline-none active:scale-[0.98]"
-                    style={{ background: "#ffffff", color: "#d4183d", border: "1px solid rgba(212,24,61,0.25)" }}
+                    style={{ background: cardBg, color: "#d4183d", border: "1px solid rgba(212,24,61,0.25)" }}
                   >
                     View issue details
                   </button>
@@ -9064,10 +9265,10 @@ function LoadingLogsScanScreen({
                   key={toast}
                   className="rounded-xl px-3.5 py-2.5 text-[12px] font-semibold text-center animate-toastIn"
                   style={{
-                    background: "rgba(255,255,255,0.82)",
-                    color: "#0f2f8f",
-                    border: "1px solid rgba(15,47,143,0.12)",
-                    boxShadow: "0 8px 24px rgba(15,47,143,0.10)",
+                    background: dark ? "rgba(30, 41, 59, 0.92)" : "rgba(255,255,255,0.82)",
+                    color: accent,
+                    border: `1px solid ${cardBorder}`,
+                    boxShadow: dark ? "0 8px 24px rgba(0,0,0,0.35)" : "0 8px 24px rgba(15,47,143,0.10)",
                     backdropFilter: "blur(12px)",
                     WebkitBackdropFilter: "blur(12px)",
                   }}
@@ -9078,7 +9279,7 @@ function LoadingLogsScanScreen({
 
               <section className="flex flex-col items-center gap-3">
                 {stepHint ? (
-                  <p className="text-[12px] font-medium text-center px-2" style={{ color: "#5a6a99" }}>
+                  <p className="text-[12px] font-medium text-center px-2" style={{ color: textMuted }}>
                     {stepHint}
                   </p>
                 ) : null}
@@ -9087,20 +9288,20 @@ function LoadingLogsScanScreen({
                   <div
                     className="w-full rounded-2xl px-4 py-8 flex flex-col items-center gap-3 text-center"
                     style={{
-                      background: "rgba(15,47,143,0.04)",
-                      border: "2px dashed rgba(15,47,143,0.18)",
+                      background: chipBg,
+                      border: `2px dashed ${dashedBorder}`,
                     }}
                   >
                     <span
                       className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                      style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                      style={{ background: iconMutedBg, color: accent }}
                     >
                       <Anchor size={22} />
                     </span>
-                    <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+                    <p className="text-[13px] font-bold" style={{ color: textPrimary }}>
                       Select barge or stack first
                     </p>
-                    <p className="text-[11px] leading-relaxed max-w-[240px]" style={{ color: "#5a6a99" }}>
+                    <p className="text-[11px] leading-relaxed max-w-[240px]" style={{ color: textMuted }}>
                       Choose where logs are being loaded, then tap Start Scanning.
                     </p>
                   </div>
@@ -9116,8 +9317,12 @@ function LoadingLogsScanScreen({
                           ? "radial-gradient(circle, rgba(212,24,61,0.18) 0%, transparent 68%)"
                           : "radial-gradient(circle, rgba(22,163,74,0.18) 0%, transparent 68%)"
                         : scanning
-                          ? "radial-gradient(circle, rgba(26,69,181,0.16) 0%, transparent 68%)"
-                          : "radial-gradient(circle, rgba(15,47,143,0.08) 0%, transparent 68%)",
+                          ? (dark
+                            ? "radial-gradient(circle, rgba(59,130,246,0.22) 0%, transparent 68%)"
+                            : "radial-gradient(circle, rgba(26,69,181,0.16) 0%, transparent 68%)")
+                          : (dark
+                            ? "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 68%)"
+                            : "radial-gradient(circle, rgba(15,47,143,0.08) 0%, transparent 68%)"),
                     }}
                     aria-hidden="true"
                   />
@@ -9130,9 +9335,11 @@ function LoadingLogsScanScreen({
                   <div
                     className="absolute inset-0 rounded-[1.75rem] overflow-hidden"
                     style={{
-                      background: "rgba(255,255,255,0.28)",
-                      border: `1px solid ${detected ? (isDamageMode ? "rgba(212,24,61,0.40)" : "rgba(22,163,74,0.40)") : "rgba(15,47,143,0.12)"}`,
-                      boxShadow: "0 12px 36px rgba(15,47,143,0.10)",
+                      background: dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255,255,255,0.28)",
+                      border: `1px solid ${detected
+                        ? (isDamageMode ? "rgba(212,24,61,0.40)" : "rgba(22,163,74,0.40)")
+                        : (dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)")}`,
+                      boxShadow: dark ? "0 12px 36px rgba(0,0,0,0.35)" : "0 12px 36px rgba(15,47,143,0.10)",
                       backdropFilter: "blur(10px)",
                       WebkitBackdropFilter: "blur(10px)",
                     }}
@@ -9155,7 +9362,7 @@ function LoadingLogsScanScreen({
                       />
                     )}
                     {detected && (
-                      <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(240,244,255,0.55)" }}>
+                      <div className="absolute inset-0 flex items-center justify-center" style={{ background: dark ? "rgba(15,23,42,0.55)" : "rgba(240,244,255,0.55)" }}>
                         <span
                           className="w-14 h-14 rounded-full flex items-center justify-center"
                           style={{
@@ -9193,13 +9400,13 @@ function LoadingLogsScanScreen({
                       </p>
                     </>
                   ) : pendingDamage ? (
-                    <p className="text-[12px] font-semibold" style={{ color: "#5a6a99" }}>
+                    <p className="text-[12px] font-semibold" style={{ color: textMuted }}>
                       Fill in damage details below
                     </p>
                   ) : scanning ? (
                     <>
-                      <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#0f2f8f" }} />
-                      <p className="text-[12px] font-semibold" style={{ color: "#5a6a99" }}>
+                      <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: accent }} />
+                      <p className="text-[12px] font-semibold" style={{ color: textMuted }}>
                         Looking for QR code…
                       </p>
                     </>
@@ -9208,7 +9415,7 @@ function LoadingLogsScanScreen({
 
                 {phase === "idle" && !pendingDamage ? (
                   viewOnly ? (
-                    <p className="text-center text-[12px] font-semibold py-2" style={{ color: "#94a3b8" }}>
+                    <p className="text-center text-[12px] font-semibold py-2" style={{ color: subtleText }}>
                       View only — scanning disabled
                     </p>
                   ) : (
@@ -9227,7 +9434,7 @@ function LoadingLogsScanScreen({
                     type="button"
                     onClick={() => setPhase("idle")}
                     className="w-full h-10 rounded-xl text-[12px] font-semibold focus:outline-none active:scale-[0.98]"
-                    style={{ background: "#ffffff", color: "#5a6a99", border: "1px solid rgba(15,47,143,0.14)" }}
+                    style={{ background: cardBg, color: textMuted, border: `1px solid ${fieldBorder}` }}
                   >
                     Cancel scan
                   </button>
@@ -9239,10 +9446,10 @@ function LoadingLogsScanScreen({
               {!isDamageMode && loadedLogs.length > 0 ? (
                 <div className="flex flex-col gap-2.5">
                   <div className="flex items-baseline justify-between gap-2 px-0.5">
-                    <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+                    <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: textMuted }}>
                       Recently loaded
                     </p>
-                    <span className="text-[11px] font-semibold" style={{ color: "#94a3b8" }}>
+                    <span className="text-[11px] font-semibold" style={{ color: subtleText }}>
                       {loadedLogs.length} log{loadedLogs.length === 1 ? "" : "s"}
                     </span>
                   </div>
@@ -9251,13 +9458,13 @@ function LoadingLogsScanScreen({
                       key={item.id}
                       className="rounded-2xl px-3.5 py-3 flex items-center justify-between gap-3 animate-riseIn"
                       style={{
-                        ...SCAN_GLASS,
+                        ...rowGlass,
                         ["--rise-delay" as string]: `${40 + i * 40}ms`,
                       }}
                     >
                       <div className="min-w-0">
-                        <p className="text-[13px] font-bold truncate" style={{ color: "#0a1a4a" }}>{item.code}</p>
-                        <p className="text-[11px] truncate" style={{ color: "#5a6a99" }}>
+                        <p className="text-[13px] font-bold truncate" style={{ color: textPrimary }}>{item.code}</p>
+                        <p className="text-[11px] truncate" style={{ color: textMuted }}>
                           {item.bargeStackLabel ? `${item.bargeStackLabel} · ` : ""}{item.productName} · {formatVolumeM3(item.volume)}
                         </p>
                       </div>
@@ -9270,24 +9477,24 @@ function LoadingLogsScanScreen({
               {isDamageMode ? (
                 <div className="flex flex-col gap-2.5">
                   <div className="flex items-baseline justify-between gap-2 px-0.5">
-                    <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+                    <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: textMuted }}>
                       Damaged logs
                     </p>
-                    <span className="text-[11px] font-semibold" style={{ color: "#94a3b8" }}>
+                    <span className="text-[11px] font-semibold" style={{ color: subtleText }}>
                       {damagedLogs.length} removed
                     </span>
                   </div>
 
                   {damagedLogs.length === 0 ? (
-                    <div className="rounded-2xl px-4 py-7 flex flex-col items-center gap-2 text-center" style={SCAN_GLASS}>
+                    <div className="rounded-2xl px-4 py-7 flex flex-col items-center gap-2 text-center" style={rowGlass}>
                       <span
                         className="w-11 h-11 rounded-2xl flex items-center justify-center"
                         style={{ background: "rgba(212,24,61,0.08)", color: "#d4183d" }}
                       >
                         <AlertTriangle size={20} />
                       </span>
-                      <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>No damaged logs</p>
-                      <p className="text-[11px] leading-relaxed max-w-[260px]" style={{ color: "#5a6a99" }}>
+                      <p className="text-[13px] font-bold" style={{ color: textPrimary }}>No damaged logs</p>
+                      <p className="text-[11px] leading-relaxed max-w-[260px]" style={{ color: textMuted }}>
                         Only scan here if a log is damaged. Good logs are scanned in Step 1.
                       </p>
                     </div>
@@ -9297,15 +9504,15 @@ function LoadingLogsScanScreen({
                         key={item.id}
                         className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-1.5 animate-riseIn"
                         style={{
-                          ...SCAN_GLASS,
+                          ...rowGlass,
                           ["--rise-delay" as string]: `${40 + i * 40}ms`,
                           border: "1px solid rgba(212,24,61,0.18)",
                         }}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-[14px] font-bold truncate" style={{ color: "#0a1a4a" }}>{item.code}</p>
-                            <p className="text-[11px] mt-0.5 truncate" style={{ color: "#5a6a99" }}>
+                            <p className="text-[14px] font-bold truncate" style={{ color: textPrimary }}>{item.code}</p>
+                            <p className="text-[11px] mt-0.5 truncate" style={{ color: textMuted }}>
                               {item.serialNo} · {item.productName}
                             </p>
                           </div>
@@ -9320,14 +9527,14 @@ function LoadingLogsScanScreen({
                           Excluded {formatVolumeM3(item.volume)}
                         </p>
                         {item.notes ? (
-                          <p className="text-[12px] leading-snug" style={{ color: "#5a6a99" }}>{item.notes}</p>
+                          <p className="text-[12px] leading-snug" style={{ color: textMuted }}>{item.notes}</p>
                         ) : null}
                         {item.evidenceCount > 0 ? (
-                          <p className="text-[11px] font-semibold" style={{ color: "#0f2f8f" }}>
+                          <p className="text-[11px] font-semibold" style={{ color: accent }}>
                             {item.evidenceCount} evidence photo{item.evidenceCount === 1 ? "" : "s"}
                           </p>
                         ) : null}
-                        <p className="text-[10px] font-medium" style={{ color: "#94a3b8" }}>{item.scannedAt}</p>
+                        <p className="text-[10px] font-medium" style={{ color: subtleText }}>{item.scannedAt}</p>
                       </div>
                     ))
                   )}
@@ -9365,18 +9572,18 @@ function LoadingLogsScanScreen({
                 <div
                   className="rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-2"
                   style={{
-                    background: "#ffffff",
-                    border: "2px dashed rgba(15,47,143,0.18)",
-                    boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+                    background: cardBg,
+                    border: `2px dashed ${dashedBorder}`,
+                    boxShadow: cardShadow,
                   }}
                 >
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center mb-1"
-                    style={{ background: "rgba(15,47,143,0.06)", color: "#94a3b8" }}
+                    style={{ background: iconMutedBg, color: subtleText }}
                   >
                     <ClipboardList size={22} />
                   </div>
-                  <p className="text-[12px] font-medium" style={{ color: "#94a3b8" }}>
+                  <p className="text-[12px] font-medium" style={{ color: subtleText }}>
                     No issues reported yet.
                   </p>
                 </div>
@@ -9386,14 +9593,14 @@ function LoadingLogsScanScreen({
                     key={nc.id}
                     className="rounded-2xl px-3.5 py-3.5 flex flex-col gap-2 animate-riseIn"
                     style={{
-                      background: "#ffffff",
-                      border: nc.auto ? "1px solid rgba(212,24,61,0.22)" : "1px solid rgba(15,47,143,0.12)",
-                      boxShadow: "0 2px 10px rgba(15,47,143,0.05)",
+                      background: cardBg,
+                      border: nc.auto ? "1px solid rgba(212,24,61,0.22)" : `1px solid ${cardBorder}`,
+                      boxShadow: cardShadow,
                       ["--rise-delay" as string]: `${40 + i * 40}ms`,
                     }}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+                      <p className="text-[13px] font-bold" style={{ color: textPrimary }}>
                         {nc.auto ? "Auto-raised NC" : "Notice of Discrepancy"}
                       </p>
                       {nc.auto ? (
@@ -9405,19 +9612,22 @@ function LoadingLogsScanScreen({
                         </span>
                       ) : null}
                     </div>
-                    <p className="text-[12px] leading-snug" style={{ color: "#5a6a99" }}>{nc.description}</p>
+                    <p className="text-[12px] leading-snug" style={{ color: textMuted }}>{nc.description}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {nc.types.map(type => (
                         <span
                           key={type}
                           className="text-[10px] font-semibold px-2 py-1 rounded-md"
-                          style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                          style={{
+                            background: dark ? "rgba(59,130,246,0.16)" : "rgba(15,47,143,0.08)",
+                            color: accent,
+                          }}
                         >
                           {type}
                         </span>
                       ))}
                     </div>
-                    <p className="text-[10px] font-medium" style={{ color: "#94a3b8" }}>{nc.createdAt}</p>
+                    <p className="text-[10px] font-medium" style={{ color: subtleText }}>{nc.createdAt}</p>
                   </div>
                 ))
               )}
@@ -9427,7 +9637,7 @@ function LoadingLogsScanScreen({
           {activeTab === "non-compliance" && ncView === "create" && (
             <div className="flex flex-col gap-4 animate-panelIn">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
+                <label className="text-[12px] font-bold" style={{ color: textPrimary }}>
                   Non-Compliance Description <span style={{ color: "#d4183d" }}>*</span>
                 </label>
                 <textarea
@@ -9437,24 +9647,24 @@ function LoadingLogsScanScreen({
                   placeholder="Describe the discrepancy observed..."
                   className="w-full p-3 text-[12px] rounded-xl focus:outline-none resize-none"
                   style={{
-                    background: "#ffffff",
-                    border: "1px solid rgba(15,47,143,0.16)",
-                    color: "#0a1a4a",
-                    boxShadow: "0 2px 8px rgba(15,47,143,0.04)",
+                    background: fieldBg,
+                    border: `1px solid ${fieldBorder}`,
+                    color: textPrimary,
+                    boxShadow: cardShadow,
                   }}
                 />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
                   Type of Non-Compliance
                 </label>
                 <div
                   className="rounded-2xl overflow-hidden flex flex-col"
                   style={{
-                    background: "#ffffff",
-                    border: "1px solid rgba(15,47,143,0.12)",
-                    boxShadow: "0 2px 12px rgba(15,47,143,0.05)",
+                    background: cardBg,
+                    border: `1px solid ${cardBorder}`,
+                    boxShadow: cardShadow,
                   }}
                 >
                   <div className="px-3 pb-3 pt-3 flex flex-col gap-2 max-h-56 overflow-y-auto overscroll-contain">
@@ -9465,10 +9675,12 @@ function LoadingLogsScanScreen({
                           key={type}
                           className="flex items-center gap-3 cursor-pointer rounded-full px-3 py-2.5 transition-all active:scale-[0.99]"
                           style={{
-                            background: checked ? "rgba(15,47,143,0.06)" : "#ffffff",
+                            background: checked
+                              ? (dark ? "rgba(59,130,246,0.16)" : "rgba(15,47,143,0.06)")
+                              : (dark ? "rgba(255,255,255,0.03)" : "#ffffff"),
                             border: checked
-                              ? "1.5px solid rgba(15,47,143,0.35)"
-                              : "1.5px solid rgba(15,47,143,0.12)",
+                              ? (dark ? "1.5px solid rgba(96,165,250,0.45)" : "1.5px solid rgba(15,47,143,0.35)")
+                              : (dark ? "1.5px solid rgba(255,255,255,0.10)" : "1.5px solid rgba(15,47,143,0.12)"),
                           }}
                         >
                           <input
@@ -9481,7 +9693,7 @@ function LoadingLogsScanScreen({
                             }
                             className="w-4 h-4 flex-shrink-0 rounded accent-[#0f2f8f]"
                           />
-                          <span className="text-[14px] font-medium leading-snug" style={{ color: "#0a1a4a" }}>
+                          <span className="text-[14px] font-medium leading-snug" style={{ color: textPrimary }}>
                             {type}
                           </span>
                         </label>
@@ -9492,7 +9704,7 @@ function LoadingLogsScanScreen({
               </div>
 
               <div className="flex flex-col gap-2.5">
-                <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+                <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
                   Evidence Photos
                 </p>
                 <button
@@ -9500,21 +9712,21 @@ function LoadingLogsScanScreen({
                   onClick={openEvidenceSheet}
                   className="rounded-2xl px-4 py-5 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
                   style={{
-                    background: "#ffffff",
-                    border: "2px dashed rgba(15,47,143,0.22)",
-                    boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+                    background: cardBg,
+                    border: `2px dashed ${dashedBorder}`,
+                    boxShadow: cardShadow,
                   }}
                 >
                   <span
                     className="w-11 h-11 rounded-2xl flex items-center justify-center"
-                    style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                    style={{ background: iconMutedBg, color: accent }}
                   >
                     <Camera size={20} />
                   </span>
-                  <span className="text-[13px] font-bold" style={{ color: "#0a1a4a" }}>
+                  <span className="text-[13px] font-bold" style={{ color: textPrimary }}>
                     Add Evidence Photo
                   </span>
-                  <span className="text-[11px] font-medium text-center" style={{ color: "#5a6a99" }}>
+                  <span className="text-[11px] font-medium text-center" style={{ color: textMuted }}>
                     Take a photo or upload from gallery
                   </span>
                 </button>
@@ -9528,14 +9740,14 @@ function LoadingLogsScanScreen({
                 {evidencePhotos.length > 0 && (
                   <div className="flex flex-col gap-2 animate-riseIn">
                     <div className="flex items-center justify-between px-0.5">
-                      <p className="text-[11px] font-semibold" style={{ color: "#5a6a99" }}>
+                      <p className="text-[11px] font-semibold" style={{ color: textMuted }}>
                         {evidencePhotos.length} photo{evidencePhotos.length === 1 ? "" : "s"} attached
                       </p>
                       <button
                         type="button"
                         onClick={clearEvidencePhotos}
                         className="text-[11px] font-semibold focus:outline-none active:opacity-70"
-                        style={{ color: "#0f2f8f" }}
+                        style={{ color: accent }}
                       >
                         Clear all
                       </button>
@@ -9547,9 +9759,9 @@ function LoadingLogsScanScreen({
                           className="relative aspect-square rounded-xl overflow-hidden animate-riseIn"
                           style={{
                             ["--rise-delay" as string]: `${40 + i * 40}ms`,
-                            background: "#ffffff",
-                            border: "1px solid rgba(15,47,143,0.12)",
-                            boxShadow: "0 2px 8px rgba(15,47,143,0.06)",
+                            background: cardBg,
+                            border: `1px solid ${cardBorder}`,
+                            boxShadow: cardShadow,
                           }}
                         >
                           <img src={photo.previewUrl} alt={photo.name} className="w-full h-full object-cover" />
@@ -9604,19 +9816,19 @@ function LoadingLogsScanScreen({
                 onClick={openAttachmentSheet}
                 className="rounded-2xl p-6 flex flex-col items-center justify-center gap-2 focus:outline-none active:scale-[0.99] transition-all"
                 style={{
-                  background: "#ffffff",
-                  border: "2px dashed rgba(15,47,143,0.22)",
-                  boxShadow: "0 2px 12px rgba(15,47,143,0.04)",
+                  background: cardBg,
+                  border: `2px dashed ${dashedBorder}`,
+                  boxShadow: cardShadow,
                 }}
               >
                 <div
                   className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ background: "#e8edf9", color: "#5a6a99" }}
+                  style={{ background: iconMutedBg, color: textMuted }}
                 >
                   <Upload size={18} />
                 </div>
-                <p className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>+ Add Photo or Document</p>
-                <p className="text-[10px]" style={{ color: "#94a3b8" }}>JPG, PNG, or PDF up to 10MB</p>
+                <p className="text-[12px] font-bold" style={{ color: textPrimary }}>+ Add Photo or Document</p>
+                <p className="text-[10px]" style={{ color: subtleText }}>JPG, PNG, or PDF up to 10MB</p>
               </button>
               )}
 
@@ -9635,6 +9847,7 @@ function LoadingLogsScanScreen({
                   key={`${file.fileName}-${i}`}
                   file={file}
                   index={i}
+                  dark={dark}
                   onDelete={viewOnly ? undefined : () => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
                 />
               ))}
@@ -9667,7 +9880,7 @@ function LoadingLogsScanScreen({
             type="button"
             className="absolute inset-0 border-0 p-0 cursor-default"
             style={{
-              background: "rgba(10,22,70,0.45)",
+              background: dark ? "rgba(2,6,23,0.62)" : "rgba(10,22,70,0.45)",
               backdropFilter: "blur(8px)",
               WebkitBackdropFilter: "blur(8px)",
             }}
@@ -9677,24 +9890,24 @@ function LoadingLogsScanScreen({
           <div
             className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-sheetUp"
             style={{
-              background: "#ffffff",
-              boxShadow: "0 -12px 40px rgba(15,47,143,0.18)",
+              background: dark ? "#1e293b" : "#ffffff",
+              boxShadow: dark ? "0 -12px 40px rgba(0,0,0,0.45)" : "0 -12px 40px rgba(15,47,143,0.18)",
             }}
             role="dialog"
             aria-modal="true"
             aria-label={photoSheetPurpose === "attachment" ? "Add photo" : "Add evidence photo"}
           >
             <div className="flex flex-col items-center gap-3">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
+              <div className="w-10 h-1 rounded-full" style={{ background: dark ? "rgba(255,255,255,0.20)" : "rgba(15,47,143,0.18)" }} />
               <div className="w-full flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>
+                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: textMuted }}>
                   {photoSheetPurpose === "attachment" ? "Add Photo" : "Add Evidence Photo"}
                 </p>
                 <button
                   type="button"
                   onClick={closeEvidenceSheet}
                   className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
-                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  style={{ background: iconMutedBg, color: accent }}
                   aria-label="Close"
                 >
                   <X size={16} />
@@ -9703,15 +9916,15 @@ function LoadingLogsScanScreen({
             </div>
 
             <div className="flex flex-col gap-2.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
                 Source
               </p>
               <label
                 className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left focus-within:outline-none active:scale-[0.99] transition-all cursor-pointer"
                 style={{
-                  background: "#ffffff",
-                  border: "1.5px solid rgba(15,47,143,0.12)",
-                  boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+                  background: dark ? "rgba(15,23,42,0.85)" : "#ffffff",
+                  border: `1.5px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)"}`,
+                  boxShadow: dark ? "none" : "0 2px 10px rgba(15,47,143,0.04)",
                 }}
               >
                 <input
@@ -9723,21 +9936,21 @@ function LoadingLogsScanScreen({
                 />
                 <span
                   className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  style={{ background: iconMutedBg, color: accent }}
                 >
                   <Camera size={16} />
                 </span>
-                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: "#0a1a4a" }}>
+                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: textPrimary }}>
                   Take Photo
                 </span>
-                <ChevronRight size={16} style={{ color: "#5a6a99" }} />
+                <ChevronRight size={16} style={{ color: textMuted }} />
               </label>
               <label
                 className="w-full h-12 rounded-2xl px-4 flex items-center gap-3 text-left focus-within:outline-none active:scale-[0.99] transition-all cursor-pointer"
                 style={{
-                  background: "#ffffff",
-                  border: "1.5px solid rgba(15,47,143,0.12)",
-                  boxShadow: "0 2px 10px rgba(15,47,143,0.04)",
+                  background: dark ? "rgba(15,23,42,0.85)" : "#ffffff",
+                  border: `1.5px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)"}`,
+                  boxShadow: dark ? "none" : "0 2px 10px rgba(15,47,143,0.04)",
                 }}
               >
                 <input
@@ -9749,14 +9962,14 @@ function LoadingLogsScanScreen({
                 />
                 <span
                   className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  style={{ background: iconMutedBg, color: accent }}
                 >
                   <ImageIcon size={16} />
                 </span>
-                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: "#0a1a4a" }}>
+                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: textPrimary }}>
                   Upload from Gallery
                 </span>
-                <ChevronRight size={16} style={{ color: "#5a6a99" }} />
+                <ChevronRight size={16} style={{ color: textMuted }} />
               </label>
             </div>
           </div>
@@ -9779,7 +9992,7 @@ function LoadingLogsScanScreen({
             type="button"
             className="absolute inset-0 border-0 p-0 cursor-default"
             style={{
-              background: "rgba(10,22,70,0.45)",
+              background: dark ? "rgba(2,6,23,0.62)" : "rgba(10,22,70,0.45)",
               backdropFilter: "blur(8px)",
               WebkitBackdropFilter: "blur(8px)",
             }}
@@ -9791,16 +10004,19 @@ function LoadingLogsScanScreen({
           />
           <div
             className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-4 animate-sheetUp max-h-[88%] overflow-y-auto"
-            style={{ background: "#ffffff", boxShadow: "0 -12px 40px rgba(15,47,143,0.18)" }}
+            style={{
+              background: dark ? "#1e293b" : "#ffffff",
+              boxShadow: dark ? "0 -12px 40px rgba(0,0,0,0.45)" : "0 -12px 40px rgba(15,47,143,0.18)",
+            }}
             role="dialog"
             aria-modal="true"
             aria-label="New allocation"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex flex-col items-center gap-3">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
+              <div className="w-10 h-1 rounded-full" style={{ background: dark ? "rgba(255,255,255,0.20)" : "rgba(15,47,143,0.18)" }} />
               <div className="w-full flex items-center justify-between gap-3">
-                <p className="text-[16px] font-bold" style={{ color: "#0a1a4a" }}>New Allocation</p>
+                <p className="text-[16px] font-bold" style={{ color: textPrimary }}>New Allocation</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -9808,7 +10024,7 @@ function LoadingLogsScanScreen({
                     setLoadTypeOpen(false);
                   }}
                   className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
-                  style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
+                  style={{ background: iconMutedBg, color: accent }}
                   aria-label="Close"
                 >
                   <X size={16} />
@@ -9817,7 +10033,7 @@ function LoadingLogsScanScreen({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
+              <label className="text-[12px] font-bold" style={{ color: textPrimary }}>
                 Name <span style={{ color: "#d4183d" }}>*</span>
               </label>
               <input
@@ -9827,15 +10043,15 @@ function LoadingLogsScanScreen({
                 placeholder="e.g. Barge B-205"
                 className="w-full px-4 py-3.5 text-sm rounded-xl focus:outline-none"
                 style={{
-                  background: "#f8faff",
-                  border: "1.5px solid rgba(15,47,143,0.14)",
-                  color: "#0a1a4a",
+                  background: fieldBg,
+                  border: `1.5px solid ${fieldBorder}`,
+                  color: textPrimary,
                 }}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
+              <label className="text-[12px] font-bold" style={{ color: textPrimary }}>
                 Load Type
               </label>
               <button
@@ -9843,16 +10059,16 @@ function LoadingLogsScanScreen({
                 onClick={() => setLoadTypeOpen(v => !v)}
                 className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-sm text-left focus:outline-none"
                 style={{
-                  background: "#f8faff",
-                  border: `1.5px solid ${loadTypeOpen ? "rgba(15,47,143,0.45)" : "rgba(15,47,143,0.14)"}`,
-                  color: newBargeLoadType ? "#0a1a4a" : "#5a6a99",
+                  background: fieldBg,
+                  border: `1.5px solid ${loadTypeOpen ? (dark ? "rgba(96,165,250,0.55)" : "rgba(15,47,143,0.45)") : fieldBorder}`,
+                  color: newBargeLoadType ? textPrimary : textMuted,
                 }}
               >
                 <span className="truncate font-medium">{newBargeLoadType || "Select type…"}</span>
                 <ChevronDown
                   size={16}
                   style={{
-                    color: "#5a6a99",
+                    color: textMuted,
                     transform: loadTypeOpen ? "rotate(180deg)" : "rotate(0deg)",
                     transition: "transform 0.2s",
                     flexShrink: 0,
@@ -9863,8 +10079,8 @@ function LoadingLogsScanScreen({
                 <div
                   className="rounded-2xl overflow-hidden"
                   style={{
-                    background: "#ffffff",
-                    border: "1px solid rgba(15,47,143,0.12)",
+                    background: cardBg,
+                    border: `1px solid ${cardBorder}`,
                     maxHeight: 180,
                     overflowY: "auto",
                   }}
@@ -9879,9 +10095,11 @@ function LoadingLogsScanScreen({
                       }}
                       className="w-full text-left px-4 py-3 text-sm font-medium focus:outline-none"
                       style={{
-                        color: newBargeLoadType === type ? "#0f2f8f" : "#0a1a4a",
-                        background: newBargeLoadType === type ? "rgba(15,47,143,0.08)" : "transparent",
-                        borderBottom: "1px solid rgba(15,47,143,0.08)",
+                        color: newBargeLoadType === type ? accent : textPrimary,
+                        background: newBargeLoadType === type
+                          ? (dark ? "rgba(59,130,246,0.16)" : "rgba(15,47,143,0.08)")
+                          : "transparent",
+                        borderBottom: `1px solid ${cardBorder}`,
                       }}
                     >
                       {type}
@@ -9892,7 +10110,7 @@ function LoadingLogsScanScreen({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-bold" style={{ color: "#0a1a4a" }}>
+              <label className="text-[12px] font-bold" style={{ color: textPrimary }}>
                 Capacity (Logs)
               </label>
               <input
@@ -9904,9 +10122,9 @@ function LoadingLogsScanScreen({
                 placeholder="--"
                 className="w-full px-4 py-3.5 text-sm rounded-xl focus:outline-none"
                 style={{
-                  background: "#f8faff",
-                  border: "1.5px solid rgba(15,47,143,0.14)",
-                  color: "#0a1a4a",
+                  background: fieldBg,
+                  border: `1.5px solid ${fieldBorder}`,
+                  color: textPrimary,
                 }}
               />
             </div>
@@ -10196,6 +10414,7 @@ export default function App() {
         <InspectionDetailsScreen
           task={task}
           progress={getInspectionProgress(task.id)}
+          dark={dark}
           onBack={() => setScreen("schedule-inspection")}
           onViewFullInfo={() => setScreen("inspection-info-details")}
           onStartSession={(key, startDate, options) => {
@@ -10257,6 +10476,7 @@ export default function App() {
           declaredVolume={LOADING_DECLARED_VOLUME_M3}
           autoStart={autoStartLoadingScanner}
           viewOnly={inspectionViewOnly}
+          dark={dark}
           onBack={() => {
             setAutoStartLoadingScanner(false);
             setScreen("inspection-details");
@@ -10347,6 +10567,7 @@ export default function App() {
         <PhysicalVerificationScreen
           task={task}
           draft={getPhysicalVerification(task.id)}
+          dark={dark}
           viewOnly={inspectionViewOnly}
           onDraftChange={patch => {
             if (inspectionViewOnly) return;
@@ -10404,6 +10625,7 @@ export default function App() {
             records={scannedSampleLogs}
             autoStart={autoStartScanner && !inspectionViewOnly}
             viewOnly={inspectionViewOnly}
+            dark={dark}
             targetVolumeM3={task.logs * 21.875}
             onBack={() => setScreen("physical-verification")}
             onScanned={record => {
@@ -10435,6 +10657,7 @@ export default function App() {
         <QrDetailsScreen
           record={activeRecord}
           viewOnly={inspectionViewOnly}
+          dark={dark}
           onBack={() => { setAutoStartScanner(false); setScreen("sample-verification-scan"); }}
           onFinish={({ measurements, comment }) => {
             if (inspectionViewOnly) return;
