@@ -576,11 +576,13 @@ function BottomNavBar({
   isCU,
   activeScreen,
   onNavigate,
+  onInventoryClick,
 }: {
   dark: boolean;
   isCU: boolean;
   activeScreen: Screen;
   onNavigate: (s: Screen) => void;
+  onInventoryClick: () => void;
 }) {
   const [host, setHost] = useState<HTMLElement | null>(null);
   const items = getBottomNavItems(isCU);
@@ -618,7 +620,10 @@ function BottomNavBar({
             <button
               key={item.id}
               type="button"
-              onClick={() => onNavigate(item.screen)}
+              onClick={() => {
+                if (item.id === "inventory") onInventoryClick();
+                else onNavigate(item.screen);
+              }}
               aria-current={active ? "page" : undefined}
               className={`relative z-[1] flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-2 rounded-2xl focus:outline-none active:scale-[0.96] transition-all duration-200${active ? (dark ? " glow-footer-tab--active-dark" : " glow-footer-tab--active") : ""}`}
               style={{
@@ -1131,27 +1136,15 @@ function LogInventoryScopeSheet({
   );
 }
 
-function HomeScreen({ location, onLogout, onNavigate, onOpenLogInventory, isCU, dark, setDark }: {
+function HomeScreen({ location, onLogout, onNavigate, onOpenInventorySheet, isCU, dark, setDark }: {
   location: string; onLogout: () => void; onNavigate: (s: Screen) => void;
-  onOpenLogInventory: (exporter: string, concession: string) => void;
+  onOpenInventorySheet: () => void;
   isCU: boolean; dark: boolean; setDark: (v: boolean) => void;
 }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState(LAST_SYNC);
-  const [inventorySheetOpen, setInventorySheetOpen] = useState(false);
-  const [overlayBox, setOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-
-  const syncOverlayBox = () => {
-    const device = document.querySelector(".mobile-device");
-    if (device) {
-      const r = device.getBoundingClientRect();
-      setOverlayBox({ top: r.top, left: r.left, width: r.width, height: r.height });
-    } else {
-      setOverlayBox({ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight });
-    }
-  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -1160,25 +1153,6 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenLogInventory, isCU, 
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
-
-  useEffect(() => {
-    if (!inventorySheetOpen) return;
-    syncOverlayBox();
-    const vp = document.querySelector(".mobile-viewport");
-    window.addEventListener("resize", syncOverlayBox);
-    window.addEventListener("scroll", syncOverlayBox, true);
-    vp?.addEventListener("scroll", syncOverlayBox);
-    return () => {
-      window.removeEventListener("resize", syncOverlayBox);
-      window.removeEventListener("scroll", syncOverlayBox, true);
-      vp?.removeEventListener("scroll", syncOverlayBox);
-    };
-  }, [inventorySheetOpen]);
-
-  const openInventorySheet = () => {
-    syncOverlayBox();
-    setInventorySheetOpen(true);
-  };
 
   const bg = dark ? "#0f172a" : "#f0f4ff";
   const surface = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.5)";
@@ -1261,7 +1235,7 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenLogInventory, isCU, 
             </button>
           )}
 
-          <button onClick={openInventorySheet}
+          <button onClick={onOpenInventorySheet}
             className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
             style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 animate-iconWell" style={{ background: iconBg }}>
@@ -1309,18 +1283,6 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenLogInventory, isCU, 
         </div>
 
       </div>
-
-      {inventorySheetOpen && overlayBox && (
-        <LogInventoryScopeSheet
-          dark={dark}
-          overlayBox={overlayBox}
-          onClose={() => setInventorySheetOpen(false)}
-          onConfirm={(exporter, concession) => {
-            setInventorySheetOpen(false);
-            onOpenLogInventory(exporter, concession);
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -10143,6 +10105,8 @@ export default function App() {
   const [dark, setDark] = useState(restored?.dark ?? false);
   const [userType, setUserType] = useState<UserType>(restored?.userType ?? "client");
   const [inventoryExporter, setInventoryExporter] = useState("");
+  const [inventorySheetOpen, setInventorySheetOpen] = useState(false);
+  const [inventoryOverlayBox, setInventoryOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [registerLogPrefill, setRegisterLogPrefill] = useState<RegisterLogFormData | null>(null);
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(restored?.selectedInspectionId ?? null);
   const [scannedSampleLogs, setScannedSampleLogs] = useState<ScannedSampleLog[]>([]);
@@ -10163,6 +10127,35 @@ export default function App() {
   const [inspectionViewOnly, setInspectionViewOnly] = useState(false);
 
   const isCU = userType === "cu";
+
+  const syncInventoryOverlayBox = () => {
+    const device = document.querySelector(".mobile-device");
+    if (device) {
+      const r = device.getBoundingClientRect();
+      setInventoryOverlayBox({ top: r.top, left: r.left, width: r.width, height: r.height });
+    } else {
+      setInventoryOverlayBox({ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight });
+    }
+  };
+
+  const openInventorySheet = () => {
+    syncInventoryOverlayBox();
+    setInventorySheetOpen(true);
+  };
+
+  useEffect(() => {
+    if (!inventorySheetOpen) return;
+    syncInventoryOverlayBox();
+    const vp = document.querySelector(".mobile-viewport");
+    window.addEventListener("resize", syncInventoryOverlayBox);
+    window.addEventListener("scroll", syncInventoryOverlayBox, true);
+    vp?.addEventListener("scroll", syncInventoryOverlayBox);
+    return () => {
+      window.removeEventListener("resize", syncInventoryOverlayBox);
+      window.removeEventListener("scroll", syncInventoryOverlayBox, true);
+      vp?.removeEventListener("scroll", syncInventoryOverlayBox);
+    };
+  }, [inventorySheetOpen]);
 
   const getInspectionProgress = (taskId: string): InspectionProgress => {
     const stored = inspectionProgressById[taskId];
@@ -10320,12 +10313,28 @@ export default function App() {
   );
 
   const bottomNav = (
-    <BottomNavBar
-      dark={dark}
-      isCU={isCU}
-      activeScreen={screen}
-      onNavigate={setScreen}
-    />
+    <>
+      <BottomNavBar
+        dark={dark}
+        isCU={isCU}
+        activeScreen={screen}
+        onNavigate={setScreen}
+        onInventoryClick={openInventorySheet}
+      />
+      {inventorySheetOpen && inventoryOverlayBox && (
+        <LogInventoryScopeSheet
+          dark={dark}
+          overlayBox={inventoryOverlayBox}
+          onClose={() => setInventorySheetOpen(false)}
+          onConfirm={(exporter, concession) => {
+            setInventorySheetOpen(false);
+            setInventoryExporter(exporter);
+            setLocation(concession);
+            setScreen("log-inventory");
+          }}
+        />
+      )}
+    </>
   );
 
   if (screen === "scan-log") return (
@@ -10769,11 +10778,7 @@ export default function App() {
           setScreen("login");
         }}
         onNavigate={setScreen}
-        onOpenLogInventory={(exporter, concession) => {
-          setInventoryExporter(exporter);
-          setLocation(concession);
-          setScreen("log-inventory");
-        }}
+        onOpenInventorySheet={openInventorySheet}
         dark={dark}
         setDark={setDark}
       />
