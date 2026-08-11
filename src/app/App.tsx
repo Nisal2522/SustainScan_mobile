@@ -18,11 +18,9 @@ import logEntryPhoto from "../imports/timber.png";
 
 type LoginTab = "client" | "cu";
 type UserType = "client" | "cu";
-type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details" | "approved-price-endorsement" | "declared-log-details" | "permitted-vs-declared" | "physical-verification" | "sample-verification-scan" | "sample-verification-log" | "loading-logs-scan";
-type InventoryTab = "all" | "modified";
+type Screen = "login" | "cu-signin" | "location" | "home" | "scan-log" | "register-log-form" | "inventory-hub" | "log-inventory" | "schedule-inspection" | "inspection-details" | "inspection-info-details" | "approved-price-endorsement" | "declared-log-details" | "permitted-vs-declared" | "physical-verification" | "sample-verification-scan" | "sample-verification-log" | "loading-logs-scan";
 type InspectionDay = "today" | "tomorrow" | "later";
 type InspectionStatus = "pending" | "inprogress" | "complete";
-type DayFilter = "today" | "upcoming";
 type StatusFilter = "all" | InspectionStatus;
 type SubInspectionStatus = "not-started" | "in-progress" | "completed";
 
@@ -272,7 +270,7 @@ interface AppSession {
 }
 
 const AUTHENTICATED_SCREENS: Screen[] = [
-  "location", "home", "scan-log", "register-log-form", "log-inventory", "schedule-inspection", "inspection-details", "inspection-info-details", "approved-price-endorsement", "declared-log-details", "permitted-vs-declared", "physical-verification",
+  "location", "home", "scan-log", "register-log-form", "inventory-hub", "log-inventory", "schedule-inspection", "inspection-details", "inspection-info-details", "approved-price-endorsement", "declared-log-details", "permitted-vs-declared", "physical-verification",
   "sample-verification-scan", "sample-verification-log", "loading-logs-scan",
 ];
 
@@ -282,7 +280,7 @@ const INSPECTION_TASK_SCREENS: Screen[] = [
 ];
 
 /** Primary hubs where the persistent bottom nav is shown. */
-const BOTTOM_NAV_SCREENS: Screen[] = ["home", "scan-log", "log-inventory", "schedule-inspection"];
+const BOTTOM_NAV_SCREENS: Screen[] = ["home", "scan-log", "schedule-inspection"];
 
 /** Full Schedule module — Schedule tab stays selected across these screens. */
 const SCHEDULE_MODULE_SCREENS: Screen[] = [
@@ -302,7 +300,7 @@ const BOTTOM_NAV_VISIBLE_SCREENS: Screen[] = Array.from(
   new Set<Screen>([...BOTTOM_NAV_SCREENS, ...SCHEDULE_MODULE_SCREENS]),
 );
 
-const BOTTOM_NAV_PAD = "calc(5.75rem + env(safe-area-inset-bottom, 0px))";
+const BOTTOM_NAV_PAD = "max(1.5rem, env(safe-area-inset-bottom, 0px))";
 
 function resolveBottomNavTab(screen: Screen): Screen | null {
   if (SCHEDULE_MODULE_SCREENS.includes(screen)) return "schedule-inspection";
@@ -1052,7 +1050,7 @@ function LogInventoryScopeSheet({
           <div className="w-full flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[16px] font-bold" style={{ color: textPrimary }}>
-                Log Inventory
+                Log Information
               </p>
             </div>
             <button
@@ -1319,14 +1317,19 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenInventorySheet, isCU
             </button>
           )}
 
-          <button onClick={onOpenInventorySheet}
+          <button onClick={() => {
+              if (isCU) onOpenInventorySheet();
+              else onNavigate("log-inventory");
+            }}
             className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
             style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 animate-iconWell" style={{ background: iconBg }}>
               <Package size={26} className="animate-iconPackage" style={{ color: iconColor }} />
             </div>
             <div className="flex-1">
-              <p className="text-base font-bold" style={{ color: textPrimary }}>Log Inventory</p>
+              <p className="text-base font-bold" style={{ color: textPrimary }}>
+                {isCU ? "Log Information" : "Log Inventory"}
+              </p>
               <p className="text-xs mt-0.5" style={{ color: textMuted }}>Update stock and material records</p>
             </div>
             <ChevronRight size={18} style={{ color: textMuted }} className="group-hover:translate-x-0.5 transition-transform duration-150" />
@@ -2045,7 +2048,12 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
 
 // ─── Inventory Row ────────────────────────────────────────────────────────────
 
-function InventoryRow({ item, dark }: { item: InventoryItem; dark: boolean }) {
+function InventoryRow({ item, dark, showModified = true, showChangeQr = true }: {
+  item: InventoryItem;
+  dark: boolean;
+  showModified?: boolean;
+  showChangeQr?: boolean;
+}) {
   const [expanded, setExpanded] = useState(false);
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
   const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
@@ -2062,7 +2070,7 @@ function InventoryRow({ item, dark }: { item: InventoryItem; dark: boolean }) {
         <div className="flex-1 text-left">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-bold" style={{ color: textPrimary }}>{item.species}</span>
-            {item.modified && (
+            {showModified && item.modified && (
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
                 style={{ background: "rgba(15,47,143,0.12)", color: "#0f2f8f" }}>Modified</span>
             )}
@@ -2095,15 +2103,17 @@ function InventoryRow({ item, dark }: { item: InventoryItem; dark: boolean }) {
               ))}
             </div>
           </div>
-          <div className="px-4 py-3" style={{ background: dark ? "rgba(255,255,255,0.04)" : "#f0f5ff", borderTop: `1px solid ${rowBorder}` }}>
-            <button
-              type="button"
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-semibold transition-all duration-150 hover:brightness-110 active:scale-[0.97] focus:outline-none"
-              style={{ background: GRADIENT, color: "#ffffff", boxShadow: "0 2px 8px rgba(15,47,143,0.3)" }}>
-              <QrCode size={13} />
-              Change QR
-            </button>
-          </div>
+          {showChangeQr && (
+            <div className="px-4 py-3" style={{ background: dark ? "rgba(255,255,255,0.04)" : "#f0f5ff", borderTop: `1px solid ${rowBorder}` }}>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-semibold transition-all duration-150 hover:brightness-110 active:scale-[0.97] focus:outline-none"
+                style={{ background: GRADIENT, color: "#ffffff", boxShadow: "0 2px 8px rgba(15,47,143,0.3)" }}>
+                <QrCode size={13} />
+                Change QR
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -2158,9 +2168,7 @@ function ScheduleInspectionScreen({
   exporter?: string;
   concession?: string;
 }) {
-  const [dayFilter, setDayFilter] = useState<DayFilter>("today");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [draftDay, setDraftDay] = useState<DayFilter>("today");
   const [draftStatus, setDraftStatus] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -2203,7 +2211,7 @@ function ScheduleInspectionScreen({
     return { ...base, bg: "rgba(16,185,129,0.18)", color: "#34d399", border: "rgba(16,185,129,0.30)", iconBg: "rgba(16,185,129,0.16)" };
   };
 
-  const filtersActive = dayFilter !== "today" || statusFilter !== "all";
+  const filtersActive = statusFilter !== "all";
 
   const syncOverlayBox = () => {
     const device = document.querySelector(".mobile-device");
@@ -2230,7 +2238,6 @@ function ScheduleInspectionScreen({
   }, [filterOpen]);
 
   const openFilters = () => {
-    setDraftDay(dayFilter);
     setDraftStatus(statusFilter);
     syncOverlayBox();
     setFilterOpen(true);
@@ -2239,22 +2246,16 @@ function ScheduleInspectionScreen({
   const closeFilters = () => setFilterOpen(false);
 
   const applyFilters = () => {
-    setDayFilter(draftDay);
     setStatusFilter(draftStatus);
     setFilterOpen(false);
   };
 
   const resetDraftFilters = () => {
-    setDraftDay("today");
     setDraftStatus("all");
   };
 
-  const matchesDayFilter = (task: InspectionTask) =>
-    dayFilter === "today" ? task.day === "today" : task.day === "tomorrow" || task.day === "later";
-
   const filtered = SCHEDULED_INSPECTIONS.filter(task => {
     const status = resolveInspectionStatus(task, getProgress(task.id));
-    if (!matchesDayFilter(task)) return false;
     if (statusFilter !== "all" && status !== statusFilter) return false;
     if (query.trim()) {
       const q = query.trim().toLowerCase();
@@ -2266,23 +2267,12 @@ function ScheduleInspectionScreen({
     return true;
   });
 
-  const dayChips: { id: DayFilter; label: string }[] = [
-    { id: "today", label: "Today" },
-    { id: "upcoming", label: "Upcoming" },
-  ];
-
   const statusChips: { id: StatusFilter; label: string }[] = [
     { id: "all", label: "All" },
     { id: "pending", label: "Pending" },
     { id: "inprogress", label: "In Progress" },
     { id: "complete", label: "Complete" },
   ];
-
-  const dayLabel = dayFilter === "today" ? "today" : "upcoming";
-  const dayTotals = {
-    today: SCHEDULED_INSPECTIONS.filter(t => t.day === "today").length,
-    upcoming: SCHEDULED_INSPECTIONS.filter(t => t.day === "tomorrow" || t.day === "later").length,
-  };
 
   const qNorm = query.trim().toLowerCase();
   const searchSuggestions = qNorm
@@ -2305,7 +2295,7 @@ function ScheduleInspectionScreen({
     setSearchFocused(false);
   };
 
-  const listKey = `${dayFilter}-${statusFilter}-${qNorm}`;
+  const listKey = `${statusFilter}-${qNorm}`;
   const { scrollRef, setItemRef } = useScrollFocusList(filtered.length, listKey);
 
   const swipe = useSwipeBack(onBack);
@@ -2534,32 +2524,6 @@ function ScheduleInspectionScreen({
             )}
           </div>
 
-          {/* 4. Time Tabs — liquid sliding indicator */}
-          <LiquidTabBar
-            ariaLabel="Schedule day"
-            dark={dark}
-            value={dayFilter}
-            onChange={id => setDayFilter(id as DayFilter)}
-            items={dayChips.map(chip => ({
-              id: chip.id,
-              node: (
-                <span className="inline-flex items-center justify-center gap-1.5">
-                  {chip.label}
-                  <span
-                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums"
-                    style={{
-                      background: dayFilter === chip.id
-                        ? "rgba(255,255,255,0.22)"
-                        : (dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)"),
-                      color: dayFilter === chip.id ? "#ffffff" : (dark ? "#ffffff" : "#0f2f8f"),
-                    }}
-                  >
-                    {dayTotals[chip.id]}
-                  </span>
-                </span>
-              ),
-            }))}
-          />
         </div>
       </div>
 
@@ -2595,10 +2559,10 @@ function ScheduleInspectionScreen({
               </div>
               <div>
                 <p className="text-sm font-semibold" style={{ color: textPrimary }}>
-                  Nothing scheduled {dayLabel}
+                  Nothing scheduled
                 </p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: textMuted }}>
-                  Try another day, adjust filters, or clear your search.
+                  Try adjusting filters, or clear your search.
                 </p>
               </div>
             </div>
@@ -2775,35 +2739,6 @@ function ScheduleInspectionScreen({
                     <X size={16} />
                   </button>
                 </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2.5">
-              <label htmlFor="filter-schedule" className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
-                Schedule
-              </label>
-              <div className="relative">
-                <select
-                  id="filter-schedule"
-                  value={draftDay}
-                  onChange={e => setDraftDay(e.target.value as DayFilter)}
-                  className="w-full h-12 appearance-none rounded-2xl pl-4 pr-10 text-sm font-semibold outline-none focus:outline-none transition-[box-shadow,border-color] duration-200"
-                  style={{
-                    background: controlBg,
-                    border: `1.5px solid ${glassBorder}`,
-                    color: textPrimary,
-                    boxShadow: dark ? "0 2px 10px rgba(0,0,0,0.22)" : "0 2px 10px rgba(15,47,143,0.04)",
-                  }}
-                >
-                  {dayChips.map(opt => (
-                    <option key={opt.id} value={opt.id}>{opt.label}</option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={16}
-                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2"
-                  style={{ color: textMuted }}
-                />
               </div>
             </div>
 
@@ -7891,21 +7826,27 @@ function QrDetailsScreen({
     </div>
   );
 }
-// ─── Log Inventory Screen ─────────────────────────────────────────────────────
+// ─── Log Information Hub (Actions) ────────────────────────────────────────────
 
-function LogInventoryScreen({ dark, onBack }: {
+function LogInformationHubScreen({
+  dark,
+  onBack,
+  onScanLog,
+  onOpenInventory,
+}: {
   dark: boolean;
   onBack: () => void;
-  exporter?: string;
-  concession?: string;
+  onScanLog: () => void;
+  onOpenInventory: () => void;
 }) {
-  const [tab, setTab] = useState<InventoryTab>("all");
-
   const bg = dark ? "#0f172a" : "#f0f4ff";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.6)" : "#5a6a99";
-
-  const items = tab === "all" ? INVENTORY_ITEMS : INVENTORY_ITEMS.filter(i => i.modified);
+  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const cardBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.55)";
+  const cardBorder = dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.14)";
+  const iconColor = dark ? "#ffffff" : "#0f2f8f";
+  const iconBg = dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.08)";
+  const subCardGlass = { backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" } as const;
 
   return (
     <div className="min-h-screen w-full transition-colors duration-300 animate-fadeIn" style={{ background: bg, fontFamily: "'Inter', sans-serif" }}>
@@ -7919,31 +7860,85 @@ function LogInventoryScreen({ dark, onBack }: {
       </AppHeaderBar>
 
       <div
-        className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 pt-5 gap-5"
-        style={{ paddingBottom: BOTTOM_NAV_PAD }}
+        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 gap-4"
+        style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
       >
+        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: textMuted }}>Actions</p>
 
-        {/* Tabs */}
-        <div className="flex gap-2 p-1 rounded-2xl" style={{ background: dark ? "rgba(255,255,255,0.06)" : "rgba(232, 237, 249, 0.55)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}>
-          {(["all", "modified"] as InventoryTab[]).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 focus:outline-none"
-              style={{ background: tab === t ? GRADIENT : "transparent", color: tab === t ? "#ffffff" : textMuted, boxShadow: tab === t ? "0 2px 8px rgba(15,47,143,0.3)" : "none" }}>
-              {t === "all" ? "All" : "Modified"}
-              <span className="ml-1.5 text-[10px] font-bold opacity-75">
-                ({t === "all" ? INVENTORY_ITEMS.length : INVENTORY_ITEMS.filter(i => i.modified).length})
-              </span>
-            </button>
-          ))}
+        <button
+          type="button"
+          onClick={onScanLog}
+          className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
+          style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}
+        >
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 animate-iconWell" style={{ background: iconBg }}>
+            <ScanLine size={26} className="animate-iconScan" style={{ color: iconColor }} />
+          </div>
+          <div className="flex-1">
+            <p className="text-base font-bold" style={{ color: textPrimary }}>Scan Log</p>
+            <p className="text-xs mt-0.5" style={{ color: textMuted }}>Scan a QR code to view or register a log</p>
+          </div>
+          <ChevronRight size={18} style={{ color: textMuted }} className="group-hover:translate-x-0.5 transition-transform duration-150" />
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenInventory}
+          className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
+          style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}
+        >
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 animate-iconWell" style={{ background: iconBg }}>
+            <Package size={26} className="animate-iconPackage" style={{ color: iconColor }} />
+          </div>
+          <div className="flex-1">
+            <p className="text-base font-bold" style={{ color: textPrimary }}>Log Inventory</p>
+            <p className="text-xs mt-0.5" style={{ color: textMuted }}>Update stock and material records</p>
+          </div>
+          <ChevronRight size={18} style={{ color: textMuted }} className="group-hover:translate-x-0.5 transition-transform duration-150" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Log Inventory Screen ─────────────────────────────────────────────────────
+
+function LogInventoryScreen({ dark, onBack, isCU = false }: {
+  dark: boolean;
+  onBack: () => void;
+  exporter?: string;
+  concession?: string;
+  isCU?: boolean;
+}) {
+  const bg = dark ? "#0f172a" : "#f0f4ff";
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.6)" : "#5a6a99";
+
+  return (
+    <div className="min-h-screen w-full transition-colors duration-300 animate-fadeIn" style={{ background: bg, fontFamily: "'Inter', sans-serif" }}>
+      <AppHeaderBar dark={dark}>
+        <div className="flex items-center gap-3">
+          <BackCardButton onClick={onBack} dark={dark} />
+          <div className="min-w-0">
+            <h1 className="text-[18px] font-bold tracking-tight" style={{ color: textPrimary }}>
+              Log Inventory
+            </h1>
+          </div>
         </div>
+      </AppHeaderBar>
 
-        {/* Flat list — no date grouping */}
+      <div
+        className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 pt-5 gap-5"
+        style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+      >
         <div className="flex flex-col gap-2 pb-6">
-          {items.map(item => <InventoryRow key={item.id} item={item} dark={dark} />)}
-          {items.length === 0 && (
+          {INVENTORY_ITEMS.map(item => (
+            <InventoryRow key={item.id} item={item} dark={dark} showModified={!isCU} showChangeQr={!isCU} />
+          ))}
+          {INVENTORY_ITEMS.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Package size={36} style={{ color: textMuted, opacity: 0.4 }} />
-              <p className="text-sm" style={{ color: textMuted }}>No modified records found.</p>
+              <p className="text-sm" style={{ color: textMuted }}>No records found.</p>
             </div>
           )}
         </div>
@@ -10243,6 +10238,13 @@ export default function App() {
     setInventorySheetOpen(true);
   };
 
+  const inventorySheetOverlay = inventoryOverlayBox ?? {
+    top: 0,
+    left: 0,
+    width: typeof window !== "undefined" ? window.innerWidth : 390,
+    height: typeof window !== "undefined" ? window.innerHeight : 844,
+  };
+
   useEffect(() => {
     if (!inventorySheetOpen) return;
     syncInventoryOverlayBox();
@@ -10417,30 +10419,21 @@ export default function App() {
     <LocationScreen onNext={loc => { setUserType("client"); setLocation(loc); setScreen("home"); }} />
   );
 
-  const bottomNav = (
-    <>
-      <BottomNavBar
-        dark={dark}
-        isCU={isCU}
-        activeScreen={screen}
-        onNavigate={setScreen}
-        onInventoryClick={openInventorySheet}
-      />
-      {inventorySheetOpen && inventoryOverlayBox && (
-        <LogInventoryScopeSheet
-          dark={dark}
-          overlayBox={inventoryOverlayBox}
-          onClose={() => setInventorySheetOpen(false)}
-          onConfirm={(exporter, concession) => {
-            setInventorySheetOpen(false);
-            setInventoryExporter(exporter);
-            setLocation(concession);
-            setScreen("log-inventory");
-          }}
-        />
-      )}
-    </>
-  );
+  const inventorySheet = inventorySheetOpen ? (
+    <LogInventoryScopeSheet
+      dark={dark}
+      overlayBox={inventorySheetOverlay}
+      onClose={() => setInventorySheetOpen(false)}
+      onConfirm={(exporter, concession) => {
+        setInventorySheetOpen(false);
+        setInventoryExporter(exporter);
+        setLocation(concession);
+        setScreen("inventory-hub");
+      }}
+    />
+  ) : null;
+
+  const bottomNav = inventorySheet;
 
   if (screen === "scan-log") return (
     <>
@@ -10470,16 +10463,31 @@ export default function App() {
       onBack={() => setScreen("scan-log")}
     />
   );
-  if (screen === "log-inventory") return (
+  if (screen === "inventory-hub") return (
     <>
-      <LogInventoryScreen
+      <LogInformationHubScreen
         dark={dark}
         onBack={() => setScreen("home")}
-        exporter={inventoryExporter || resolveExporterForConcession(location)}
-        concession={location || undefined}
+        onScanLog={() => setScreen("scan-log")}
+        onOpenInventory={() => {
+          if (isCU && !(inventoryExporter && location)) {
+            openInventorySheet();
+            return;
+          }
+          setScreen("log-inventory");
+        }}
       />
-      {bottomNav}
+      {inventorySheet}
     </>
+  );
+  if (screen === "log-inventory") return (
+    <LogInventoryScreen
+      dark={dark}
+      isCU={isCU}
+      onBack={() => setScreen(isCU ? "inventory-hub" : "home")}
+      exporter={inventoryExporter || resolveExporterForConcession(location)}
+      concession={location || undefined}
+    />
   );
 
   const scheduleExporter = resolveExporterForConcession(location);
