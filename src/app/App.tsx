@@ -1445,7 +1445,7 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
   // Simulated capture: sweep finds a code, then advances into the log flow.
   useEffect(() => {
     if (phase !== "scanning") return;
-    const timer = setTimeout(() => setPhase("detected"), 2400);
+    const timer = setTimeout(() => setPhase("detected"), SCAN_DETECT_MS);
     return () => clearTimeout(timer);
   }, [phase]);
 
@@ -1454,7 +1454,7 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
     const timer = setTimeout(() => {
       if (isCU) onOpenExisting();
       else onScanNew();
-    }, 900);
+    }, SCAN_CONFIRM_MS);
     return () => clearTimeout(timer);
   }, [phase, isCU, onOpenExisting, onScanNew]);
 
@@ -6969,6 +6969,17 @@ function formatScanTime(d: Date) {
 }
 
 type ScannerPhase = "idle" | "scanning" | "detected";
+type ScanToastTone = "duplicate" | "success" | "info";
+interface ScanToast {
+  message: string;
+  tone: ScanToastTone;
+}
+
+/** Mock capture timings — kept short so tap-to-scan feels production-responsive. */
+const SCAN_DETECT_MS = 420;
+const SCAN_CONFIRM_MS = 360;
+const SCAN_TOAST_MS = 2600;
+const SCAN_DUPLICATE_TOAST_MS = 4800;
 
 const CORNER_BRACKETS = [
   { key: "tl", className: "top-0 left-0 border-t-[3px] border-l-[3px]", radius: "14px 0 0 0" },
@@ -7100,17 +7111,17 @@ function QrTapViewfinder({
               style={{ background: dark ? "rgba(15,23,42,0.55)" : "rgba(240,244,255,0.55)" }}
             >
               <span
-                className="w-14 h-14 rounded-full flex items-center justify-center animate-fadeIn"
+                className="w-16 h-16 rounded-full flex items-center justify-center animate-checkPop"
                 style={{
                   background: danger ? "#d4183d" : "#16a34a",
                   boxShadow: danger
-                    ? "0 8px 24px rgba(212,24,61,0.40)"
-                    : "0 8px 24px rgba(22,163,74,0.40)",
+                    ? "0 10px 28px rgba(212,24,61,0.48), 0 0 0 4px rgba(255,255,255,0.55)"
+                    : "0 10px 28px rgba(22,163,74,0.48), 0 0 0 4px rgba(255,255,255,0.55)",
                 }}
               >
                 {danger
-                  ? <AlertTriangle size={28} style={{ color: "#ffffff" }} />
-                  : <CheckCircle2 size={30} style={{ color: "#ffffff" }} />}
+                  ? <AlertTriangle size={30} strokeWidth={2.5} style={{ color: "#ffffff" }} />
+                  : <CheckCircle2 size={32} strokeWidth={2.5} style={{ color: "#ffffff" }} />}
               </span>
             </div>
           )}
@@ -7191,15 +7202,18 @@ function QrTapViewfinder({
         ))}
       </div>
 
-      <div className="flex items-center justify-center gap-2 min-h-[18px] px-2">
+      <div className="flex items-center justify-center gap-2 min-h-[22px] px-2">
         {detected ? (
           <>
             {danger
-              ? <AlertTriangle size={14} style={{ color: "#d4183d" }} />
-              : <CheckCircle2 size={14} style={{ color: "#16a34a" }} />}
+              ? <AlertTriangle size={16} strokeWidth={2.5} style={{ color: "#d4183d" }} />
+              : <CheckCircle2 size={16} strokeWidth={2.5} style={{ color: "#16a34a" }} />}
             <p
-              className="text-[12px] font-bold truncate"
-              style={{ color: danger ? "#d4183d" : "#16a34a" }}
+              className="text-[14px] font-extrabold truncate tracking-wide"
+              style={{
+                color: danger ? "#d4183d" : "#15803d",
+                textShadow: dark ? "0 1px 2px rgba(0,0,0,0.55)" : "0 1px 0 rgba(255,255,255,0.85)",
+              }}
             >
               {detectedLabel ?? "QR captured"}
             </p>
@@ -7453,7 +7467,7 @@ function SampleVerificationScanScreen({
   // Simulated capture: the frame "finds" a code, shows a confirmation beat, then advances.
   useEffect(() => {
     if (viewOnly || phase !== "scanning") return;
-    const timer = setTimeout(() => setPhase("detected"), 2400);
+    const timer = setTimeout(() => setPhase("detected"), SCAN_DETECT_MS);
     return () => clearTimeout(timer);
   }, [phase, viewOnly]);
 
@@ -7467,7 +7481,7 @@ function SampleVerificationScanScreen({
         log: next.log,
         previous: next.previous,
       }),
-      900,
+      SCAN_CONFIRM_MS,
     );
     return () => clearTimeout(timer);
   }, [phase, next, onScanned, viewOnly]);
@@ -9078,7 +9092,7 @@ function LoadingLogsScanScreen({
   const [phase, setPhase] = useState<ScannerPhase>("idle");
   const [pendingDamage, setPendingDamage] = useState<PendingDamageScan | null>(null);
   const [overlayBox, setOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<ScanToast | null>(null);
   const [ncView, setNcView] = useState<NonComplianceView>("list");
   const [selectedNcTypes, setSelectedNcTypes] = useState<string[]>([]);
   const [ncDescription, setNcDescription] = useState("");
@@ -9168,7 +9182,7 @@ function LoadingLogsScanScreen({
   useEffect(() => {
     if (!scanningActive || phase !== "scanning" || pendingDamage) return;
     handledDetection.current = false;
-    const timer = setTimeout(() => setPhase("detected"), 2400);
+    const timer = setTimeout(() => setPhase("detected"), SCAN_DETECT_MS);
     return () => clearTimeout(timer);
   }, [phase, pendingDamage, scanCount, mode, scanningActive]);
 
@@ -9180,7 +9194,7 @@ function LoadingLogsScanScreen({
       const scannedAt = formatScanTime(new Date());
       if (isDamageMode) {
         if (damagedLogs.some(d => d.code === next.code)) {
-          setToast(`${next.code} already reported as damaged`);
+          setToast({ message: `${next.code} already reported as damaged`, tone: "duplicate" });
           onScanConsumed();
           setPhase("idle");
           return;
@@ -9199,9 +9213,12 @@ function LoadingLogsScanScreen({
       }
 
       if (allocatedLogs.some(l => l.code === next.code) || damagedLogs.some(d => d.code === next.code)) {
-        setToast(damagedLogs.some(d => d.code === next.code)
-          ? `${next.code} excluded (damaged)`
-          : `${next.code} already allocated`);
+        setToast({
+          message: damagedLogs.some(d => d.code === next.code)
+            ? `${next.code} excluded (damaged)`
+            : `${next.code} already allocated`,
+          tone: "duplicate",
+        });
         onScanConsumed();
         setPhase("idle");
         return;
@@ -9218,9 +9235,9 @@ function LoadingLogsScanScreen({
         bargeStackLabel: selectedBarge?.label ?? "",
         excluded: false,
       });
-      setToast(`${next.code} allocated · ${formatVolumeM3(next.volume)}`);
+      setToast({ message: `${next.code} allocated · ${formatVolumeM3(next.volume)}`, tone: "success" });
       setPhase("idle");
-    }, 900);
+    }, SCAN_CONFIRM_MS);
     return () => clearTimeout(timer);
   }, [phase, pendingDamage, next, isDamageMode, allocatedLogs, damagedLogs, onAllocated, onScanConsumed, scanningActive]);
 
@@ -9233,7 +9250,8 @@ function LoadingLogsScanScreen({
 
   useEffect(() => {
     if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 2200);
+    const holdMs = toast.tone === "duplicate" ? SCAN_DUPLICATE_TOAST_MS : SCAN_TOAST_MS;
+    const timer = setTimeout(() => setToast(null), holdMs);
     return () => clearTimeout(timer);
   }, [toast]);
 
@@ -9277,7 +9295,7 @@ function LoadingLogsScanScreen({
       notes,
       evidenceCount,
     });
-    setToast(`${pendingDamage.code} excluded from loaded volume`);
+    setToast({ message: `${pendingDamage.code} excluded from loaded volume`, tone: "success" });
     setPendingDamage(null);
     setPhase("idle");
     setVolumeFlash(true);
@@ -9423,7 +9441,7 @@ function LoadingLogsScanScreen({
     setNewBargeLoadType("");
     setLoadTypeOpen(false);
     setPhase("idle");
-    setToast(`Added ${label} — tap the scanner when ready`);
+    setToast({ message: `Added ${label} — tap the scanner when ready`, tone: "info" });
   };
 
   const openNewBargeForm = () => {
@@ -9778,18 +9796,93 @@ function LoadingLogsScanScreen({
 
               {toast ? (
                 <div
-                  key={toast}
-                  className="rounded-xl px-3.5 py-2.5 text-[12px] font-semibold text-center animate-toastIn"
-                  style={{
-                    background: dark ? "rgba(30, 41, 59, 0.92)" : "rgba(255,255,255,0.82)",
-                    color: accent,
-                    border: `1px solid ${cardBorder}`,
-                    boxShadow: dark ? "0 8px 24px rgba(0,0,0,0.35)" : "0 8px 24px rgba(15,47,143,0.10)",
-                    backdropFilter: "blur(12px)",
-                    WebkitBackdropFilter: "blur(12px)",
-                  }}
+                  key={`${toast.tone}-${toast.message}`}
+                  role="status"
+                  aria-live="polite"
+                  className={`flex items-center gap-3 animate-toastIn ${
+                    toast.tone === "duplicate"
+                      ? "rounded-2xl px-4 py-3.5"
+                      : "rounded-xl px-3.5 py-2.5"
+                  }`}
+                  style={
+                    toast.tone === "duplicate"
+                      ? {
+                          background: dark ? "rgba(69, 10, 10, 0.96)" : "#fff7ed",
+                          color: dark ? "#fecaca" : "#9a3412",
+                          border: dark
+                            ? "2px solid rgba(248, 113, 113, 0.75)"
+                            : "2px solid #ea580c",
+                          boxShadow: dark
+                            ? "0 12px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(254,202,202,0.25)"
+                            : "0 12px 28px rgba(194,65,12,0.22), 0 0 0 1px rgba(255,255,255,0.9)",
+                          backdropFilter: "blur(14px)",
+                          WebkitBackdropFilter: "blur(14px)",
+                        }
+                      : toast.tone === "success"
+                        ? {
+                            background: dark ? "rgba(6, 78, 59, 0.94)" : "rgba(236, 253, 245, 0.96)",
+                            color: dark ? "#a7f3d0" : "#166534",
+                            border: dark
+                              ? "1.5px solid rgba(52, 211, 153, 0.55)"
+                              : "1.5px solid rgba(22, 163, 74, 0.45)",
+                            boxShadow: dark
+                              ? "0 10px 26px rgba(0,0,0,0.4)"
+                              : "0 10px 24px rgba(22,163,74,0.16)",
+                            backdropFilter: "blur(12px)",
+                            WebkitBackdropFilter: "blur(12px)",
+                          }
+                        : {
+                            background: dark ? "rgba(30, 41, 59, 0.95)" : "rgba(255,255,255,0.94)",
+                            color: accent,
+                            border: `1.5px solid ${cardBorder}`,
+                            boxShadow: dark
+                              ? "0 8px 24px rgba(0,0,0,0.35)"
+                              : "0 8px 24px rgba(15,47,143,0.12)",
+                            backdropFilter: "blur(12px)",
+                            WebkitBackdropFilter: "blur(12px)",
+                          }
+                  }
                 >
-                  {toast}
+                  <span
+                    className={`flex-shrink-0 flex items-center justify-center rounded-full ${
+                      toast.tone === "duplicate" ? "w-10 h-10" : "w-8 h-8"
+                    }`}
+                    style={
+                      toast.tone === "duplicate"
+                        ? {
+                            background: dark ? "rgba(248, 113, 113, 0.28)" : "#fed7aa",
+                            color: dark ? "#fecaca" : "#c2410c",
+                          }
+                        : toast.tone === "success"
+                          ? {
+                              background: dark ? "rgba(52, 211, 153, 0.22)" : "rgba(22, 163, 74, 0.14)",
+                              color: dark ? "#a7f3d0" : "#15803d",
+                            }
+                          : {
+                              background: dark ? "rgba(147, 197, 253, 0.18)" : "rgba(15, 47, 143, 0.10)",
+                              color: accent,
+                            }
+                    }
+                    aria-hidden="true"
+                  >
+                    {toast.tone === "duplicate" ? (
+                      <AlertTriangle size={22} strokeWidth={2.6} />
+                    ) : toast.tone === "success" ? (
+                      <CheckCircle2 size={18} strokeWidth={2.4} />
+                    ) : (
+                      <ScanLine size={16} strokeWidth={2.4} />
+                    )}
+                  </span>
+                  <p
+                    className={`flex-1 min-w-0 font-extrabold leading-snug ${
+                      toast.tone === "duplicate" ? "text-[15px] tracking-wide" : "text-[13px]"
+                    }`}
+                    style={{
+                      textShadow: dark ? "0 1px 2px rgba(0,0,0,0.45)" : "none",
+                    }}
+                  >
+                    {toast.message}
+                  </p>
                 </div>
               ) : null}
 

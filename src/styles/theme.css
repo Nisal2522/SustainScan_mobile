@@ -402,17 +402,17 @@
     will-change: width;
   }
 
-  /* QR detect success ring */
+  /* QR detect success ring — snappy so confirmation reads instantly in the field */
   @keyframes detectRing {
     0% {
       transform: scale(0.55);
-      opacity: 0.55;
+      opacity: 0.65;
     }
     70% {
-      opacity: 0.2;
+      opacity: 0.22;
     }
     100% {
-      transform: scale(1.35);
+      transform: scale(1.28);
       opacity: 0;
     }
   }
@@ -421,32 +421,32 @@
     position: absolute;
     inset: 8%;
     border-radius: 28px;
-    border: 2px solid #16a34a;
-    box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.12);
-    animation: detectRing 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+    border: 2.5px solid #16a34a;
+    box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.16);
+    animation: detectRing 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
     pointer-events: none;
   }
 
   .detect-success-ring-danger {
     border-color: #d4183d;
-    box-shadow: 0 0 0 6px rgba(212, 24, 61, 0.12);
+    box-shadow: 0 0 0 6px rgba(212, 24, 61, 0.16);
   }
 
   @keyframes toastIn {
     from {
       opacity: 0;
-      transform: translate3d(0, 12px, 0);
-      filter: blur(4px);
+      transform: translate3d(0, 10px, 0) scale(0.97);
+      filter: blur(3px);
     }
     to {
       opacity: 1;
-      transform: translate3d(0, 0, 0);
+      transform: translate3d(0, 0, 0) scale(1);
       filter: blur(0);
     }
   }
 
   .animate-toastIn {
-    animation: toastIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: toastIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   @keyframes emptyFloat {
@@ -867,7 +867,7 @@
   }
 
   .animate-qrSweep {
-    animation: qrSweep 1.9s ease-in-out infinite;
+    animation: qrSweep 0.72s ease-in-out infinite;
   }
 
   @keyframes qrPulse {
