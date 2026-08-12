@@ -778,88 +778,6 @@
     animation: stepCurrentPulse 2.4s ease-in-out infinite;
   }
 
-  /* Flow arrow between active step and next */
-  .stepper-flow-arrow {
-    flex: 0 0 0;
-    width: 0;
-    position: relative;
-    z-index: 15;
-    align-self: center;
-    margin: 0 -5px;
-    pointer-events: none;
-  }
-
-  .stepper-flow-arrow__svg {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 26px;
-    height: 12px;
-    transform: translate(-50%, -50%);
-    overflow: visible;
-    animation: stepFlowGuide 3.2s ease-in-out infinite;
-  }
-
-  .stepper-flow-arrow__line {
-    stroke: rgba(255, 255, 255, 0.55);
-    stroke-width: 1.5;
-    stroke-linecap: round;
-    stroke-dasharray: 3 4;
-    animation: stepFlowMarch 2.4s linear infinite;
-  }
-
-  .stepper-flow-arrow__head {
-    stroke: rgba(255, 255, 255, 0.82);
-    stroke-width: 1.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    fill: none;
-  }
-
-  .stepper-flow-arrow__pulse {
-    animation: stepFlowPulse 2.4s ease-in-out infinite;
-  }
-
-  .stepper-flow-arrow__pulse circle {
-    fill: rgba(191, 219, 254, 0.95);
-  }
-
-  @keyframes stepFlowGuide {
-    0%,
-    100% {
-      transform: translate(-50%, -50%) translateX(-2px);
-      opacity: 0.55;
-    }
-    50% {
-      transform: translate(-50%, -50%) translateX(2px);
-      opacity: 0.95;
-    }
-  }
-
-  @keyframes stepFlowMarch {
-    to {
-      stroke-dashoffset: -14;
-    }
-  }
-
-  @keyframes stepFlowPulse {
-    0%,
-    100% {
-      transform: translateX(-4px);
-      opacity: 0.25;
-    }
-    45% {
-      opacity: 1;
-    }
-    55% {
-      opacity: 1;
-    }
-    100% {
-      transform: translateX(10px);
-      opacity: 0.25;
-    }
-  }
-
   /* Status pill morph when status changes */
   @keyframes statusMorph {
     0% {
@@ -1274,15 +1192,8 @@
     .stepper-choice,
     .stepper-choice--switch,
     .stepper-choice-chevron,
-    .stepper-choice--active .stepper-choice-foot-dot,
-    .stepper-flow-arrow__svg,
-    .stepper-flow-arrow__line,
-    .stepper-flow-arrow__pulse {
+    .stepper-choice--active .stepper-choice-foot-dot {
       animation: none !important;
-    }
-
-    .stepper-flow-arrow__svg {
-      opacity: 0.85;
     }
 
     .animate-sheetUp {
