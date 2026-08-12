@@ -1,4 +1,4 @@
-export const ONBOARDING_STORAGE_KEY = "sustainscan-onboarding-v1";
+export const ONBOARDING_STORAGE_KEY = "sustainscan-onboarding-v2";
 
 export type GuideStepId =
   | "location-concession"

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Compass, X } from "lucide-react";
 
 const GRADIENT = "linear-gradient(135deg,#1a45b5 0%,#0f2f8f 60%,#0a1f6b 100%)";
@@ -7,10 +9,22 @@ interface TourWelcomeDialogProps {
   onDismiss: () => void;
 }
 
+function getDeviceHost(): HTMLElement | null {
+  return document.querySelector(".mobile-device");
+}
+
 export function TourWelcomeDialog({ onStart, onDismiss }: TourWelcomeDialogProps) {
-  return (
+  const [host, setHost] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setHost(getDeviceHost());
+  }, []);
+
+  if (!host) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-5 animate-fadeIn"
+      className="absolute inset-0 z-[75] flex items-center justify-center p-5 animate-fadeIn"
       style={{
         background: "rgba(10, 22, 70, 0.52)",
         backdropFilter: "blur(8px)",
@@ -53,7 +67,7 @@ export function TourWelcomeDialog({ onStart, onDismiss }: TourWelcomeDialogProps
           Welcome to SustainScan
         </h2>
         <p id="tour-welcome-desc" className="text-[14px] leading-relaxed mt-2" style={{ color: "#5a6a99" }}>
-          Would you like a quick tour of the app? We&apos;ll walk you through the key features to help you get started.
+          Would you like a guided tour of the app? We&apos;ll walk you through the key features to help you get started.
         </p>
 
         <div className="mt-5 flex flex-col gap-2.5">
@@ -63,7 +77,7 @@ export function TourWelcomeDialog({ onStart, onDismiss }: TourWelcomeDialogProps
             className="w-full h-11 rounded-xl text-sm font-bold text-white focus:outline-none active:scale-[0.98] transition-transform pressable"
             style={{ background: GRADIENT, boxShadow: "0 4px 16px rgba(15,47,143,0.32)" }}
           >
-            Start tour
+            Yes, start tour
           </button>
           <button
             type="button"
@@ -79,6 +93,7 @@ export function TourWelcomeDialog({ onStart, onDismiss }: TourWelcomeDialogProps
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    host,
   );
 }

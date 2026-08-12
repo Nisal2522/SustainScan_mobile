@@ -50,9 +50,12 @@ interface OnboardingProviderProps {
   isLoggedIn: boolean;
 }
 
+const TOUR_ENTRY_SCREENS = new Set(["location", "home"]);
+
 export function OnboardingProvider({ children, screen, isCU, isLoggedIn }: OnboardingProviderProps) {
   const [state, setState] = useState<OnboardingState>(() => loadOnboardingState());
   const [replaying, setReplaying] = useState(false);
+  const [welcomeReady, setWelcomeReady] = useState(false);
 
   const steps = useMemo(() => getStepsForUser(isCU), [isCU]);
   const guideScreen = toGuideScreen(screen);
@@ -101,6 +104,7 @@ export function OnboardingProvider({ children, screen, isCU, isLoggedIn }: Onboa
   }, [persist]);
 
   const acceptTour = useCallback(() => {
+    setWelcomeReady(false);
     setState(prev => {
       const next = {
         ...prev,
@@ -115,6 +119,7 @@ export function OnboardingProvider({ children, screen, isCU, isLoggedIn }: Onboa
   }, []);
 
   const dismissTourPrompt = useCallback(() => {
+    setWelcomeReady(false);
     setState(prev => {
       const next = {
         ...prev,
@@ -127,6 +132,23 @@ export function OnboardingProvider({ children, screen, isCU, isLoggedIn }: Onboa
     });
     setReplaying(false);
   }, []);
+
+  const guideComplete = isOnboardingComplete(steps, state.completedSteps);
+  const shouldOfferTour =
+    isLoggedIn &&
+    TOUR_ENTRY_SCREENS.has(screen) &&
+    !state.tourPromptAnswered &&
+    !guideComplete;
+
+  // Brief delay after sign-in so the welcome prompt appears before any tour step.
+  useEffect(() => {
+    if (!shouldOfferTour) {
+      setWelcomeReady(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setWelcomeReady(true), 450);
+    return () => window.clearTimeout(timer);
+  }, [shouldOfferTour, screen]);
 
   // Auto-complete prior steps when user navigates forward.
   useEffect(() => {
@@ -147,13 +169,13 @@ export function OnboardingProvider({ children, screen, isCU, isLoggedIn }: Onboa
       ? getActiveGuideStep(steps, state.completedSteps, guideScreen, state.skipped, replaying)
       : null;
 
-  const guideComplete = isOnboardingComplete(steps, state.completedSteps);
   const tourReady = Boolean(state.tourAccepted) || replaying;
-  const showWelcome =
-    isLoggedIn &&
-    !state.tourPromptAnswered &&
-    !guideComplete;
-  const isGuideActive = Boolean(activeStep) && tourReady && (!state.skipped || replaying);
+  const showWelcome = welcomeReady && shouldOfferTour;
+  const isGuideActive =
+    Boolean(activeStep) &&
+    tourReady &&
+    !showWelcome &&
+    (!state.skipped || replaying);
 
   const value = useMemo<OnboardingContextValue>(
     () => ({
