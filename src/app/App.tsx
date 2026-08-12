@@ -2051,7 +2051,7 @@ function InventoryRow({ item, dark, variant = "exporter" }: {
             )}
           </div>
           {variant === "cu" ? (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-stretch gap-2">
               <span
                 className="inline-flex items-center min-h-7 px-2.5 rounded-lg text-[11px] font-semibold"
                 style={{ background: metaPillBg, color: textPrimary, border: `1px solid ${metaPillBorder}` }}
@@ -2059,10 +2059,15 @@ function InventoryRow({ item, dark, variant = "exporter" }: {
                 {item.logGroup}
               </span>
               <span
-                className="inline-flex items-center min-h-7 px-2.5 rounded-lg text-[11px] font-bold"
+                className="inline-flex items-center gap-1.5 min-h-7 px-2.5 rounded-lg"
                 style={{ background: volumePillBg, color: volumePillColor, border: `1px solid ${metaPillBorder}` }}
               >
-                {item.volume} m³
+                <span className="text-[9px] font-semibold uppercase tracking-wide leading-none" style={{ color: dark ? "rgba(147,197,253,0.85)" : "rgba(15,47,143,0.65)" }}>
+                  Total Volume
+                </span>
+                <span className="text-[11px] font-bold leading-none">
+                  {item.volume} m³
+                </span>
               </span>
             </div>
           ) : (
