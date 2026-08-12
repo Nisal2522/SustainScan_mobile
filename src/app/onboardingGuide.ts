@@ -32,6 +32,10 @@ export interface GuideStep {
 export interface OnboardingState {
   completedSteps: GuideStepId[];
   skipped: boolean;
+  /** User has seen the welcome tour prompt and chose an option. */
+  tourPromptAnswered?: boolean;
+  /** User opted in to the guided tour from the welcome prompt. */
+  tourAccepted?: boolean;
 }
 
 const CLIENT_STEPS: GuideStep[] = [
@@ -109,18 +113,23 @@ export function getStepsForUser(isCU: boolean): GuideStep[] {
 
 export function loadOnboardingState(): OnboardingState {
   if (typeof window === "undefined") {
-    return { completedSteps: [], skipped: false };
+    return { completedSteps: [], skipped: false, tourPromptAnswered: false, tourAccepted: false };
   }
   try {
     const raw = localStorage.getItem(ONBOARDING_STORAGE_KEY);
-    if (!raw) return { completedSteps: [], skipped: false };
+    if (!raw) return { completedSteps: [], skipped: false, tourPromptAnswered: false, tourAccepted: false };
     const parsed = JSON.parse(raw) as Partial<OnboardingState>;
+    const completedSteps = Array.isArray(parsed.completedSteps) ? parsed.completedSteps : [];
+    const skipped = Boolean(parsed.skipped);
+    const stepsAnswered = Boolean(parsed.tourPromptAnswered) || skipped;
     return {
-      completedSteps: Array.isArray(parsed.completedSteps) ? parsed.completedSteps : [],
-      skipped: Boolean(parsed.skipped),
+      completedSteps,
+      skipped,
+      tourPromptAnswered: stepsAnswered,
+      tourAccepted: Boolean(parsed.tourAccepted),
     };
   } catch {
-    return { completedSteps: [], skipped: false };
+    return { completedSteps: [], skipped: false, tourPromptAnswered: false, tourAccepted: false };
   }
 }
 

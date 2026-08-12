@@ -2763,39 +2763,41 @@ function ScheduleInspectionScreen({
             </div>
 
             <div className="flex flex-col gap-2.5 -mt-1">
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setStatusMenuOpen(v => !v)}
-                  className="w-full h-12 rounded-2xl pl-4 pr-10 text-sm font-semibold text-left flex items-center focus:outline-none pressable"
-                  style={{
-                    background: controlBg,
-                    border: `1.5px solid ${statusMenuOpen ? (dark ? "rgba(96,165,250,0.55)" : "rgba(15,47,143,0.45)") : glassBorder}`,
-                    color: textPrimary,
-                    boxShadow: statusMenuOpen
-                      ? (dark ? "0 4px 16px rgba(0,0,0,0.28)" : "0 0 0 3px rgba(15,47,143,0.10)")
-                      : (dark ? "0 2px 10px rgba(0,0,0,0.22)" : "0 2px 10px rgba(15,47,143,0.04)"),
-                  }}
-                  aria-expanded={statusMenuOpen}
-                  aria-haspopup="listbox"
-                >
-                  {statusChips.find(opt => opt.id === draftStatus)?.label ?? "All"}
-                </button>
-                <ChevronDown
-                  size={16}
-                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 transition-transform duration-200"
-                  style={{
-                    color: textMuted,
-                    transform: statusMenuOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%) rotate(0deg)",
-                  }}
-                />
+              <div className="flex flex-col gap-2">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setStatusMenuOpen(v => !v)}
+                    className="w-full h-12 rounded-2xl pl-4 pr-10 text-sm font-semibold text-left flex items-center focus:outline-none pressable"
+                    style={{
+                      background: controlBg,
+                      border: `1.5px solid ${statusMenuOpen ? (dark ? "rgba(96,165,250,0.55)" : "rgba(15,47,143,0.45)") : glassBorder}`,
+                      color: textPrimary,
+                      boxShadow: statusMenuOpen
+                        ? (dark ? "0 4px 16px rgba(0,0,0,0.28)" : "0 0 0 3px rgba(15,47,143,0.10)")
+                        : (dark ? "0 2px 10px rgba(0,0,0,0.22)" : "0 2px 10px rgba(15,47,143,0.04)"),
+                    }}
+                    aria-expanded={statusMenuOpen}
+                    aria-haspopup="listbox"
+                  >
+                    {statusChips.find(opt => opt.id === draftStatus)?.label ?? "All"}
+                  </button>
+                  <ChevronDown
+                    size={16}
+                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 transition-transform duration-200"
+                    style={{
+                      color: textMuted,
+                      transform: statusMenuOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%) rotate(0deg)",
+                    }}
+                  />
+                </div>
                 {statusMenuOpen && (
                   <ul
-                    className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 rounded-2xl overflow-hidden py-1.5 animate-panelIn"
+                    className="rounded-2xl overflow-hidden py-1.5 animate-panelIn"
                     style={{
                       background: controlBg,
                       border: `1.5px solid ${glassBorder}`,
-                      boxShadow: dark ? "0 12px 32px rgba(0,0,0,0.45)" : "0 12px 32px rgba(15,47,143,0.14)",
+                      boxShadow: dark ? "0 8px 24px rgba(0,0,0,0.28)" : "0 8px 24px rgba(15,47,143,0.10)",
                     }}
                     role="listbox"
                     aria-label="Status options"
@@ -11325,7 +11327,7 @@ export default function App() {
       <ScanLogScreen
         dark={dark}
         isCU={isCU}
-        onBack={() => setScreen("home")}
+        onBack={() => setScreen(isCU ? "inventory-hub" : "home")}
         onScanNew={() => {
           if (!isCU) {
             setRegisterLogPrefill(null);

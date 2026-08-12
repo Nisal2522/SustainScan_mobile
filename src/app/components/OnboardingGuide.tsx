@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { CoachMark } from "./CoachMark";
+import { TourWelcomeDialog } from "./TourWelcomeDialog";
 import {
   getActiveGuideStep,
   getStepsForUser,
@@ -78,16 +79,54 @@ export function OnboardingProvider({ children, screen, isCU, isLoggedIn }: Onboa
   );
 
   const skipAll = useCallback(() => {
-    const next = { completedSteps: steps.map(s => s.id), skipped: true };
+    const next = {
+      completedSteps: steps.map(s => s.id),
+      skipped: true,
+      tourPromptAnswered: true,
+      tourAccepted: false,
+    };
     persist(next);
     setReplaying(false);
   }, [persist, steps]);
 
   const restartGuide = useCallback(() => {
-    const next = { completedSteps: [], skipped: false };
+    const next = {
+      completedSteps: [],
+      skipped: false,
+      tourPromptAnswered: true,
+      tourAccepted: true,
+    };
     persist(next);
     setReplaying(true);
   }, [persist]);
+
+  const acceptTour = useCallback(() => {
+    setState(prev => {
+      const next = {
+        ...prev,
+        skipped: false,
+        tourPromptAnswered: true,
+        tourAccepted: true,
+      };
+      saveOnboardingState(next);
+      return next;
+    });
+    setReplaying(true);
+  }, []);
+
+  const dismissTourPrompt = useCallback(() => {
+    setState(prev => {
+      const next = {
+        ...prev,
+        skipped: true,
+        tourPromptAnswered: true,
+        tourAccepted: false,
+      };
+      saveOnboardingState(next);
+      return next;
+    });
+    setReplaying(false);
+  }, []);
 
   // Auto-complete prior steps when user navigates forward.
   useEffect(() => {
@@ -109,7 +148,12 @@ export function OnboardingProvider({ children, screen, isCU, isLoggedIn }: Onboa
       : null;
 
   const guideComplete = isOnboardingComplete(steps, state.completedSteps);
-  const isGuideActive = Boolean(activeStep) && (!state.skipped || replaying);
+  const tourReady = Boolean(state.tourAccepted) || replaying;
+  const showWelcome =
+    isLoggedIn &&
+    !state.tourPromptAnswered &&
+    !guideComplete;
+  const isGuideActive = Boolean(activeStep) && tourReady && (!state.skipped || replaying);
 
   const value = useMemo<OnboardingContextValue>(
     () => ({
@@ -125,7 +169,10 @@ export function OnboardingProvider({ children, screen, isCU, isLoggedIn }: Onboa
   return (
     <OnboardingContext.Provider value={value}>
       {children}
-      {activeStep && (
+      {showWelcome && (
+        <TourWelcomeDialog onStart={acceptTour} onDismiss={dismissTourPrompt} />
+      )}
+      {isGuideActive && activeStep && (
         <CoachMark
           message={activeStep.message}
           targetId={activeStep.targetId}
