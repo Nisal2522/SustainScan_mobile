@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ChangeEvent, type ReactNode, type CSSProperties, type TouchEvent } from "react";
+import { Fragment, useState, useRef, useEffect, type ChangeEvent, type ReactNode, type CSSProperties, type TouchEvent } from "react";
 import { createPortal } from "react-dom";
 import {
   Eye, EyeOff, Mail, Lock, ChevronRight, MapPin, ChevronDown,
@@ -13,6 +13,7 @@ import controlUnionLogo from "../imports/CU_Logo_4_White_1.png";
 import profilePhoto from "../imports/image.png";
 import qrCode from "../imports/image-1.png";
 import logEntryPhoto from "../imports/timber.png";
+import { OnboardingProvider, useOnboardingOptional } from "./components/OnboardingGuide";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -151,58 +152,65 @@ function useCountUp(target: number, durationMs = 720, restartKey: string | numbe
   return value;
 }
 
-/** Opacity + scale focus effect for scrollable card lists (respects reduced motion). */
-function useScrollFocusList(itemCount: number, listKey: string) {
+/** Smooth scroll list animation (scroll-list__wrp pattern; respects reduced motion). */
+function useScrollListAnimation(itemCount: number, listKey: string) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const rafRef = useRef<number | null>(null);
 
-  const updateFocus = () => {
+  const updateItems = () => {
     const container = scrollRef.current;
-    if (!container) return;
+    if (!container || itemCount === 0) return;
 
+    const items = itemRefs.current.filter((el): el is HTMLDivElement => Boolean(el));
     const reduced =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
     if (reduced) {
-      itemRefs.current.forEach(el => {
-        if (!el) return;
+      items.forEach(el => {
+        el.classList.remove("item-focus", "item-next", "item-hide");
         el.style.transform = "";
         el.style.opacity = "";
       });
       return;
     }
 
-    const rect = container.getBoundingClientRect();
-    const focusRadius = Math.max(rect.height * 0.42, 140);
-    const atTop = container.scrollTop < 32;
-    const firstEl = itemRefs.current[0];
+    const containerRect = container.getBoundingClientRect();
+    const centerY = containerRect.top + containerRect.height * 0.5;
+    let focusIndex = 0;
+    let minDistance = Number.POSITIVE_INFINITY;
 
-    const focusY = atTop && firstEl
-      ? (() => {
-          const firstRect = firstEl.getBoundingClientRect();
-          return firstRect.top + firstRect.height / 2;
-        })()
-      : rect.top + rect.height * 0.46;
+    items.forEach((item, index) => {
+      const rect = item.getBoundingClientRect();
+      const itemCenter = rect.top + rect.height / 2;
+      const distance = Math.abs(itemCenter - centerY);
+      if (distance < minDistance) {
+        minDistance = distance;
+        focusIndex = index;
+      }
+    });
 
-    itemRefs.current.forEach(el => {
-      if (!el) return;
-      const itemRect = el.getBoundingClientRect();
-      const itemCenterY = itemRect.top + itemRect.height / 2;
-      const dist = Math.abs(itemCenterY - focusY);
-      const t = Math.min(1, dist / focusRadius);
-      const scale = 1 - t * 0.1;
-      const opacity = 1 - t * 0.52;
-      el.style.transform = `scale(${scale.toFixed(3)})`;
-      el.style.opacity = `${opacity.toFixed(3)}`;
+    items.forEach((item, index) => {
+      item.classList.remove("item-focus", "item-next", "item-hide");
+      item.style.transform = "";
+      item.style.opacity = "";
+
+      if (index === focusIndex) {
+        item.classList.add("item-focus");
+      } else if (index === focusIndex - 1) {
+        item.classList.add("item-hide");
+      } else if (index === focusIndex + 1) {
+        item.classList.add("item-next");
+      }
     });
   };
 
-  const scheduleFocus = () => {
+  const scheduleUpdate = () => {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
-      updateFocus();
+      updateItems();
     });
   };
 
@@ -214,27 +222,26 @@ function useScrollFocusList(itemCount: number, listKey: string) {
     const container = scrollRef.current;
     if (!container || itemCount === 0) return;
 
-    scheduleFocus();
+    scheduleUpdate();
     const settleTimers = [
-      window.setTimeout(scheduleFocus, 120),
-      window.setTimeout(scheduleFocus, 520),
-      window.setTimeout(scheduleFocus, 900),
+      window.setTimeout(scheduleUpdate, 120),
+      window.setTimeout(scheduleUpdate, 520),
     ];
 
-    container.addEventListener("scroll", scheduleFocus, { passive: true });
-    window.addEventListener("resize", scheduleFocus);
+    container.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
 
     return () => {
       settleTimers.forEach(clearTimeout);
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-      container.removeEventListener("scroll", scheduleFocus);
-      window.removeEventListener("resize", scheduleFocus);
+      container.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
     };
   }, [itemCount, listKey]);
 
   const setItemRef = (index: number) => (el: HTMLDivElement | null) => {
     itemRefs.current[index] = el;
-    if (el && index === itemCount - 1) scheduleFocus();
+    if (el && index === itemCount - 1) scheduleUpdate();
   };
 
   return { scrollRef, setItemRef };
@@ -342,6 +349,13 @@ const SCHEDULE_MODULE_SCREENS: Screen[] = [
 const BOTTOM_NAV_VISIBLE_SCREENS: Screen[] = Array.from(
   new Set<Screen>([...BOTTOM_NAV_SCREENS, ...SCHEDULE_MODULE_SCREENS]),
 );
+
+const LOG_INFORMATION_SCREENS: Screen[] = [
+  "inventory-hub",
+  "log-inventory",
+  "scan-log",
+  "register-log-form",
+];
 
 const BOTTOM_NAV_PAD = "max(1.5rem, env(safe-area-inset-bottom, 0px))";
 
@@ -617,6 +631,7 @@ function AppHeaderBar({ children, dark = false }: { children: React.ReactNode; d
       >
         {children}
       </div>
+      <DataScopeBanner />
     </div>
   );
 }
@@ -626,7 +641,7 @@ function BackCardButton({ onClick, dark = false }: { onClick: () => void; dark?:
     <button
       type="button"
       onClick={onClick}
-      className="field-touch w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:scale-105 focus:outline-none pressable"
+      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:scale-105 focus:outline-none pressable"
       style={{
         background: dark ? "rgba(255,255,255,0.12)" : "#ffffff",
         color: dark ? "#ffffff" : "#0a1a4a",
@@ -635,7 +650,7 @@ function BackCardButton({ onClick, dark = false }: { onClick: () => void; dark?:
       }}
       aria-label="Go back"
     >
-      <ArrowLeft size={18} />
+      <ArrowLeft size={17} />
     </button>
   );
 }
@@ -990,6 +1005,7 @@ function LocationScreen({ onNext }: { onNext: (location: string) => void }) {
               {/* relative wrapper so dropdown positions against this, not the card */}
               <div className="relative">
                 <button type="button" onClick={() => setOpen(v => !v)}
+                  data-guide-id="guide-location-concession"
                   className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm text-left transition-all duration-150 focus:outline-none"
                   style={{ background: "rgba(255,255,255,0.10)", border: `1px solid ${open ? "rgba(96,165,250,0.6)" : "rgba(255,255,255,0.3)"}`, color: selected ? "#fff" : "rgba(255,255,255,0.4)" }}>
                   <span className="truncate">{selected || "Select a concession…"}</span>
@@ -1026,6 +1042,11 @@ function LocationScreen({ onNext }: { onNext: (location: string) => void }) {
 }
 
 // ─── Home Screen ──────────────────────────────────────────────────────────────
+
+function HomeScreenWithGuide(props: Parameters<typeof HomeScreen>[0]) {
+  const onboarding = useOnboardingOptional();
+  return <HomeScreen {...props} onShowGuide={onboarding?.restartGuide} />;
+}
 
 function LogInventoryScopeSheet({
   dark,
@@ -1261,10 +1282,11 @@ function LogInventoryScopeSheet({
   );
 }
 
-function HomeScreen({ location, onLogout, onNavigate, onOpenInventorySheet, isCU, dark, setDark }: {
+function HomeScreen({ location, onLogout, onNavigate, onOpenInventorySheet, isCU, dark, setDark, onShowGuide }: {
   location: string; onLogout: () => void; onNavigate: (s: Screen) => void;
   onOpenInventorySheet: () => void;
   isCU: boolean; dark: boolean; setDark: (v: boolean) => void;
+  onShowGuide?: () => void;
 }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -1305,6 +1327,16 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenInventorySheet, isCU
             <p className="text-xs font-semibold" style={{ color: textPrimary }}>Thilina</p>
             <p className="text-[11px]" style={{ color: textMuted }}>{isCU ? "Control Union" : "Client"}</p>
           </div>
+          {onShowGuide && (
+            <button
+              type="button"
+              onClick={() => { onShowGuide(); setProfileOpen(false); }}
+              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium transition-colors focus:outline-none"
+              style={{ color: textPrimary, borderBottom: `1px solid ${dark ? "rgba(255,255,255,0.07)" : "rgba(15,47,143,0.08)"}` }}
+            >
+              <ClipboardList size={15} /> App guide
+            </button>
+          )}
           <button onClick={onLogout}
             className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium transition-colors hover:bg-red-50 focus:outline-none"
             style={{ color: "#d4183d" }}>
@@ -1353,6 +1385,7 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenInventorySheet, isCU
 
           {!isCU && (
             <button onClick={() => onNavigate("scan-log")}
+              data-guide-id="guide-home-register-log"
               className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
               style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 animate-iconWell" style={{ background: iconBg }}>
@@ -1388,6 +1421,7 @@ function HomeScreen({ location, onLogout, onNavigate, onOpenInventorySheet, isCU
 
           {isCU && (
             <button onClick={() => onNavigate("schedule-inspection")}
+              data-guide-id="guide-home-inspection"
               className="w-full rounded-2xl p-5 flex items-center gap-5 text-left group transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none shadow-sm hover:shadow-md"
               style={{ ...subCardGlass, background: cardBg, border: `1px solid ${cardBorder}` }}>
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 animate-iconWell" style={{ background: iconBg }}>
@@ -1484,13 +1518,14 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
       </AppHeaderBar>
 
       <div
-        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 gap-6"
+        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-3 sm:pt-4 gap-5"
         style={{ paddingBottom: BOTTOM_NAV_PAD }}
       >
 
         {/* Modern tap-to-scan viewfinder */}
         <section className="flex flex-col items-center gap-4">
-          <QrTapViewfinder
+          <div data-guide-id="guide-scan-viewfinder" className="w-full flex justify-center">
+            <QrTapViewfinder
             phase={phase}
             dark={dark}
             detectedLabel="QR captured"
@@ -1501,6 +1536,7 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
               else if (phase === "scanning") setPhase("idle");
             }}
           />
+          </div>
 
           {!isCU && (
             <button
@@ -1718,7 +1754,7 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
 
       <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col">
         {/* Form */}
-        <div className="flex flex-col gap-5 px-5 py-6 pb-10">
+        <div className="flex flex-col gap-5 px-5 pt-3 sm:pt-4 pb-10">
 
           {/* Serial No */}
           <FormField label="Serial No" required>
@@ -1753,6 +1789,7 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
             ) : (
               <div className="relative">
                 <button type="button" onClick={() => { setPgOpen(v => !v); setPnOpen(false); setPtOpen(false); }}
+                  data-guide-id="guide-register-product-group"
                   className="w-full rounded-xl px-4 py-3 text-sm text-left flex items-center justify-between focus:outline-none"
                   style={{ ...fieldStyle, color: productGroup ? "#0a1a4a" : "#9ca3af", border: pgOpen ? "1px solid #60a5fa" : "1px solid #dce4f5" }}>
                   <span>{productGroup || "Select"}</span>
@@ -1847,7 +1884,7 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
           </FormField>
 
           {/* Measurements — 2-column pairs */}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3" data-guide-id="guide-register-details">
             <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#5a6a99" }}>Measurements</p>
             <div className="flex flex-col gap-3">
               <FormField label="D1 (cm)">
@@ -1975,26 +2012,37 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
 
 // ─── Inventory Row ────────────────────────────────────────────────────────────
 
-function InventoryRow({ item, dark, showModified = true, showChangeQr = true }: {
+function InventoryRow({ item, dark, variant = "exporter" }: {
   item: InventoryItem;
   dark: boolean;
-  showModified?: boolean;
-  showChangeQr?: boolean;
+  variant?: "exporter" | "cu";
 }) {
   const [expanded, setExpanded] = useState(false);
+  const showModified = variant === "exporter";
+  const showChangeQr = variant === "exporter";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
   const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const rowBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.55)";
   const rowBorder = dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.12)";
   const expandedBg = dark ? "rgba(22, 32, 50, 0.5)" : "rgba(240, 245, 255, 0.55)";
   const subCardGlass = { backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" } as const;
+  const collapsedMeta = variant === "cu"
+    ? null
+    : `L: ${item.length} · D: ${item.diameter} · V: ${item.volume} · DV: ${item.defectVolume}`;
+  const metaPillBg = dark ? "rgba(255,255,255,0.08)" : "rgba(232,237,249,0.95)";
+  const metaPillBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)";
+  const volumePillBg = dark ? "rgba(59,130,246,0.16)" : "rgba(15,47,143,0.08)";
+  const volumePillColor = dark ? "#93c5fd" : "#0f2f8f";
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ ...subCardGlass, background: rowBg, border: `1px solid ${rowBorder}`, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-      {/* Row header — always clickable */}
-      <button className="w-full px-4 py-3.5 flex items-start justify-between gap-3 focus:outline-none"
-        onClick={() => setExpanded(v => !v)}>
-        <div className="flex-1 text-left">
+      <button
+        type="button"
+        className="w-full px-4 py-3.5 flex items-start justify-between gap-3 text-left focus:outline-none"
+        onClick={() => setExpanded(v => !v)}
+        aria-expanded={expanded}
+      >
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-bold" style={{ color: textPrimary }}>{item.species}</span>
             {showModified && item.modified && (
@@ -2002,12 +2050,31 @@ function InventoryRow({ item, dark, showModified = true, showChangeQr = true }: 
                 style={{ background: "rgba(15,47,143,0.12)", color: "#0f2f8f" }}>Modified</span>
             )}
           </div>
-          <p className="text-xs mt-0.5" style={{ color: textMuted }}>
-            L: {item.length} · D: {item.diameter} · V: {item.volume} · DV: {item.defectVolume}
-          </p>
+          {variant === "cu" ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span
+                className="inline-flex items-center min-h-7 px-2.5 rounded-lg text-[11px] font-semibold"
+                style={{ background: metaPillBg, color: textPrimary, border: `1px solid ${metaPillBorder}` }}
+              >
+                {item.logGroup}
+              </span>
+              <span
+                className="inline-flex items-center min-h-7 px-2.5 rounded-lg text-[11px] font-bold"
+                style={{ background: volumePillBg, color: volumePillColor, border: `1px solid ${metaPillBorder}` }}
+              >
+                {item.volume} m³
+              </span>
+            </div>
+          ) : (
+            <p className="text-xs mt-0.5" style={{ color: textMuted }}>
+              {collapsedMeta}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-xs font-medium" style={{ color: textMuted }}>{item.date}</span>
+          {(variant === "exporter" || expanded) && (
+            <span className="text-xs font-medium" style={{ color: textMuted }}>{item.date}</span>
+          )}
           <ChevronDown size={14} style={{ color: textMuted, transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
         </div>
       </button>
@@ -2100,6 +2167,7 @@ function ScheduleInspectionScreen({
   const [query, setQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [overlayBox, setOverlayBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
 
   const pageBg = dark
@@ -2166,19 +2234,19 @@ function ScheduleInspectionScreen({
 
   const openFilters = () => {
     setDraftStatus(statusFilter);
+    setStatusMenuOpen(false);
     syncOverlayBox();
     setFilterOpen(true);
   };
 
-  const closeFilters = () => setFilterOpen(false);
+  const closeFilters = () => {
+    setStatusMenuOpen(false);
+    setFilterOpen(false);
+  };
 
   const applyFilters = () => {
     setStatusFilter(draftStatus);
     setFilterOpen(false);
-  };
-
-  const resetDraftFilters = () => {
-    setDraftStatus("all");
   };
 
   const filtered = SCHEDULED_INSPECTIONS.filter(task => {
@@ -2193,6 +2261,17 @@ function ScheduleInspectionScreen({
     }
     return true;
   });
+
+  // Keep work that still needs attention together, with the completed history
+  // deliberately placed after it. This is based on live progress so a task moves
+  // to the completed section immediately after its final step is finished.
+  const activeInspections = filtered.filter(
+    task => resolveInspectionStatus(task, getProgress(task.id)) !== "complete",
+  );
+  const completedInspections = filtered.filter(
+    task => resolveInspectionStatus(task, getProgress(task.id)) === "complete",
+  );
+  const orderedInspections = [...activeInspections, ...completedInspections];
 
   const statusChips: { id: StatusFilter; label: string }[] = [
     { id: "all", label: "All" },
@@ -2223,7 +2302,7 @@ function ScheduleInspectionScreen({
   };
 
   const listKey = `${statusFilter}-${qNorm}`;
-  const { scrollRef, setItemRef } = useScrollFocusList(filtered.length, listKey);
+  const { scrollRef, setItemRef } = useScrollListAnimation(orderedInspections.length, listKey);
 
   const swipe = useSwipeBack(onBack);
 
@@ -2266,7 +2345,7 @@ function ScheduleInspectionScreen({
           </div>
         </AppHeaderBar>
 
-        <div className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-4 pb-3 gap-3.5">
+        <div className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-2 sm:pt-3 pb-3 gap-3.5">
           {/* Search & Filter Controls */}
           <div className="relative z-30 animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }}>
             <div className="flex items-center gap-2.5">
@@ -2457,15 +2536,15 @@ function ScheduleInspectionScreen({
       {/* 6. Inspection Cards Scroll List */}
       <div
         ref={scrollRef}
-        className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain scroll-focus-list"
+        className="scroll-list__wrp relative flex-1 min-h-0"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         <div
           key={`insp-list-${listKey}`}
-          className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-1 gap-3.5 scroll-focus-list__inner"
+          className="scroll-list w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-1"
           style={{ paddingBottom: BOTTOM_NAV_PAD }}
         >
-          {filtered.length === 0 ? (
+          {orderedInspections.length === 0 ? (
             <div
               className="rounded-2xl p-8 text-center flex flex-col items-center gap-3 animate-riseIn"
               style={{
@@ -2494,16 +2573,32 @@ function ScheduleInspectionScreen({
               </div>
             </div>
           ) : (
-            filtered.map((task, index) => {
+            orderedInspections.map((task, index) => {
               const status = resolveInspectionStatus(task, getProgress(task.id));
               const meta = statusTone(status);
+              const isFirstCompleted = status === "complete" && index === activeInspections.length;
               return (
-                <div
-                  key={task.id}
-                  ref={setItemRef(index)}
-                  className="scroll-focus-item"
-                >
-                <article
+                <Fragment key={task.id}>
+                  {isFirstCompleted && (
+                    <div
+                      className="mt-7 mb-3 flex items-center gap-3"
+                      aria-label="Completed inspections"
+                    >
+                      <div className="h-px flex-1" style={{ background: glassBorder }} />
+                      <p
+                        className="text-[12px] font-bold uppercase tracking-[0.14em]"
+                        style={{ color: textMuted }}
+                      >
+                        Completed ({completedInspections.length})
+                      </p>
+                      <div className="h-px flex-1" style={{ background: glassBorder }} />
+                    </div>
+                  )}
+                  <div
+                    ref={setItemRef(index)}
+                    className="scroll-list__item"
+                  >
+                  <article
                   className="relative overflow-hidden rounded-2xl flex flex-col animate-riseIn"
                   style={{
                     ["--rise-delay" as string]: `${160 + index * 55}ms`,
@@ -2588,6 +2683,7 @@ function ScheduleInspectionScreen({
                     <button
                       type="button"
                       onClick={() => onStartInspection(task)}
+                      data-guide-id={index === 0 && status !== "complete" ? "guide-schedule-start" : undefined}
                       className="pressable group w-full min-h-12 h-12 rounded-xl text-sm font-bold text-white focus:outline-none hover:brightness-110 flex items-center justify-center gap-2"
                       style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.28)" }}
                     >
@@ -2599,7 +2695,8 @@ function ScheduleInspectionScreen({
                     </button>
                   </div>
                 </article>
-                </div>
+                  </div>
+                </Fragment>
               );
             })
           )}
@@ -2629,7 +2726,7 @@ function ScheduleInspectionScreen({
             onClick={closeFilters}
           />
           <div
-            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-5 animate-sheetUp"
+            className="relative z-10 w-full rounded-t-[28px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-3 animate-sheetUp"
             style={{
               background: sheetBg,
               boxShadow: dark ? "0 -12px 40px rgba(0,0,0,0.45)" : "0 -12px 40px rgba(15,47,143,0.18)",
@@ -2638,70 +2735,100 @@ function ScheduleInspectionScreen({
             aria-modal="true"
             aria-label="Filter inspections"
           >
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-10 h-1 rounded-full" style={{ background: dark ? "rgba(255,255,255,0.18)" : "rgba(15,47,143,0.18)" }} />
-              <div className="w-full flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: textMuted }}>
-                  Filters
+            <div className="pt-0.5">
+              <div className="w-10 h-1 rounded-full mx-auto mb-2" style={{ background: dark ? "rgba(255,255,255,0.18)" : "rgba(15,47,143,0.18)" }} />
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[15px] font-bold leading-none tracking-tight" style={{ color: textPrimary }}>
+                  Filter by status
                 </p>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={resetDraftFilters}
-                    className="text-xs font-semibold focus:outline-none"
-                    style={{ color: dark ? "#93c5fd" : "#0f2f8f" }}
-                  >
-                    Reset
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeFilters}
-                    className="field-touch w-12 h-12 rounded-xl flex items-center justify-center focus:outline-none"
-                    style={{
-                      background: dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.10)",
-                      color: dark ? "#ffffff" : "#0f2f8f",
-                    }}
-                    aria-label="Close"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={closeFilters}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 focus:outline-none pressable"
+                  style={{
+                    background: dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.08)",
+                    color: dark ? "#ffffff" : "#0f2f8f",
+                    border: dark ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(15,47,143,0.12)",
+                  }}
+                  aria-label="Close"
+                >
+                  <X size={16} />
+                </button>
               </div>
             </div>
 
-            <div className="flex flex-col gap-2.5">
-              <label htmlFor="filter-status" className="text-[12px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
-                Status
-              </label>
+            <div className="flex flex-col gap-2.5 -mt-1">
               <div className="relative">
-                <select
-                  id="filter-status"
-                  value={draftStatus}
-                  onChange={e => setDraftStatus(e.target.value as StatusFilter)}
-                  className="w-full h-12 appearance-none rounded-2xl pl-4 pr-10 text-sm font-semibold outline-none focus:outline-none transition-[box-shadow,border-color] duration-200"
+                <button
+                  type="button"
+                  onClick={() => setStatusMenuOpen(v => !v)}
+                  className="w-full h-12 rounded-2xl pl-4 pr-10 text-sm font-semibold text-left flex items-center focus:outline-none pressable"
                   style={{
                     background: controlBg,
-                    border: `1.5px solid ${glassBorder}`,
+                    border: `1.5px solid ${statusMenuOpen ? (dark ? "rgba(96,165,250,0.55)" : "rgba(15,47,143,0.45)") : glassBorder}`,
                     color: textPrimary,
-                    boxShadow: dark ? "0 2px 10px rgba(0,0,0,0.22)" : "0 2px 10px rgba(15,47,143,0.04)",
+                    boxShadow: statusMenuOpen
+                      ? (dark ? "0 4px 16px rgba(0,0,0,0.28)" : "0 0 0 3px rgba(15,47,143,0.10)")
+                      : (dark ? "0 2px 10px rgba(0,0,0,0.22)" : "0 2px 10px rgba(15,47,143,0.04)"),
                   }}
+                  aria-expanded={statusMenuOpen}
+                  aria-haspopup="listbox"
                 >
-                  {statusChips.map(opt => (
-                    <option key={opt.id} value={opt.id}>{opt.label}</option>
-                  ))}
-                </select>
+                  {statusChips.find(opt => opt.id === draftStatus)?.label ?? "All"}
+                </button>
                 <ChevronDown
                   size={16}
-                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2"
-                  style={{ color: textMuted }}
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 transition-transform duration-200"
+                  style={{
+                    color: textMuted,
+                    transform: statusMenuOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%) rotate(0deg)",
+                  }}
                 />
+                {statusMenuOpen && (
+                  <ul
+                    className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 rounded-2xl overflow-hidden py-1.5 animate-panelIn"
+                    style={{
+                      background: controlBg,
+                      border: `1.5px solid ${glassBorder}`,
+                      boxShadow: dark ? "0 12px 32px rgba(0,0,0,0.45)" : "0 12px 32px rgba(15,47,143,0.14)",
+                    }}
+                    role="listbox"
+                    aria-label="Status options"
+                  >
+                    {statusChips.map(opt => {
+                      const selected = draftStatus === opt.id;
+                      return (
+                        <li key={opt.id}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={selected}
+                            onClick={() => {
+                              setDraftStatus(opt.id);
+                              setStatusMenuOpen(false);
+                            }}
+                            className="w-full px-4 py-3 text-left text-sm font-semibold transition-colors focus:outline-none"
+                            style={{
+                              color: selected ? (dark ? "#93c5fd" : "#0f2f8f") : textPrimary,
+                              background: selected
+                                ? (dark ? "rgba(59,130,246,0.14)" : "rgba(15,47,143,0.08)")
+                                : "transparent",
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
             </div>
 
             <button
               type="button"
               onClick={applyFilters}
-              className="w-full h-12 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+              className="w-full h-12 rounded-xl text-sm font-bold text-white focus:outline-none active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
               style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.28)" }}
             >
               Apply filters
@@ -3399,7 +3526,7 @@ function ApprovedPriceEndorsementScreen({
       </AppHeaderBar>
 
       <div
-        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 gap-4"
+        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-3 sm:pt-4 gap-4"
         style={{ paddingBottom: BOTTOM_NAV_PAD }}
       >
         <ApprovedPriceEndorsementPanel dark={dark} />
@@ -3494,7 +3621,7 @@ function DeclaredLogDetailsScreen({
       </AppHeaderBar>
 
       <div
-        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 gap-3"
+        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-3 sm:pt-4 gap-3"
         style={{ paddingBottom: BOTTOM_NAV_PAD }}
       >
         <GradientInfoHeroCard
@@ -3674,7 +3801,7 @@ function PermittedVsDeclaredScreen({
       </AppHeaderBar>
 
       <div
-        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 gap-3"
+        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-3 sm:pt-4 gap-3"
         style={{ paddingBottom: BOTTOM_NAV_PAD }}
       >
         <GradientInfoHeroCard
@@ -4853,7 +4980,7 @@ function InspectionInfoSectionDetailScreen({
       </AppHeaderBar>
 
       <div
-        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-6 gap-5"
+        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-3 sm:pt-4 gap-5"
         style={{ paddingBottom: BOTTOM_NAV_PAD }}
       >
         <div
@@ -4968,7 +5095,7 @@ function InspectionInfoDetailsScreen({
         <InspectionInfoSkeleton dark={dark} />
       ) : (
         <div
-          className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-6 gap-6"
+          className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-3 sm:pt-4 gap-6"
           style={{ paddingBottom: BOTTOM_NAV_PAD }}
         >
           {INSPECTION_INFO_GROUPS.map((group, gIdx) => {
@@ -5440,12 +5567,12 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
       </AppHeaderBar>
 
       <div
-        className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-5 gap-4"
+        className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-3 sm:pt-4 gap-4"
         style={{ paddingBottom: BOTTOM_NAV_PAD }}
       >
 
         {/* Inspection Info — read only, tap to view full details */}
-        <div className="animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }}>
+        <div className="animate-riseIn" style={{ ["--rise-delay" as string]: "40ms" }} data-guide-id="guide-inspection-info">
           <GradientInfoHeroCard
             icon={<ClipboardList size={17} style={{ color: "#ffffff" }} />}
             title="Inspection Info"
@@ -5594,6 +5721,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                       type="button"
                       onClick={() => handleStepAction(step.key, isActive, isDisabled)}
                       disabled={isDisabled}
+                      data-guide-id={step.key === "preShipment" ? "guide-pre-shipment-start" : undefined}
                       className="pressable w-full h-12 mt-1 rounded-xl text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2 focus:outline-none hover:brightness-110 disabled:hover:brightness-100 disabled:cursor-not-allowed"
                       style={{
                         background: isLocked ? lockedBtnBg : GRADIENT,
@@ -5692,6 +5820,7 @@ function VerificationStepPicker<T extends string>({
   const activeIndex = Math.max(0, steps.findIndex(step => step.id === activeStep));
   const allDone = stepComplete.every(Boolean);
   const activeStepConfig = steps[activeIndex];
+  const nextLockedStep = steps.findIndex((_, index) => index > 0 && !stepComplete[index - 1]);
 
   return (
     <div
@@ -5707,7 +5836,7 @@ function VerificationStepPicker<T extends string>({
       <div className="relative z-10 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[12px] font-bold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.92)" }}>
-            {allDone ? "Complete" : "Verification"}
+            {allDone ? "Verification complete" : `Step ${activeIndex + 1} of ${steps.length}`}
           </p>
           {!allDone && activeStepConfig?.hint && (
             <p className="stepper-choice-hint mt-1">{activeStepConfig.hint}</p>
@@ -5729,6 +5858,7 @@ function VerificationStepPicker<T extends string>({
           const done = stepComplete[i];
           const active = activeIndex === i;
           const switchable = !active;
+          const locked = i > 0 && !stepComplete[i - 1];
           const Icon = step.icon;
 
           return (
@@ -5737,13 +5867,17 @@ function VerificationStepPicker<T extends string>({
               type="button"
               role="tab"
               aria-selected={active}
-              aria-label={`${step.label}${done ? ", completed" : active ? ", current" : ", tap to switch"}`}
-              onClick={() => onStepSelect(step.id)}
-              className={`stepper-choice focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${active ? "stepper-choice--active" : ""} ${done ? "stepper-choice--done" : ""} ${switchable ? "stepper-choice--switch" : ""}`}
+              aria-disabled={locked}
+              aria-label={`${step.label}${done ? ", completed" : active ? ", current" : locked ? ", locked until the previous step is complete" : ", tap to switch"}`}
+              disabled={locked}
+              onClick={() => !locked && onStepSelect(step.id)}
+              className={`stepper-choice focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${active ? "stepper-choice--active" : ""} ${done ? "stepper-choice--done" : ""} ${locked ? "stepper-choice--locked" : ""} ${switchable && !locked ? "stepper-choice--switch" : ""}`}
             >
               <span className="stepper-choice-head">
                 <span className="stepper-choice-icon" aria-hidden="true">
-                  {done && !active ? (
+                  {locked ? (
+                    <Lock size={15} strokeWidth={2.25} />
+                  ) : done && !active ? (
                     <CheckCircle2 size={15} strokeWidth={2.25} />
                   ) : (
                     <Icon size={15} strokeWidth={active ? 2.25 : 2} />
@@ -5753,11 +5887,13 @@ function VerificationStepPicker<T extends string>({
                   {active ? (
                     <>
                       <span className="stepper-choice-foot-dot" aria-hidden="true" />
-                      Current
+                      Step {i + 1}
                     </>
+                  ) : locked ? (
+                    `Step ${i + 1} · Locked`
                   ) : (
                     <>
-                      {i + 1}
+                      Step {i + 1}
                       <ChevronRight size={12} strokeWidth={2.25} className="stepper-choice-chevron" aria-hidden="true" />
                     </>
                   )}
@@ -5813,6 +5949,7 @@ function PhysicalVerificationScreen({
   draft,
   onDraftChange,
   onBack,
+  onReturnToInspectionList,
   onProceed,
   onGoToSample,
   viewOnly = false,
@@ -5822,6 +5959,7 @@ function PhysicalVerificationScreen({
   draft: PhysicalVerificationDraft;
   onDraftChange: (patch: Partial<PhysicalVerificationDraft>) => void;
   onBack: () => void;
+  onReturnToInspectionList: () => void;
   onProceed: () => void;
   onGoToSample: () => void;
   viewOnly?: boolean;
@@ -5835,6 +5973,7 @@ function PhysicalVerificationScreen({
   const [evidencePhotos, setEvidencePhotos] = useState<EvidencePhoto[]>([]);
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
   const [evidenceSheetOpen, setEvidenceSheetOpen] = useState(false);
+  const [verificationFailedOpen, setVerificationFailedOpen] = useState(false);
   const [photoSheetPurpose, setPhotoSheetPurpose] = useState<"evidence" | "verification">("evidence");
   const photoSheetPurposeRef = useRef<"evidence" | "verification">("evidence");
   const [verificationPhotoPreview, setVerificationPhotoPreview] = useState<string | null>(null);
@@ -6064,7 +6203,7 @@ function PhysicalVerificationScreen({
 
   return (
     <div
-      className={`h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn ${dark ? "" : "inspection-surface"}`}
+      className={`relative h-full-screen w-full flex flex-col overflow-hidden animate-fadeIn ${dark ? "" : "inspection-surface"}`}
       style={{ fontFamily: "'Inter', sans-serif", background: pageBg }}
       {...swipe}
     >
@@ -6081,7 +6220,7 @@ function PhysicalVerificationScreen({
 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
       <div
-        className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-4 sm:pt-5 gap-4"
+        className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-2 sm:pt-3 gap-4"
         style={{ paddingBottom: BOTTOM_NAV_PAD }}
       >
         {/* Tabs — liquid sliding indicator */}
@@ -6352,6 +6491,10 @@ function PhysicalVerificationScreen({
                   type="button"
                   onClick={() => {
                     if (!nonConformanceReason.trim()) return;
+                    if (volumeOk === "no") {
+                      setVerificationFailedOpen(true);
+                      return;
+                    }
                     onDraftChange({ physicalStepComplete: true });
                   }}
                   disabled={!nonConformanceReason.trim()}
@@ -6823,6 +6966,45 @@ function PhysicalVerificationScreen({
           </div>
         </div>,
         document.body,
+      )}
+      {verificationFailedOpen && (
+        <div
+          className="absolute inset-0 z-[80] flex items-center justify-center p-5"
+          style={{ background: "rgba(2, 12, 42, 0.58)", backdropFilter: "blur(7px)", WebkitBackdropFilter: "blur(7px)" }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="verification-failed-title"
+        >
+          <div
+            className="w-full max-w-[340px] rounded-[24px] p-5 flex flex-col items-center text-center animate-panelIn"
+            style={{ background: dark ? "#1e293b" : "#ffffff", boxShadow: "0 18px 50px rgba(0,0,0,0.28)" }}
+          >
+            <span
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: "rgba(225,29,72,0.12)", color: "#e11d48" }}
+              aria-hidden="true"
+            >
+              <AlertTriangle size={24} strokeWidth={2.4} />
+            </span>
+            <h2 id="verification-failed-title" className="mt-4 text-[18px] font-bold" style={{ color: textPrimary }}>
+              Shipment verification not completed
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: textMuted }}>
+              The physical volume is below the required threshold. This pre-shipment verification cannot be completed.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setVerificationFailedOpen(false);
+                onReturnToInspectionList();
+              }}
+              className="pressable mt-5 w-full min-h-12 rounded-xl text-sm font-bold text-white focus:outline-none"
+              style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.28)" }}
+            >
+              Back to Inspection
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -7589,7 +7771,7 @@ function SampleVerificationScanScreen({
       </AppHeaderBar>
 
       <div
-        className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 pt-5 gap-4"
+        className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-5 pt-3 sm:pt-4 gap-4"
         style={{ paddingBottom: BOTTOM_NAV_PAD }}
       >
         <LiquidTabBar
@@ -8410,13 +8592,13 @@ function LogInformationHubScreen({
         <div className="flex items-center gap-3">
           <BackCardButton onClick={onBack} dark={dark} />
           <div className="min-w-0">
-            <h1 className="text-[18px] font-bold tracking-tight" style={{ color: textPrimary }}>Log Inventory</h1>
+            <h1 className="text-[18px] font-bold tracking-tight" style={{ color: textPrimary }}>Log Information</h1>
           </div>
         </div>
       </AppHeaderBar>
 
       <div
-        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-5 gap-4"
+        className="w-full max-w-[480px] mx-auto flex flex-col px-5 pt-3 sm:pt-4 gap-4"
         style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
       >
         <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: textMuted }}>Actions</p>
@@ -8489,7 +8671,7 @@ function LogInventoryScreen({ dark, onBack, isCU = false }: {
       >
         <div className="flex flex-col gap-2 pb-6">
           {INVENTORY_ITEMS.map(item => (
-            <InventoryRow key={item.id} item={item} dark={dark} showModified={!isCU} showChangeQr={!isCU} />
+            <InventoryRow key={item.id} item={item} dark={dark} variant={isCU ? "cu" : "exporter"} />
           ))}
           {INVENTORY_ITEMS.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -9536,7 +9718,7 @@ function LoadingLogsScanScreen({
 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         <div
-          className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-4 sm:pt-5 gap-4"
+          className="w-full max-w-[480px] mx-auto flex flex-col px-4 sm:px-5 pt-2 sm:pt-3 gap-4"
           style={{ paddingBottom: BOTTOM_NAV_PAD }}
         >
           <LiquidTabBar
@@ -10628,6 +10810,54 @@ function LoadingLogsScanScreen({
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
+let activeDataScope: { exporter: string; concession: string } | null = null;
+let showDataScopeBanner = false;
+
+function DataScopeBanner() {
+  if (!activeDataScope || !showDataScopeBanner) return null;
+
+  return (
+    <div
+      className="data-scope-banner rounded-2xl px-4 py-3.5"
+      style={{ background: GRADIENT, boxShadow: "0 4px 20px rgba(15,47,143,0.35)" }}
+      role="status"
+      aria-label={`Exporter ${activeDataScope.exporter}, Concession ${activeDataScope.concession}`}
+    >
+      <div className="flex flex-col gap-2.5">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.62)" }}>
+            Exporter Name
+          </p>
+          <p className="text-lg font-bold tracking-tight text-white truncate mt-0.5">
+            <span className="aurora-text">{activeDataScope.exporter}</span>
+          </p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.62)" }}>
+            Concession Name
+          </p>
+          <p className="text-[13px] font-semibold mt-0.5 flex items-center gap-1.5 min-w-0" style={{ color: "rgba(255,255,255,0.88)" }}>
+            <MapPin size={12} className="flex-shrink-0" style={{ color: "rgba(255,255,255,0.82)" }} />
+            <span className="truncate">{activeDataScope.concession}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function wrapWithGuide(screen: Screen, isCU: boolean, content: ReactNode) {
+  return (
+    <OnboardingProvider
+      screen={screen}
+      isCU={isCU}
+      isLoggedIn={screen !== "login" && screen !== "cu-signin"}
+    >
+      {content}
+    </OnboardingProvider>
+  );
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>("login");
   const [location, setLocation] = useState("");
@@ -10658,6 +10888,11 @@ export default function App() {
   const finishOnDoneRef = useRef<((result: { inspectionComplete: boolean }) => void) | null>(null);
 
   const isCU = userType === "cu";
+  activeDataScope = isCU
+    ? { exporter: inventoryExporter || "Open Bay Timber Limited", concession: location || "Concession Unit A" }
+    : null;
+
+  showDataScopeBanner = Boolean(isCU && activeDataScope && LOG_INFORMATION_SCREENS.includes(screen));
 
   const syncInventoryOverlayBox = () => {
     const device = document.querySelector(".mobile-device");
@@ -10958,15 +11193,15 @@ export default function App() {
     }
   }, [screen, selectedInspectionId]);
 
-  if (screen === "login") return (
+  if (screen === "login") return wrapWithGuide(screen, isCU, (
     <LoginScreen
       onSignIn={() => { setUserType("client"); setScreen("location"); }}
       onCUSignIn={() => { setUserType("cu"); setLocation("Control Union"); setScreen("home"); }}
     />
-  );
-  if (screen === "location") return (
+  ));
+  if (screen === "location") return wrapWithGuide(screen, isCU, (
     <LocationScreen onNext={loc => { setUserType("client"); setLocation(loc); setScreen("home"); }} />
-  );
+  ));
 
   const inventorySheet = inventorySheetOpen ? (
     <LogInventoryScopeSheet
@@ -10984,7 +11219,7 @@ export default function App() {
 
   const bottomNav = inventorySheet;
 
-  if (screen === "scan-log") return (
+  if (screen === "scan-log") return wrapWithGuide(screen, isCU, (
     <>
       <ScanLogScreen
         dark={dark}
@@ -11003,16 +11238,16 @@ export default function App() {
       />
       {bottomNav}
     </>
-  );
-  if (screen === "register-log-form") return (
+  ));
+  if (screen === "register-log-form") return wrapWithGuide(screen, isCU, (
     <RegisterLogFormScreen
       key={isCU ? "cu-view" : registerLogPrefill ? "existing" : "new"}
       prefill={isCU ? (registerLogPrefill ?? REGISTERED_LOG_ENTRY) : registerLogPrefill}
       isCU={isCU}
       onBack={() => setScreen("scan-log")}
     />
-  );
-  if (screen === "inventory-hub") return (
+  ));
+  if (screen === "inventory-hub") return wrapWithGuide(screen, isCU, (
     <>
       <LogInformationHubScreen
         dark={dark}
@@ -11028,8 +11263,8 @@ export default function App() {
       />
       {inventorySheet}
     </>
-  );
-  if (screen === "log-inventory") return (
+  ));
+  if (screen === "log-inventory") return wrapWithGuide(screen, isCU, (
     <LogInventoryScreen
       dark={dark}
       isCU={isCU}
@@ -11037,7 +11272,7 @@ export default function App() {
       exporter={inventoryExporter || resolveExporterForConcession(location)}
       concession={location || undefined}
     />
-  );
+  ));
 
   const scheduleExporter = resolveExporterForConcession(location);
   const scheduleConcession = location || CU_CLIENT_DIRECTORY[0].concessions[0];
@@ -11051,24 +11286,24 @@ export default function App() {
   };
 
   if (screen === "schedule-inspection") {
-    return (
+    return wrapWithGuide(screen, isCU, (
       <>
         <ScheduleInspectionScreen {...scheduleScreenProps} />
         {bottomNav}
       </>
-    );
+    ));
   }
   if (screen === "inspection-details") {
     const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
     if (!task) {
-      return (
+      return wrapWithGuide(screen, isCU, (
         <>
           <ScheduleInspectionScreen {...scheduleScreenProps} />
           {bottomNav}
         </>
-      );
+      ));
     }
-    return (
+    return wrapWithGuide(screen, isCU, (
       <>
         <InspectionDetailsScreen
           task={task}
@@ -11113,19 +11348,19 @@ export default function App() {
         />
         {bottomNav}
       </>
-    );
+    ));
   }
   if (screen === "loading-logs-scan") {
     const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
     if (!task) {
-      return (
+      return wrapWithGuide(screen, isCU, (
         <>
           <ScheduleInspectionScreen {...scheduleScreenProps} />
           {bottomNav}
         </>
-      );
+      ));
     }
-    return (
+    return wrapWithGuide(screen, isCU, (
       <>
         <LoadingLogsScanScreen
           scanCount={loadingScanCount}
@@ -11202,19 +11437,19 @@ export default function App() {
         {finishDialogPortal}
         {bottomNav}
       </>
-    );
+    ));
   }
   if (screen === "physical-verification") {
     const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
     if (!task) {
-      return (
+      return wrapWithGuide(screen, isCU, (
         <>
           <ScheduleInspectionScreen {...scheduleScreenProps} />
           {bottomNav}
         </>
-      );
+      ));
     }
-    return (
+    return wrapWithGuide(screen, isCU, (
       <>
         <PhysicalVerificationScreen
           task={task}
@@ -11226,6 +11461,7 @@ export default function App() {
             updatePhysicalVerification(task.id, patch);
           }}
           onBack={() => setScreen("inspection-details")}
+          onReturnToInspectionList={() => setScreen("schedule-inspection")}
           onProceed={() => {
             if (!inspectionViewOnly) {
               updatePhysicalVerification(task.id, { physicalStepComplete: true });
@@ -11244,22 +11480,22 @@ export default function App() {
         {finishDialogPortal}
         {bottomNav}
       </>
-    );
+    ));
   }
   if (screen === "sample-verification-scan" || screen === "sample-verification-log") {
     const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
     if (!task) {
-      return (
+      return wrapWithGuide(screen, isCU, (
         <>
           <ScheduleInspectionScreen {...scheduleScreenProps} />
           {bottomNav}
         </>
-      );
+      ));
     }
     const activeRecord = scannedSampleLogs.find(r => r.code === activeScannedCode);
     // Scans live in memory only, so a restored session on the details screen falls back to scanning.
     if (screen === "sample-verification-scan" || !activeRecord) {
-      return (
+      return wrapWithGuide(screen, isCU, (
         <>
           <SampleVerificationScanScreen
             key={sampleScanCount}
@@ -11309,9 +11545,9 @@ export default function App() {
           {finishDialogPortal}
           {bottomNav}
         </>
-      );
+      ));
     }
-    return (
+    return wrapWithGuide(screen, isCU, (
       <>
         <QrDetailsScreen
           record={activeRecord}
@@ -11340,19 +11576,19 @@ export default function App() {
         />
         {bottomNav}
       </>
-    );
+    ));
   }
   if (screen === "inspection-info-details") {
     const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
     if (!task) {
-      return (
+      return wrapWithGuide(screen, isCU, (
         <>
           <ScheduleInspectionScreen {...scheduleScreenProps} />
           {bottomNav}
         </>
-      );
+      ));
     }
-    return (
+    return wrapWithGuide(screen, isCU, (
       <>
         <InspectionInfoDetailsScreen
           task={task}
@@ -11364,19 +11600,19 @@ export default function App() {
         />
         {bottomNav}
       </>
-    );
+    ));
   }
   if (screen === "approved-price-endorsement") {
     const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
     if (!task) {
-      return (
+      return wrapWithGuide(screen, isCU, (
         <>
           <ScheduleInspectionScreen {...scheduleScreenProps} />
           {bottomNav}
         </>
-      );
+      ));
     }
-    return (
+    return wrapWithGuide(screen, isCU, (
       <>
         <ApprovedPriceEndorsementScreen
           dark={dark}
@@ -11384,19 +11620,19 @@ export default function App() {
         />
         {bottomNav}
       </>
-    );
+    ));
   }
   if (screen === "declared-log-details") {
     const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
     if (!task) {
-      return (
+      return wrapWithGuide(screen, isCU, (
         <>
           <ScheduleInspectionScreen {...scheduleScreenProps} />
           {bottomNav}
         </>
-      );
+      ));
     }
-    return (
+    return wrapWithGuide(screen, isCU, (
       <>
         <DeclaredLogDetailsScreen
           task={task}
@@ -11405,19 +11641,19 @@ export default function App() {
         />
         {bottomNav}
       </>
-    );
+    ));
   }
   if (screen === "permitted-vs-declared") {
     const task = SCHEDULED_INSPECTIONS.find(t => t.id === selectedInspectionId);
     if (!task) {
-      return (
+      return wrapWithGuide(screen, isCU, (
         <>
           <ScheduleInspectionScreen {...scheduleScreenProps} />
           {bottomNav}
         </>
-      );
+      ));
     }
-    return (
+    return wrapWithGuide(screen, isCU, (
       <>
         <PermittedVsDeclaredScreen
           dark={dark}
@@ -11425,11 +11661,11 @@ export default function App() {
         />
         {bottomNav}
       </>
-    );
+    ));
   }
-  return (
+  return wrapWithGuide(screen, isCU, (
     <>
-      <HomeScreen
+      <HomeScreenWithGuide
         location={location}
         isCU={isCU}
         onLogout={() => {
@@ -11445,5 +11681,5 @@ export default function App() {
       />
       {bottomNav}
     </>
-  );
+  ));
 }

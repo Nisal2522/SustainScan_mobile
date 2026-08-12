@@ -67,10 +67,14 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-a24bf94b'], (function (workbox) { 'use strict';
+define(['./workbox-be2709a1'], (function (workbox) { 'use strict';
 
-  self.skipWaiting();
-  workbox.clientsClaim();
+  self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+      self.skipWaiting();
+    }
+  });
+
   /**
    * The precacheAndRoute() method efficiently caches and responds to
    * requests for URLs in the manifest.
@@ -78,7 +82,7 @@ define(['./workbox-a24bf94b'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "/index.html",
-    "revision": "0.559tohbmdk"
+    "revision": "0.npbvekod5bo"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
@@ -88,8 +92,17 @@ define(['./workbox-a24bf94b'], (function (workbox) { 'use strict';
     request
   }) => request.mode === "navigate" || request.destination === "document" || request.url && request.url.includes("manifest.webmanifest"), new workbox.NetworkFirst({
     "cacheName": "ss-navigations-v2",
-    "networkTimeoutSeconds": 3,
+    "networkTimeoutSeconds": 1,
     plugins: []
+  }), 'GET');
+  workbox.registerRoute(({
+    request
+  }) => request.destination === "image", new workbox.CacheFirst({
+    "cacheName": "ss-images-v1",
+    plugins: [new workbox.ExpirationPlugin({
+      maxEntries: 40,
+      maxAgeSeconds: 2592000
+    })]
   }), 'GET');
 
 }));

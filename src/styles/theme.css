@@ -278,7 +278,7 @@
   }
 
   .field-touch {
-    min-height: 48px;
+    min-height: 62px;
     min-width: 48px;
   }
 
@@ -618,12 +618,25 @@
     opacity: 0.92;
   }
 
+  .stepper-choice--locked {
+    cursor: not-allowed;
+    color: rgba(255, 255, 255, 0.56);
+    background: rgba(4, 20, 70, 0.26);
+    border-color: rgba(255, 255, 255, 0.16);
+    opacity: 0.78;
+  }
+
+  .stepper-choice--locked .stepper-choice-icon {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
   .stepper-choice-head {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     justify-content: space-between;
     width: 100%;
-    gap: 8px;
+    gap: 3px;
   }
 
   .stepper-choice-icon {
@@ -652,7 +665,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     opacity: 0.88;
     flex-shrink: 0;
@@ -683,17 +696,21 @@
     color: rgba(255, 255, 255, 0.92);
   }
 
+  .stepper-unlock-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
   .stepper-choice-foot-dot {
     width: 6px;
     height: 6px;
     border-radius: 999px;
     background: currentColor;
-  }
-
-  @keyframes stepMarchSpin {
-    to {
-      --march-angle: 630deg;
-    }
   }
 
   @keyframes stepChevronNudge {
@@ -720,54 +737,13 @@
     }
   }
 
-  @property --march-angle {
-    syntax: "<angle>";
-    initial-value: 270deg;
-    inherits: false;
-  }
-
   .stepper-choice--switch {
-    position: relative;
-    isolation: isolate;
     border-color: transparent;
     background: rgba(255, 255, 255, 0.04);
   }
 
-  .stepper-choice--switch::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1.5px;
-    background: conic-gradient(
-      from var(--march-angle),
-      rgba(255, 255, 255, 0.88) 0deg 10deg,
-      transparent 10deg 22deg
-    );
-    -webkit-mask:
-      linear-gradient(#fff 0 0) content-box,
-      linear-gradient(#fff 0 0);
-    mask:
-      linear-gradient(#fff 0 0) content-box,
-      linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    animation: stepMarchSpin 3.6s linear infinite;
-    pointer-events: none;
-    z-index: 0;
-  }
-
   .stepper-choice--switch:hover {
     background: rgba(255, 255, 255, 0.1);
-  }
-
-  .stepper-choice--switch:hover::before {
-    animation-duration: 3s;
-  }
-
-  .stepper-choice--switch > * {
-    position: relative;
-    z-index: 1;
   }
 
   .stepper-choice-chevron {
@@ -1115,7 +1091,174 @@
     box-shadow: 0 0 20px rgba(59, 130, 246, 0.24);
   }
 
+  /* Persistent exporter/concession context — matches home greeting card */
+  .data-scope-banner {
+    width: calc(100% - 2rem);
+    max-width: 440px;
+    margin: 0 auto 0.75rem;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  /* Contextual onboarding coach marks */
+  .coach-mark-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 58;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .coach-mark-backdrop {
+    position: absolute;
+    background: rgba(5, 18, 52, 0.48);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .coach-mark-spotlight {
+    position: absolute;
+    border-radius: 14px;
+    box-shadow:
+      0 0 0 2px #60a5fa,
+      0 6px 20px rgba(15, 47, 143, 0.28);
+    pointer-events: none;
+    animation: coachSpotlight 2.4s ease-in-out infinite;
+  }
+
+  .coach-mark__chip {
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    border-radius: 16px;
+    background: #ffffff;
+    color: #0a1a4a;
+    box-shadow:
+      0 12px 28px rgba(2, 12, 42, 0.30),
+      0 0 0 1px rgba(15, 47, 143, 0.10) inset;
+  }
+
+  .coach-mark__text {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .coach-mark__skip {
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1a45b5;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .coach-mark__skip:hover {
+    color: #0f2f8f;
+  }
+
+  .coach-mark__arrow {
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 10px solid #ffffff;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 4px rgba(15, 47, 143, 0.25));
+  }
+
+  .coach-mark__arrow--down {
+    animation: coachArrowNudgeDown 2.2s ease-in-out infinite;
+  }
+
+  .coach-mark__arrow--up {
+    animation: coachArrowNudgeUp 2.2s ease-in-out infinite;
+  }
+
+  .coach-mark__arrow--left {
+    animation: coachArrowNudgeLeft 2.2s ease-in-out infinite;
+  }
+
+  .coach-mark__arrow--right {
+    animation: coachArrowNudgeRight 2.2s ease-in-out infinite;
+  }
+
+  @keyframes coachMarkIn {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .animate-coachMarkIn {
+    animation: coachMarkIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes coachSpotlight {
+    0%,
+    100% {
+      box-shadow: 0 0 0 2px rgba(26, 69, 181, 0.45);
+    }
+    50% {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.65);
+    }
+  }
+
+  @keyframes coachArrowNudgeDown {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(4px);
+    }
+  }
+
+  @keyframes coachArrowNudgeUp {
+    0%,
+    100% {
+      transform: rotate(180deg) translateY(0);
+    }
+    50% {
+      transform: rotate(180deg) translateY(4px);
+    }
+  }
+
+  @keyframes coachArrowNudgeLeft {
+    0%,
+    100% {
+      transform: rotate(-90deg) translateY(0);
+    }
+    50% {
+      transform: rotate(-90deg) translateY(4px);
+    }
+  }
+
+  @keyframes coachArrowNudgeRight {
+    0%,
+    100% {
+      transform: rotate(90deg) translateY(0);
+    }
+    50% {
+      transform: rotate(90deg) translateY(4px);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
+    .coach-mark-spotlight,
+    .coach-mark__arrow,
+    .animate-coachMarkIn,
     .animate-nudgeRight,
     .animate-qrSweep,
     .animate-qrPulse,
@@ -1144,11 +1287,11 @@
     .aurora-text,
     .glow-footer-bar,
     .glow-footer-bar::after,
-    .scroll-focus-item {
+    .scroll-list__item {
       animation: none !important;
     }
 
-    .scroll-focus-item {
+    .scroll-list__item {
       transition: none !important;
       transform: none !important;
       opacity: 1 !important;
@@ -1179,8 +1322,7 @@
     }
 
     .volume-meter-fill,
-    .chip-settle,
-    .stepper-choice--switch::before {
+    .chip-settle {
       animation: none !important;
       padding: 0;
       background: none;
@@ -1338,25 +1480,48 @@ img.powered-by-logo {
   }
 }
 
-/* Smooth scroll focus — cards scale and fade by distance from viewport center */
-.scroll-focus-list {
-  scroll-behavior: auto;
+/* Smooth scroll list — scroll-list__wrp pattern */
+.scroll-list__wrp {
+  width: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
-.scroll-focus-list__inner {
-  padding-top: 0;
+.scroll-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
   padding-bottom: clamp(2rem, 10vh, 3.5rem);
 }
 
-.scroll-focus-item {
-  transform-origin: center center;
-  will-change: transform, opacity;
+.scroll-list__item {
+  width: 100%;
+  display: block;
+  border-radius: 1rem;
   transition:
-    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    transform 0.35s ease-in-out,
+    opacity 0.35s ease-in-out,
+    box-shadow 0.35s ease-in-out;
+  opacity: 0.92;
+  transform: scale(0.97);
+  transform-origin: center top;
+  will-change: transform, opacity;
 }
 
-.scroll-focus-item:first-child {
-  transform: scale(1);
+.scroll-list__item.item-focus {
   opacity: 1;
+  transform: scale(1);
+}
+
+.scroll-list__item.item-next,
+.scroll-list__item.item-focus + .scroll-list__item {
+  opacity: 0.96;
+  transform: scale(0.985);
+}
+
+.scroll-list__item.item-hide {
+  opacity: 0.88;
+  transform: scale(0.96);
 }
