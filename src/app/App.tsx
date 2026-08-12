@@ -5725,12 +5725,14 @@ function VerificationStepPicker<T extends string>({
       </div>
 
       <div className="relative z-10 stepper-track" role="tablist" aria-label={tablistLabel}>
-        {steps.map((step, i) => {
+        {steps.flatMap((step, i) => {
           const done = stepComplete[i];
           const active = activeIndex === i;
           const switchable = !active;
           const Icon = step.icon;
-          return (
+          const showFlowArrow = !allDone && active && i < steps.length - 1;
+
+          const card = (
             <button
               key={step.id}
               type="button"
@@ -5765,6 +5767,21 @@ function VerificationStepPicker<T extends string>({
               <span className="stepper-choice-label">{step.label}</span>
             </button>
           );
+
+          if (!showFlowArrow) return [card];
+
+          return [
+            card,
+            <div key={`flow-${step.id}`} className="stepper-flow-arrow" aria-hidden="true">
+              <svg className="stepper-flow-arrow__svg" viewBox="0 0 28 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line className="stepper-flow-arrow__line" x1="1" y1="6" x2="19" y2="6" />
+                <path className="stepper-flow-arrow__head" d="M17 3.25 L24 6 L17 8.75" />
+                <g className="stepper-flow-arrow__pulse">
+                  <circle cx="6" cy="6" r="1.75" />
+                </g>
+              </svg>
+            </div>,
+          ];
         })}
       </div>
     </div>
