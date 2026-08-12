@@ -5808,6 +5808,79 @@ const NON_COMPLIANCE_TYPES = [
   "Other",
 ];
 
+function VerificationFailedDialog({
+  overlayBox,
+  onDismiss,
+  dark = false,
+}: {
+  overlayBox: { top: number; left: number; width: number; height: number };
+  onDismiss: () => void;
+  dark?: boolean;
+}) {
+  const textPrimary = dark ? "#ffffff" : "#0a1a4a";
+  const textMuted = dark ? "rgba(255,255,255,0.78)" : FIELD_TEXT_MUTED;
+  const panelBg = dark ? "#1e293b" : "#ffffff";
+  const panelBorder = dark ? "rgba(255,255,255,0.16)" : "rgba(15,47,143,0.18)";
+
+  return createPortal(
+    <div
+      className="z-[70] flex items-center justify-center px-5"
+      style={{
+        position: "fixed",
+        top: overlayBox.top,
+        left: overlayBox.left,
+        width: overlayBox.width,
+        height: overlayBox.height,
+      }}
+    >
+      <button
+        type="button"
+        className="absolute inset-0 border-0 p-0 cursor-default"
+        style={{
+          background: dark ? "rgba(2,6,23,0.72)" : "rgba(10,22,70,0.52)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+        }}
+        aria-label="Close"
+        onClick={onDismiss}
+      />
+      <div
+        className="relative z-10 w-full max-w-sm rounded-2xl p-5 flex flex-col items-center gap-4 text-center shadow-2xl animate-riseIn"
+        style={{ background: panelBg, border: `1px solid ${panelBorder}` }}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="verification-failed-title"
+        onClick={e => e.stopPropagation()}
+      >
+        <span
+          className="w-14 h-14 rounded-2xl flex items-center justify-center"
+          style={{ background: "rgba(212,24,61,0.10)", color: "#d4183d" }}
+        >
+          <AlertTriangle size={28} strokeWidth={2.4} />
+        </span>
+        <h2 id="verification-failed-title" className="text-base font-bold leading-snug" style={{ color: textPrimary }}>
+          Verification Could Not Be Completed
+        </h2>
+        <p className="text-[13px] leading-relaxed" style={{ color: textMuted }}>
+          Less than 95% of the declared volume is physically present, so the shipment verification could not be completed. You will be returned to the inspection page.
+        </p>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="pressable w-full min-h-12 rounded-xl text-sm font-bold text-white focus:outline-none"
+          style={{
+            background: "linear-gradient(135deg, #e11d48 0%, #be123c 100%)",
+            boxShadow: "0 6px 18px rgba(190,18,60,0.28)",
+          }}
+        >
+          Back to Inspection
+        </button>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function PhysicalVerificationScreen({
   task,
   draft,
@@ -5815,6 +5888,7 @@ function PhysicalVerificationScreen({
   onBack,
   onProceed,
   onGoToSample,
+  onVerificationFailed,
   viewOnly = false,
   dark = false,
 }: {
@@ -5824,6 +5898,7 @@ function PhysicalVerificationScreen({
   onBack: () => void;
   onProceed: () => void;
   onGoToSample: () => void;
+  onVerificationFailed: () => void;
   viewOnly?: boolean;
   dark?: boolean;
 }) {
@@ -5841,6 +5916,7 @@ function PhysicalVerificationScreen({
   const verificationPhotoPreviewRef = useRef<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(!physicalStepComplete);
   const [evidenceSheetBox, setEvidenceSheetBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [failDialogBox, setFailDialogBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [attachments, setAttachments] = useState<AttachmentFile[]>(ATTACHMENT_FILES);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -6353,6 +6429,15 @@ function PhysicalVerificationScreen({
                   onClick={() => {
                     if (!nonConformanceReason.trim()) return;
                     onDraftChange({ physicalStepComplete: true });
+                    if (volumeOk === "no") {
+                      const device = document.querySelector(".mobile-device");
+                      if (device) {
+                        const r = device.getBoundingClientRect();
+                        setFailDialogBox({ top: r.top, left: r.left, width: r.width, height: r.height });
+                      } else {
+                        setFailDialogBox({ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight });
+                      }
+                    }
                   }}
                   disabled={!nonConformanceReason.trim()}
                   className="pressable w-full min-h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none disabled:opacity-45 disabled:cursor-not-allowed"
@@ -6384,6 +6469,17 @@ function PhysicalVerificationScreen({
             </div>
           )}
         </div>
+
+        {failDialogBox && (
+          <VerificationFailedDialog
+            overlayBox={failDialogBox}
+            dark={dark}
+            onDismiss={() => {
+              setFailDialogBox(null);
+              onVerificationFailed();
+            }}
+          />
+        )}
 
         {!viewOnly && physicalStepComplete && (
           <button
@@ -11240,6 +11336,7 @@ export default function App() {
             }
             setScreen("sample-verification-scan");
           }}
+          onVerificationFailed={() => setScreen("inspection-details")}
         />
         {finishDialogPortal}
         {bottomNav}
