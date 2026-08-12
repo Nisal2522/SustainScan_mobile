@@ -30,6 +30,9 @@ interface PhysicalVerificationDraft {
   nonConformanceReason: string;
   physicalStepComplete: boolean;
   sampleStepComplete: boolean;
+  /** When true, sample scans are waived if a mandatory reason is provided. */
+  noSamplesAvailable: boolean;
+  noSamplesReason: string;
 }
 
 const EMPTY_PHYSICAL_VERIFICATION: PhysicalVerificationDraft = {
@@ -38,7 +41,47 @@ const EMPTY_PHYSICAL_VERIFICATION: PhysicalVerificationDraft = {
   nonConformanceReason: "",
   physicalStepComplete: false,
   sampleStepComplete: false,
+  noSamplesAvailable: false,
+  noSamplesReason: "",
 };
+
+/** Outdoor-readable muted text (avoids low-contrast gray-on-light). */
+const FIELD_TEXT_MUTED = "#3d4f7c";
+const FIELD_TEXT_FAINT = "#4a5d8a";
+
+interface CompletionGate {
+  canComplete: boolean;
+  blockers: string[];
+}
+
+function evaluatePreShipmentCompletion(
+  draft: PhysicalVerificationDraft,
+  sampleScanCount: number,
+): CompletionGate {
+  const blockers: string[] = [];
+  if (!draft.physicalStepComplete) {
+    blockers.push("Submit the physical inspection before finishing.");
+  }
+  const hasSamples = sampleScanCount > 0;
+  const hasNoSamplesReason =
+    draft.noSamplesAvailable && draft.noSamplesReason.trim().length > 0;
+  if (!hasSamples && !hasNoSamplesReason) {
+    blockers.push(
+      draft.noSamplesAvailable
+        ? "Enter a reason why no samples are available."
+        : "Scan at least one sample QR, or record a “No Samples Available” reason.",
+    );
+  }
+  return { canComplete: blockers.length === 0, blockers };
+}
+
+function evaluateLoadingCompletion(activeAllocatedCount: number): CompletionGate {
+  const blockers: string[] = [];
+  if (activeAllocatedCount <= 0) {
+    blockers.push("Allocate at least one loaded log before finishing.");
+  }
+  return { canComplete: blockers.length === 0, blockers };
+}
 
 interface InspectionTask {
   id: string;
@@ -248,8 +291,8 @@ function LiquidTabBar({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(item.id)}
-            className="liquid-tab-btn pressable h-10 rounded-xl text-[11px] sm:text-[12px] font-semibold focus:outline-none px-1 min-w-0"
-            style={{ color: active ? "#ffffff" : dark ? "rgba(255,255,255,0.65)" : "#5a6a99" }}
+            className="liquid-tab-btn pressable min-h-12 h-12 rounded-xl text-[12px] sm:text-[13px] font-semibold focus:outline-none px-1.5 min-w-0"
+            style={{ color: active ? "#ffffff" : dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED }}
           >
             {item.node}
           </button>
@@ -583,11 +626,11 @@ function BackCardButton({ onClick, dark = false }: { onClick: () => void; dark?:
     <button
       type="button"
       onClick={onClick}
-      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:scale-105 focus:outline-none"
+      className="field-touch w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:scale-105 focus:outline-none pressable"
       style={{
-        background: dark ? "rgba(255,255,255,0.1)" : "#ffffff",
+        background: dark ? "rgba(255,255,255,0.12)" : "#ffffff",
         color: dark ? "#ffffff" : "#0a1a4a",
-        border: dark ? "1px solid rgba(255,255,255,0.14)" : "1px solid rgba(15,47,143,0.14)",
+        border: dark ? "1.5px solid rgba(255,255,255,0.20)" : "1.5px solid rgba(15,47,143,0.22)",
         boxShadow: dark ? "none" : "0 1px 4px rgba(15,47,143,0.08)",
       }}
       aria-label="Go back"
@@ -1006,7 +1049,7 @@ function LogInventoryScopeSheet({
 
   const sheetBg = dark ? "#1e293b" : "#ffffff";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const fieldBg = dark ? "rgba(255,255,255,0.06)" : "#f8faff";
   const fieldBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)";
   const listBg = dark ? "#0f172a" : "#ffffff";
@@ -1397,7 +1440,7 @@ function ScanLogScreen({ dark, onBack, onScanNew, onOpenExisting, isCU }: {
   const surfaceBorder = dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.10)";
   const subCardGlass = { backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" } as const;
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
 
   // Simulated capture: sweep finds a code, then advances into the log flow.
   useEffect(() => {
@@ -1940,7 +1983,7 @@ function InventoryRow({ item, dark, showModified = true, showChangeQr = true }: 
 }) {
   const [expanded, setExpanded] = useState(false);
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const rowBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.55)";
   const rowBorder = dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.12)";
   const expandedBg = dark ? "rgba(22, 32, 50, 0.5)" : "rgba(240, 245, 255, 0.55)";
@@ -2007,27 +2050,27 @@ function InventoryRow({ item, dark, showModified = true, showChangeQr = true }: 
 const INSPECTION_STATUS_META: Record<InspectionStatus, { label: string; bg: string; color: string; rail: string; border: string; iconBg: string }> = {
   pending: {
     label: "Pending",
-    bg: "rgba(15,47,143,0.07)",
-    color: "#5a6a99",
+    bg: "rgba(15,47,143,0.12)",
+    color: "#3d4f7c",
     rail: GRADIENT,
-    border: "rgba(15,47,143,0.10)",
-    iconBg: "rgba(15,47,143,0.06)",
+    border: "rgba(15,47,143,0.18)",
+    iconBg: "rgba(15,47,143,0.10)",
   },
   inprogress: {
     label: "In Progress",
-    bg: "rgba(217,119,6,0.12)",
-    color: "#b45309",
+    bg: "rgba(217,119,6,0.16)",
+    color: "#92400e",
     rail: "linear-gradient(180deg,#f59e0b 0%,#d97706 100%)",
-    border: "rgba(217,119,6,0.22)",
-    iconBg: "rgba(217,119,6,0.10)",
+    border: "rgba(217,119,6,0.32)",
+    iconBg: "rgba(217,119,6,0.14)",
   },
   complete: {
     label: "Complete",
-    bg: "rgba(5,150,105,0.12)",
+    bg: "rgba(5,150,105,0.16)",
     color: "#047857",
     rail: "linear-gradient(180deg,#10b981 0%,#059669 100%)",
-    border: "rgba(5,150,105,0.22)",
-    iconBg: "rgba(5,150,105,0.10)",
+    border: "rgba(5,150,105,0.32)",
+    iconBg: "rgba(5,150,105,0.14)",
   },
 };
 
@@ -2063,15 +2106,15 @@ function ScheduleInspectionScreen({
     ? "linear-gradient(165deg, #0b1224 0%, #0f172a 42%, #111827 100%)"
     : "linear-gradient(165deg, #dce6fb 0%, #eef2ff 32%, #f5f7ff 68%, #f0f4ff 100%)";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const glassSurface = dark ? "rgba(30, 41, 59, 0.72)" : "rgba(255,255,255,0.88)";
-  const glassBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.12)";
+  const glassBorder = dark ? "rgba(255,255,255,0.14)" : "rgba(15,47,143,0.16)";
   const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
   const cardShadow = dark
     ? "0 8px 28px rgba(0,0,0,0.35)"
     : "0 8px 24px rgba(15,47,143,0.07), 0 1px 3px rgba(15,47,143,0.04)";
-  const metaRowBg = dark ? "rgba(255,255,255,0.05)" : "rgba(240,244,255,0.9)";
-  const metaRowBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)";
+  const metaRowBg = dark ? "rgba(255,255,255,0.07)" : "rgba(232,237,249,0.95)";
+  const metaRowBorder = dark ? "rgba(255,255,255,0.14)" : "rgba(15,47,143,0.14)";
   const sheetBg = dark
     ? "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)"
     : "linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%)";
@@ -2393,7 +2436,7 @@ function ScheduleInspectionScreen({
                               </span>
                             </span>
                             <span
-                              className="text-[9px] font-bold uppercase tracking-wide px-2 py-1 rounded-md flex-shrink-0"
+                              className="text-[12px] font-bold uppercase tracking-wide px-2.5 py-1.5 rounded-md flex-shrink-0"
                               style={{ background: tone.bg, color: tone.color }}
                             >
                               {INSPECTION_STATUS_META[status].label}
@@ -2483,60 +2526,60 @@ function ScheduleInspectionScreen({
                       <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                         <span
                           key={status}
-                          className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-semibold animate-statusMorph"
-                          style={{ background: meta.bg, color: meta.color }}
+                          className="inline-flex items-center gap-1.5 min-h-8 h-8 px-3 rounded-full text-[12px] font-bold animate-statusMorph"
+                          style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.border}` }}
                         >
-                          {status === "complete" && <CheckCircle2 size={10} strokeWidth={2.5} />}
-                          {status === "inprogress" && <Clock size={10} strokeWidth={2.5} />}
+                          {status === "complete" && <CheckCircle2 size={12} strokeWidth={2.5} />}
+                          {status === "inprogress" && <Clock size={12} strokeWidth={2.5} />}
                           {meta.label}
                         </span>
                       </div>
                       <div
-                        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
                         style={{
                           background: meta.iconBg,
                           color: meta.color,
                         }}
                       >
-                        <Ship size={16} />
+                        <Ship size={18} />
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-0.5">
-                      <h3 className="text-[15px] font-bold leading-snug tracking-tight" style={{ color: textPrimary }}>
-                        {task.exporter}
-                      </h3>
-                      <p className="text-[12px] font-medium leading-snug truncate tabular-nums" style={{ color: textMuted }}>
+                      <h3 className="text-[16px] font-bold leading-snug tracking-tight" style={{ color: textPrimary }}>
                         {task.shipment}
+                      </h3>
+                      <p className="text-[13px] font-semibold leading-snug truncate" style={{ color: textMuted }}>
+                        {task.exporter}
                       </p>
                     </div>
 
                     {/* Iconized meta row */}
                     <div
-                      className="grid grid-cols-3 gap-1.5 sm:gap-2 rounded-xl p-2 sm:p-2.5"
+                      className="grid grid-cols-3 gap-2 sm:gap-2.5 rounded-xl p-2.5 sm:p-3"
                       style={{ background: metaRowBg, border: `1px solid ${metaRowBorder}` }}
                     >
-                      <div className="flex flex-col gap-1 min-w-0">
-                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
-                          <MapPin size={10} className="flex-shrink-0" /> Location
+                      <div className="flex flex-col gap-1.5 min-w-0">
+                        <span className="inline-flex items-center gap-1 text-[12px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
+                          <MapPin size={12} className="flex-shrink-0" /> Location
                         </span>
-                        <span className="text-[10px] sm:text-[11px] font-semibold break-words leading-snug" style={{ color: textPrimary }}>
+                        <span className="text-[12px] sm:text-[13px] font-bold break-words leading-snug" style={{ color: textPrimary }}>
                           {task.location}
                         </span>
                       </div>
-                      <div className="flex flex-col gap-1 min-w-0 border-x px-1.5 sm:px-2" style={{ borderColor: metaRowBorder }}>
-                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
-                          <Calendar size={10} className="flex-shrink-0" /> Window
+                      <div className="flex flex-col gap-1.5 min-w-0 border-x px-1.5 sm:px-2" style={{ borderColor: metaRowBorder }}>
+                        <span className="inline-flex items-center gap-1 text-[12px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
+                          <Calendar size={12} className="flex-shrink-0" /> Window
                         </span>
-                        <span className="text-[10px] sm:text-[11px] font-semibold break-words leading-snug" style={{ color: textPrimary }}>
+                        <span className="text-[12px] sm:text-[13px] font-bold break-words leading-snug" style={{ color: textPrimary }}>
                           {task.time}
                         </span>
                       </div>
-                      <div className="flex flex-col gap-1 min-w-0">
-                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
-                          <Layers size={10} className="flex-shrink-0" /> Volume
+                      <div className="flex flex-col gap-1.5 min-w-0">
+                        <span className="inline-flex items-center gap-1 text-[12px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
+                          <Layers size={12} className="flex-shrink-0" /> Volume
                         </span>
-                        <span className="text-[10px] sm:text-[11px] font-semibold break-words leading-snug" style={{ color: textPrimary }}>
+                        <span className="text-[12px] sm:text-[13px] font-bold break-words leading-snug" style={{ color: textPrimary }}>
                           {task.logs} logs
                         </span>
                       </div>
@@ -2545,7 +2588,7 @@ function ScheduleInspectionScreen({
                     <button
                       type="button"
                       onClick={() => onStartInspection(task)}
-                      className="group w-full h-12 rounded-xl text-sm font-semibold text-white focus:outline-none active:scale-[0.98] transition-all duration-200 hover:brightness-110 flex items-center justify-center gap-2"
+                      className="pressable group w-full min-h-12 h-12 rounded-xl text-sm font-bold text-white focus:outline-none hover:brightness-110 flex items-center justify-center gap-2"
                       style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.28)" }}
                     >
                       {ctaLabel(task)}
@@ -2613,9 +2656,9 @@ function ScheduleInspectionScreen({
                   <button
                     type="button"
                     onClick={closeFilters}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
+                    className="field-touch w-12 h-12 rounded-xl flex items-center justify-center focus:outline-none"
                     style={{
-                      background: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)",
+                      background: dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.10)",
                       color: dark ? "#ffffff" : "#0f2f8f",
                     }}
                     aria-label="Close"
@@ -2627,7 +2670,7 @@ function ScheduleInspectionScreen({
             </div>
 
             <div className="flex flex-col gap-2.5">
-              <label htmlFor="filter-status" className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
+              <label htmlFor="filter-status" className="text-[12px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
                 Status
               </label>
               <div className="relative">
@@ -2675,9 +2718,9 @@ function ScheduleInspectionScreen({
 // ─── Inspection Details Screen ────────────────────────────────────────────────
 
 const SUB_STATUS_CONFIG: Record<SubInspectionStatus, { label: string; bg: string; color: string; darkBg: string; darkColor: string }> = {
-  "not-started": { label: "Not Started", bg: "rgba(90,106,153,0.12)", color: "#5a6a99", darkBg: "rgba(255,255,255,0.08)", darkColor: "rgba(255,255,255,0.65)" },
-  "in-progress": { label: "In Progress", bg: "rgba(15,47,143,0.10)", color: "#0f2f8f", darkBg: "rgba(59,130,246,0.18)", darkColor: "#93c5fd" },
-  "completed": { label: "Completed", bg: "rgba(16,185,129,0.12)", color: "#059669", darkBg: "rgba(16,185,129,0.18)", darkColor: "#34d399" },
+  "not-started": { label: "Not Started", bg: "rgba(61,79,124,0.14)", color: "#3d4f7c", darkBg: "rgba(255,255,255,0.12)", darkColor: "rgba(255,255,255,0.82)" },
+  "in-progress": { label: "In Progress", bg: "rgba(15,47,143,0.14)", color: "#0f2f8f", darkBg: "rgba(59,130,246,0.22)", darkColor: "#93c5fd" },
+  "completed": { label: "Completed", bg: "rgba(16,185,129,0.16)", color: "#047857", darkBg: "rgba(16,185,129,0.22)", darkColor: "#34d399" },
 };
 
 function SubInspectionStatusPill({ status, dark = false }: { status: SubInspectionStatus; dark?: boolean }) {
@@ -2687,7 +2730,7 @@ function SubInspectionStatusPill({ status, dark = false }: { status: SubInspecti
   return (
     <span
       key={status}
-      className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11px] font-semibold flex-shrink-0 animate-statusMorph"
+      className="inline-flex items-center gap-1.5 min-h-8 h-8 px-3 rounded-full text-[12px] font-bold flex-shrink-0 animate-statusMorph"
       style={{ background: bg, color }}
     >
       {status === "in-progress" && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: color }} />}
@@ -3157,7 +3200,7 @@ function GradientInfoHeroCard({
 function ApprovedPriceEndorsementPanel({ dark }: { dark: boolean }) {
   const [view, setView] = useState<"detailed" | "summary">("detailed");
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const cardBg = dark ? "rgba(30,41,59,0.72)" : "#ffffff";
   const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.10)";
   const summaryAccent = dark ? "#93c5fd" : "#0f2f8f";
@@ -3713,7 +3756,7 @@ function useInspectionInfoTheme(dark: boolean) {
     bg: dark ? "#0f172a" : "#eef2fb",
     textPrimary: dark ? "#ffffff" : "#0a1a4a",
     textMuted: dark ? "rgba(255,255,255,0.65)" : "#5a6a99",
-    textFaint: dark ? "rgba(255,255,255,0.45)" : "#94a3b8",
+    textFaint: dark ? "rgba(255,255,255,0.70)" : FIELD_TEXT_FAINT,
     cardBg: dark ? "rgba(30, 41, 59, 0.72)" : "#ffffff",
     cardBorder: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)",
     cardShadow: dark ? "0 1px 0 rgba(255,255,255,0.04)" : "0 1px 2px rgba(15,47,143,0.05), 0 8px 24px rgba(15,47,143,0.06)",
@@ -3722,7 +3765,7 @@ function useInspectionInfoTheme(dark: boolean) {
     iconColor: dark ? "#ffffff" : "#0f2f8f",
     badgeBg: dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.07)",
     badgeColor: dark ? "#ffffff" : "#0f2f8f",
-    chevronColor: dark ? "rgba(255,255,255,0.35)" : "#94a3b8",
+    chevronColor: dark ? "rgba(255,255,255,0.65)" : FIELD_TEXT_FAINT,
     alertIconBg: "rgba(212,24,61,0.12)",
     groupLabel: dark ? "rgba(255,255,255,0.45)" : "#6b7aa8",
   };
@@ -3861,7 +3904,7 @@ function ShipmentDetailsScreen({
   const cardBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.78)";
   const glass = { backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" } as const;
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#6b7280";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const accent = "#0f2f8f";
   const elevation = dark
     ? "0 8px 32px rgba(0,0,0,0.4)"
@@ -3890,7 +3933,7 @@ function ShipmentDetailsScreen({
           <button
             type="button"
             onClick={onBack}
-            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-[0.96] transition-transform"
+            className="field-touch w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none pressable"
             style={{
               backdropFilter: "blur(18px)",
               WebkitBackdropFilter: "blur(18px)",
@@ -4058,7 +4101,7 @@ function ShipmentDetailsScreen({
                 border: cardBorder,
               }}
             >
-              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Permit Number</p>
+              <p className="text-[12px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>Permit Number</p>
               <div className="flex items-center gap-1.5">
                 <span className="text-[15px] font-bold truncate" style={{ color: textPrimary }}>{data.permitNo}</span>
                 <button
@@ -4079,7 +4122,7 @@ function ShipmentDetailsScreen({
                 border: cardBorder,
               }}
             >
-              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Licence Number</p>
+              <p className="text-[12px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>Licence Number</p>
               <span className="text-[15px] font-bold truncate" style={{ color: textPrimary }}>{data.licenceNo}</span>
             </div>
           </div>
@@ -4110,7 +4153,7 @@ function VesselDetailsScreen({
   const cardBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.78)";
   const glass = { backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" } as const;
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#6b7280";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const accent = "#0f2f8f";
   const elevation = dark
     ? "0 8px 32px rgba(0,0,0,0.4)"
@@ -4129,7 +4172,7 @@ function VesselDetailsScreen({
           <button
             type="button"
             onClick={onBack}
-            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-[0.96] transition-transform"
+            className="field-touch w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none pressable"
             style={{
               backdropFilter: "blur(18px)",
               WebkitBackdropFilter: "blur(18px)",
@@ -4300,7 +4343,7 @@ function CargoDetailsScreen({
   const cardBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.78)";
   const glass = { backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" } as const;
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#6b7280";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const accent = "#0f2f8f";
   const elevation = dark
     ? "0 8px 32px rgba(0,0,0,0.4)"
@@ -4319,7 +4362,7 @@ function CargoDetailsScreen({
           <button
             type="button"
             onClick={onBack}
-            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-[0.96] transition-transform"
+            className="field-touch w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none pressable"
             style={{
               backdropFilter: "blur(18px)",
               WebkitBackdropFilter: "blur(18px)",
@@ -4531,7 +4574,7 @@ function AttachmentFileCard({
 }) {
   const parsed = parseAttachment(file.fileName);
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#64748b";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const cardBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.78)";
   const cardBorder = dark ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(15,47,143,0.08)";
   const elevation = dark
@@ -4644,7 +4687,7 @@ function RequestAttachmentsScreen({
   const cardBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.78)";
   const glass = { backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" } as const;
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#64748b";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const accent = "#0f2f8f";
   const elevation = dark
     ? "0 8px 32px rgba(0,0,0,0.4)"
@@ -4663,7 +4706,7 @@ function RequestAttachmentsScreen({
           <button
             type="button"
             onClick={onBack}
-            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-[0.96] transition-transform"
+            className="field-touch w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 focus:outline-none pressable"
             style={{
               backdropFilter: "blur(18px)",
               WebkitBackdropFilter: "blur(18px)",
@@ -5091,7 +5134,7 @@ function CompactBlueDatePicker({
   const fieldBorder = dark ? "rgba(255,255,255,0.12)" : "#dce4f5";
   const fieldBorderOpen = dark ? "rgba(96,165,250,0.55)" : "rgba(15,47,143,0.45)";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.55)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const panelBg = dark ? "rgba(15, 23, 42, 0.98)" : "#f8faff";
   const panelBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.12)";
   const navBtnBg = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)";
@@ -5102,7 +5145,7 @@ function CompactBlueDatePicker({
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="w-full h-12 rounded-xl px-4 text-sm text-left flex items-center justify-between focus:outline-none transition-all"
+        className="pressable field-touch w-full min-h-12 h-12 rounded-xl px-4 text-sm text-left flex items-center justify-between focus:outline-none"
         style={{
           background: fieldBg,
           color: textPrimary,
@@ -5114,7 +5157,7 @@ function CompactBlueDatePicker({
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <span style={{ color: value ? textPrimary : (dark ? "rgba(255,255,255,0.40)" : "#94a3b8") }}>
+        <span style={{ color: value ? textPrimary : (dark ? "rgba(255,255,255,0.70)" : FIELD_TEXT_FAINT) }}>
           {value ? formatDisplayDate(value) : "Select date"}
         </span>
         <Calendar size={16} style={{ color: textMuted, flexShrink: 0 }} />
@@ -5134,7 +5177,7 @@ function CompactBlueDatePicker({
             <button
               type="button"
               onClick={() => setView(new Date(year, month - 1, 1))}
-              className="w-8 h-8 rounded-lg flex items-center justify-center focus:outline-none"
+              className="field-touch w-12 h-12 rounded-lg flex items-center justify-center focus:outline-none"
               style={{ background: navBtnBg, color: navBtnColor }}
               aria-label="Previous month"
             >
@@ -5144,7 +5187,7 @@ function CompactBlueDatePicker({
             <button
               type="button"
               onClick={() => setView(new Date(year, month + 1, 1))}
-              className="w-8 h-8 rounded-lg flex items-center justify-center focus:outline-none"
+              className="field-touch w-12 h-12 rounded-lg flex items-center justify-center focus:outline-none"
               style={{ background: navBtnBg, color: navBtnColor }}
               aria-label="Next month"
             >
@@ -5154,7 +5197,7 @@ function CompactBlueDatePicker({
 
           <div className="grid grid-cols-7 gap-0.5 mb-1">
             {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-              <div key={`${d}-${i}`} className="h-7 flex items-center justify-center text-[10px] font-semibold" style={{ color: dark ? "rgba(255,255,255,0.40)" : "#94a3b8" }}>
+              <div key={`${d}-${i}`} className="h-7 flex items-center justify-center text-[10px] font-semibold" style={{ color: dark ? "rgba(255,255,255,0.70)" : FIELD_TEXT_FAINT }}>
                 {d}
               </div>
             ))}
@@ -5221,7 +5264,12 @@ function StartSubInspectionDialog({
   const dateLabel = mode === "finish" ? "End Date" : "Date";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
   const panelBg = dark ? "#1e293b" : "#ffffff";
-  const panelBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)";
+  const panelBorder = dark ? "rgba(255,255,255,0.16)" : "rgba(15,47,143,0.18)";
+  const secondaryBtn = {
+    background: dark ? "rgba(255,255,255,0.08)" : "#ffffff",
+    color: textPrimary,
+    border: `1.5px solid ${dark ? "rgba(255,255,255,0.22)" : "rgba(15,47,143,0.28)"}`,
+  } as const;
 
   return createPortal(
     <div
@@ -5238,7 +5286,7 @@ function StartSubInspectionDialog({
         type="button"
         className="absolute inset-0 border-0 p-0 cursor-default"
         style={{
-          background: dark ? "rgba(2,6,23,0.62)" : "rgba(10,22,70,0.45)",
+          background: dark ? "rgba(2,6,23,0.72)" : "rgba(10,22,70,0.52)",
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
         }}
@@ -5265,12 +5313,8 @@ function StartSubInspectionDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 h-12 rounded-xl text-sm font-semibold transition-all duration-200 focus:outline-none active:scale-[0.98]"
-            style={{
-              background: dark ? "rgba(255,255,255,0.06)" : "#ffffff",
-              color: textPrimary,
-              border: `1px solid ${dark ? "rgba(255,255,255,0.14)" : "rgba(15,47,143,0.22)"}`,
-            }}
+            className="pressable flex-1 min-h-12 rounded-xl text-sm font-semibold focus:outline-none"
+            style={secondaryBtn}
           >
             Cancel
           </button>
@@ -5278,7 +5322,7 @@ function StartSubInspectionDialog({
             type="button"
             onClick={onConfirm}
             disabled={!date}
-            className="flex-1 h-12 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+            className="pressable flex-1 min-h-12 rounded-xl text-sm font-semibold text-white hover:brightness-110 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: GRADIENT, boxShadow: "0 4px 16px rgba(15,47,143,0.35)" }}
           >
             {confirmLabel}
@@ -5308,16 +5352,16 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
     ? "linear-gradient(165deg, #0b1224 0%, #0f172a 42%, #111827 100%)"
     : undefined;
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.78)" : FIELD_TEXT_MUTED;
   const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
-  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.14)";
-  const cardBorderActive = dark ? "rgba(96,165,250,0.35)" : "rgba(15,47,143,0.22)";
-  const metaBg = dark ? "rgba(255,255,255,0.05)" : "#f5f8ff";
-  const metaBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.10)";
+  const cardBorder = dark ? "rgba(255,255,255,0.14)" : "rgba(15,47,143,0.16)";
+  const cardBorderActive = dark ? "rgba(96,165,250,0.45)" : "rgba(15,47,143,0.28)";
+  const metaBg = dark ? "rgba(255,255,255,0.06)" : "#eef3ff";
+  const metaBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)";
   const nodeBg = dark ? "rgba(15, 23, 42, 0.95)" : "#ffffff";
-  const lockedBtnBg = dark ? "rgba(255,255,255,0.06)" : "#eef1f6";
-  const lockedBtnColor = dark ? "rgba(255,255,255,0.40)" : "#94a3b8";
-  const lockedBtnBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.10)";
+  const lockedBtnBg = dark ? "rgba(255,255,255,0.08)" : "#e2e8f0";
+  const lockedBtnColor = dark ? "rgba(255,255,255,0.55)" : FIELD_TEXT_FAINT;
+  const lockedBtnBorder = dark ? "rgba(255,255,255,0.14)" : "rgba(15,47,143,0.16)";
   const timelineLine = dark
     ? "linear-gradient(180deg, rgba(96,165,250,0.45), rgba(96,165,250,0.18))"
     : "linear-gradient(180deg, rgba(15,47,143,0.35), rgba(15,47,143,0.15))";
@@ -5454,7 +5498,7 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                         color: isDone
                           ? (dark ? "#34d399" : "#059669")
                           : isLocked
-                            ? (dark ? "rgba(255,255,255,0.35)" : "#94a3b8")
+                            ? (dark ? "rgba(255,255,255,0.55)" : FIELD_TEXT_FAINT)
                             : (dark ? "#93c5fd" : "#0f2f8f"),
                         border: `2px solid ${
                           isDone
@@ -5522,10 +5566,10 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                           }}
                         >
                           <div className="min-w-0">
-                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
+                            <p className="text-[12px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
                               Start Date
                             </p>
-                            <p className="text-[12px] font-bold mt-0.5 tabular-nums leading-tight" style={{ color: textPrimary }}>
+                            <p className="text-[13px] font-bold mt-0.5 tabular-nums leading-tight" style={{ color: textPrimary }}>
                               {formatDisplayDate(displayStartIso)}
                             </p>
                           </div>
@@ -5533,10 +5577,10 @@ function InspectionDetailsScreen({ task, progress, onBack, onViewFullInfo, onSta
                             className="min-w-0 pl-2"
                             style={{ borderLeft: `1px solid ${metaBorder}` }}
                           >
-                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
+                            <p className="text-[12px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
                               End Date
                             </p>
-                            <p className="text-[12px] font-bold mt-0.5 tabular-nums leading-tight" style={{ color: textPrimary }}>
+                            <p className="text-[13px] font-bold mt-0.5 tabular-nums leading-tight" style={{ color: textPrimary }}>
                               {formatDisplayDate(displayEndIso)}
                             </p>
                           </div>
@@ -5662,7 +5706,7 @@ function VerificationStepPicker<T extends string>({
 
       <div className="relative z-10 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.72)" }}>
+          <p className="text-[12px] font-bold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.92)" }}>
             {allDone ? "Complete" : "Verification"}
           </p>
           {!allDone && activeStepConfig?.hint && (
@@ -6003,9 +6047,9 @@ function PhysicalVerificationScreen({
     ? "linear-gradient(165deg, #0b1224 0%, #0f172a 42%, #111827 100%)"
     : undefined;
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
-  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)";
+  const cardBorder = dark ? "rgba(255,255,255,0.14)" : "rgba(15,47,143,0.16)";
   const cardShadow = dark ? "0 2px 12px rgba(0,0,0,0.28)" : "0 2px 12px rgba(15,47,143,0.06)";
   const chipBg = dark ? "rgba(255,255,255,0.06)" : "#f3f5f9";
   const choiceIdleBg = dark ? "rgba(255,255,255,0.05)" : "#f8fafc";
@@ -6115,7 +6159,7 @@ function PhysicalVerificationScreen({
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 gap-3" role="group" aria-label="Volume confirmation">
+          <div className="grid grid-cols-2 gap-3.5" role="group" aria-label="Volume confirmation">
             <button
               type="button"
               onClick={() => !viewOnly && !physicalStepComplete && onDraftChange({
@@ -6123,7 +6167,7 @@ function PhysicalVerificationScreen({
                 physicalStepComplete: false,
               })}
               disabled={viewOnly || physicalStepComplete}
-              className={`rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "yes" ? "animate-selectSpring" : ""} ${viewOnly ? "cursor-default" : ""}`}
+              className={`rounded-2xl min-h-12 px-3.5 py-3.5 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "yes" ? "animate-selectSpring" : ""} ${viewOnly ? "cursor-default" : ""}`}
               style={{
                 background: volumeOk === "yes" ? "rgba(22,163,74,0.10)" : choiceIdleBg,
                 borderColor: volumeOk === "yes" ? "rgba(22,163,74,0.55)" : choiceIdleBorder,
@@ -6154,7 +6198,7 @@ function PhysicalVerificationScreen({
                 physicalStepComplete: false,
               })}
               disabled={viewOnly || physicalStepComplete}
-              className={`rounded-2xl px-3.5 py-3 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "no" ? "animate-selectSpring" : ""} ${viewOnly ? "cursor-default" : ""}`}
+              className={`rounded-2xl min-h-12 px-3.5 py-3.5 flex items-center gap-3 border transition-all duration-200 focus:outline-none pressable ${volumeOk === "no" ? "animate-selectSpring" : ""} ${viewOnly ? "cursor-default" : ""}`}
               style={{
                 background: volumeOk === "no" ? "rgba(212,24,61,0.08)" : choiceIdleBg,
                 borderColor: volumeOk === "no" ? "rgba(212,24,61,0.45)" : choiceIdleBorder,
@@ -6184,7 +6228,7 @@ function PhysicalVerificationScreen({
             <button
               type="button"
               onClick={() => setDetailsOpen(o => !o)}
-              className="w-full rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 focus:outline-none"
+              className="pressable w-full min-h-12 rounded-xl px-3.5 py-3 flex items-center justify-between gap-3 focus:outline-none"
               style={{
                 background: dark ? "rgba(255,255,255,0.04)" : "#f5f8ff",
                 border: `1px solid ${cardBorder}`,
@@ -6310,7 +6354,7 @@ function PhysicalVerificationScreen({
                     onDraftChange({ physicalStepComplete: true });
                   }}
                   disabled={!nonConformanceReason.trim()}
-                  className="w-full min-h-[44px] rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] transition-all disabled:opacity-45 disabled:cursor-not-allowed"
+                  className="pressable w-full min-h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none disabled:opacity-45 disabled:cursor-not-allowed"
                   style={{
                     background: volumeOk === "no"
                       ? "linear-gradient(135deg, #e11d48 0%, #be123c 100%)"
@@ -6387,7 +6431,7 @@ function PhysicalVerificationScreen({
             <button
               type="button"
               onClick={() => setNcView("create")}
-              className="w-full h-11 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
+              className="pressable w-full min-h-12 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 focus:outline-none"
               style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
             >
               <Plus size={16} />
@@ -6409,7 +6453,7 @@ function PhysicalVerificationScreen({
               >
                 <ClipboardList size={22} />
               </div>
-              <p className="text-[12px] font-medium" style={{ color: dark ? "rgba(255,255,255,0.45)" : "#94a3b8" }}>
+              <p className="text-[12px] font-medium" style={{ color: dark ? "rgba(255,255,255,0.70)" : FIELD_TEXT_FAINT }}>
                 No Notices of Discrepancy filed yet.
               </p>
             </div>
@@ -6639,7 +6683,7 @@ function PhysicalVerificationScreen({
                 <Upload size={18} />
               </div>
               <p className="text-[12px] font-bold" style={{ color: textPrimary }}>+ Add Photo or Document</p>
-              <p className="text-[10px]" style={{ color: dark ? "rgba(255,255,255,0.40)" : "#94a3b8" }}>JPG, PNG, or PDF up to 10MB</p>
+              <p className="text-[10px]" style={{ color: dark ? "rgba(255,255,255,0.70)" : FIELD_TEXT_FAINT }}>JPG, PNG, or PDF up to 10MB</p>
             </button>
             )}
 
@@ -6708,7 +6752,7 @@ function PhysicalVerificationScreen({
                 <button
                   type="button"
                   onClick={closeEvidenceSheet}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
+                  className="field-touch w-12 h-12 rounded-xl flex items-center justify-center focus:outline-none"
                   style={{ background: iconMutedBg, color: dark ? "#93c5fd" : "#0f2f8f" }}
                   aria-label="Close"
                 >
@@ -6800,8 +6844,8 @@ interface ScannedSampleLog {
 }
 
 const SCAN_STATUS_META: Record<ScanStatus, { label: string; bg: string; color: string }> = {
-  verified: { label: "Verified", bg: "rgba(22,163,74,0.12)", color: "#16a34a" },
-  flagged: { label: "Flagged", bg: "rgba(245,158,11,0.16)", color: "#b45309" },
+  verified: { label: "Verified", bg: "rgba(5,150,105,0.16)", color: "#047857" },
+  flagged: { label: "Flagged", bg: "rgba(180,83,9,0.18)", color: "#92400e" },
 };
 
 /** Mock QR payloads the simulated scanner cycles through, one per successful scan. */
@@ -6963,7 +7007,7 @@ function QrTapViewfinder({
     : scanning
       ? (dark ? "#93c5fd" : "#0f2f8f")
       : (dark ? "rgba(255,255,255,0.28)" : "#c3cee6");
-  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
 
   return (
     <div className="flex flex-col items-center gap-3 w-full">
@@ -7165,7 +7209,7 @@ function QrTapViewfinder({
             {scanningHint}
           </p>
         ) : (
-          <p className="text-[11px] font-semibold text-center" style={{ color: dark ? "rgba(255,255,255,0.45)" : "#94a3b8" }}>
+          <p className="text-[11px] font-semibold text-center" style={{ color: dark ? "rgba(255,255,255,0.70)" : FIELD_TEXT_FAINT }}>
             {viewOnly ? "Scanning disabled" : idleHint}
           </p>
         )}
@@ -7206,10 +7250,10 @@ function ScannedHistoryList({
     n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.78)" : FIELD_TEXT_MUTED;
   const accent = dark ? "#93c5fd" : "#0f2f8f";
   const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
-  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.14)";
+  const cardBorder = dark ? "rgba(255,255,255,0.14)" : "rgba(15,47,143,0.16)";
 
   return (
     <div
@@ -7230,7 +7274,7 @@ function ScannedHistoryList({
             <span className="text-[22px] font-bold tabular-nums" style={{ color: textPrimary }}>
               {formatVol(scannedVolume)} m³
             </span>
-            <span className="text-[13px] font-medium ml-1.5" style={{ color: dark ? "rgba(255,255,255,0.40)" : "#94a3b8" }}>
+            <span className="text-[13px] font-medium ml-1.5" style={{ color: dark ? "rgba(255,255,255,0.55)" : FIELD_TEXT_FAINT }}>
               / {formatVol(safeTarget)} m³ target
             </span>
           </p>
@@ -7268,7 +7312,7 @@ function ScannedHistoryList({
         <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: textMuted }}>
           Scanned QR Codes
         </p>
-        <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: dark ? "rgba(255,255,255,0.40)" : "#94a3b8" }}>
+        <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: dark ? "rgba(255,255,255,0.55)" : FIELD_TEXT_FAINT }}>
           {scanned} scanned
         </span>
       </div>
@@ -7355,6 +7399,9 @@ function SampleVerificationScanScreen({
   targetVolumeM3,
   physicalComplete = false,
   sampleComplete = false,
+  noSamplesAvailable = false,
+  noSamplesReason = "",
+  onNoSamplesChange,
   onBack,
   onGoToPhysical,
   onScanned,
@@ -7368,6 +7415,9 @@ function SampleVerificationScanScreen({
   targetVolumeM3: number;
   physicalComplete?: boolean;
   sampleComplete?: boolean;
+  noSamplesAvailable?: boolean;
+  noSamplesReason?: string;
+  onNoSamplesChange?: (patch: { noSamplesAvailable?: boolean; noSamplesReason?: string }) => void;
   onBack: () => void;
   onGoToPhysical?: () => void;
   onScanned: (record: ScannedSampleLog) => void;
@@ -7386,6 +7436,19 @@ function SampleVerificationScanScreen({
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const next = SAMPLE_QR_POOL[scanCount % SAMPLE_QR_POOL.length];
+
+  const completionGate = evaluatePreShipmentCompletion(
+    {
+      ...EMPTY_PHYSICAL_VERIFICATION,
+      physicalStepComplete: physicalComplete,
+      sampleStepComplete: sampleComplete,
+      noSamplesAvailable,
+      noSamplesReason,
+    },
+    records.length,
+  );
+  const canFinish = viewOnly || completionGate.canComplete;
+  const hasScans = records.length > 0;
 
   // Simulated capture: the frame "finds" a code, shows a confirmation beat, then advances.
   useEffect(() => {
@@ -7409,13 +7472,19 @@ function SampleVerificationScanScreen({
     return () => clearTimeout(timer);
   }, [phase, next, onScanned, viewOnly]);
 
+  // Scans take precedence — clear the no-samples waiver once a sample exists.
+  useEffect(() => {
+    if (viewOnly || !hasScans || !noSamplesAvailable) return;
+    onNoSamplesChange?.({ noSamplesAvailable: false, noSamplesReason: "" });
+  }, [hasScans, noSamplesAvailable, onNoSamplesChange, viewOnly]);
+
   const detected = phase === "detected";
   const scanning = phase === "scanning";
   const frameColor = detected
     ? "#16a34a"
     : scanning
       ? (dark ? "#93c5fd" : "#0f2f8f")
-      : (dark ? "rgba(255,255,255,0.28)" : "#c3cee6");
+      : (dark ? "rgba(255,255,255,0.65)" : FIELD_TEXT_FAINT);
 
   const handleBack = () => {
     if (activeTab === "non-compliance" && ncView === "create") {
@@ -7429,14 +7498,15 @@ function SampleVerificationScanScreen({
     ? "linear-gradient(165deg, #0b1224 0%, #0f172a 42%, #111827 100%)"
     : "#f0f4ff";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.78)" : FIELD_TEXT_MUTED;
+  const textFaint = dark ? "rgba(255,255,255,0.55)" : FIELD_TEXT_FAINT;
   const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
-  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)";
+  const cardBorder = dark ? "rgba(255,255,255,0.14)" : "rgba(15,47,143,0.14)";
   const cardShadow = dark ? "0 2px 12px rgba(0,0,0,0.28)" : "0 2px 12px rgba(15,47,143,0.06)";
   const fieldBg = dark ? "rgba(15, 23, 42, 0.85)" : "#ffffff";
-  const fieldBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.16)";
-  const dashedBorder = dark ? "rgba(255,255,255,0.16)" : "rgba(15,47,143,0.18)";
-  const iconMutedBg = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)";
+  const fieldBorder = dark ? "rgba(255,255,255,0.16)" : "rgba(15,47,143,0.22)";
+  const dashedBorder = dark ? "rgba(255,255,255,0.22)" : "rgba(15,47,143,0.28)";
+  const iconMutedBg = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)";
 
   const tabs: { id: PreShipmentTab; label: string; short: string }[] = [
     { id: "verification", label: "Verification", short: "Verify" },
@@ -7482,6 +7552,7 @@ function SampleVerificationScanScreen({
       onBack();
       return;
     }
+    if (!completionGate.canComplete) return;
     onFinishInspection();
   };
 
@@ -7555,15 +7626,71 @@ function SampleVerificationScanScreen({
         {/* Scanned history — stays below the scanner and grows with every capture */}
         <ScannedHistoryList records={records} targetVolumeM3={targetVolumeM3} onSelect={onOpenRecord} dark={dark} />
 
-        <div className="flex items-center gap-2.5">
+        {!viewOnly && !hasScans && (
+          <div
+            className="rounded-2xl p-4 flex flex-col gap-3"
+            style={{
+              background: cardBg,
+              border: `1.5px solid ${cardBorder}`,
+              boxShadow: cardShadow,
+            }}
+          >
+            <label
+              className="flex items-start gap-3 cursor-pointer min-h-12"
+            >
+              <input
+                type="checkbox"
+                checked={noSamplesAvailable}
+                onChange={e => onNoSamplesChange?.({
+                  noSamplesAvailable: e.target.checked,
+                  noSamplesReason: e.target.checked ? noSamplesReason : "",
+                })}
+                className="mt-1 w-5 h-5 flex-shrink-0 rounded accent-[#0f2f8f]"
+              />
+              <span className="min-w-0">
+                <span className="block text-[14px] font-bold" style={{ color: textPrimary }}>
+                  No Samples Available
+                </span>
+                <span className="block text-[12px] font-medium mt-0.5 leading-snug" style={{ color: textMuted }}>
+                  Use this only when you cannot scan any sample logs on site.
+                </span>
+              </span>
+            </label>
+            {noSamplesAvailable && (
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="no-samples-reason" className="text-[12px] font-bold" style={{ color: textPrimary }}>
+                  Reason <span style={{ color: "#d4183d" }}>*</span>
+                </label>
+                <textarea
+                  id="no-samples-reason"
+                  rows={3}
+                  value={noSamplesReason}
+                  onChange={e => onNoSamplesChange?.({ noSamplesReason: e.target.value })}
+                  placeholder="Explain why no samples are available..."
+                  className="w-full p-3 text-[13px] font-medium rounded-xl focus:outline-none resize-none min-h-[72px]"
+                  style={{
+                    background: fieldBg,
+                    border: `1.5px solid ${noSamplesReason.trim()
+                      ? fieldBorder
+                      : (dark ? "rgba(251,191,36,0.45)" : "rgba(180,120,20,0.45)")}`,
+                    color: textPrimary,
+                  }}
+                  required
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => (onGoToPhysical ?? onBack)()}
-            className="flex-1 min-w-0 h-12 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 focus:outline-none active:scale-[0.98]"
+            className="pressable flex-1 min-w-0 min-h-12 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 focus:outline-none"
             style={{
               background: dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff",
               color: textPrimary,
-              border: `1px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)"}`,
+              border: `1.5px solid ${dark ? "rgba(255,255,255,0.18)" : "rgba(15,47,143,0.22)"}`,
               boxShadow: dark ? "none" : "0 2px 8px rgba(15,47,143,0.06)",
             }}
             aria-label="Back"
@@ -7574,9 +7701,15 @@ function SampleVerificationScanScreen({
           <button
             type="button"
             onClick={runFinishInspection}
-            disabled={!viewOnly && finishPulse}
-            className={`flex-1 min-w-0 h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-70 ${finishPulse ? "animate-finishSuccess" : ""}`}
-            style={{ background: GRADIENT, boxShadow: "0 6px 18px rgba(15,47,143,0.30)" }}
+            disabled={!viewOnly && (!canFinish || finishPulse)}
+            className={`pressable flex-1 min-w-0 min-h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none disabled:cursor-not-allowed ${finishPulse ? "animate-finishSuccess" : ""}`}
+            style={{
+              background: canFinish || viewOnly ? GRADIENT : (dark ? "rgba(255,255,255,0.14)" : "#64748b"),
+              boxShadow: canFinish || viewOnly ? "0 6px 18px rgba(15,47,143,0.30)" : "none",
+              opacity: !viewOnly && !canFinish ? 0.72 : 1,
+            }}
+            aria-disabled={!viewOnly && !canFinish}
+            title={!viewOnly && !canFinish ? completionGate.blockers[0] : undefined}
           >
             {viewOnly ? "Close" : finishPulse ? "Completed" : "Finish Inspection"}
             {!viewOnly && <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />}
@@ -7591,7 +7724,7 @@ function SampleVerificationScanScreen({
               <button
                 type="button"
                 onClick={() => setNcView("create")}
-                className="w-full h-11 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
+                className="pressable w-full min-h-12 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 focus:outline-none"
                 style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
               >
                 <Plus size={16} />
@@ -7608,11 +7741,11 @@ function SampleVerificationScanScreen({
             >
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-1"
-                style={{ background: iconMutedBg, color: dark ? "rgba(255,255,255,0.45)" : "#94a3b8" }}
+                style={{ background: iconMutedBg, color: textFaint }}
               >
                 <ClipboardList size={22} />
               </div>
-              <p className="text-[12px] font-medium" style={{ color: dark ? "rgba(255,255,255,0.45)" : "#94a3b8" }}>
+              <p className="text-[12px] font-medium" style={{ color: textMuted }}>
                 No Notices of Discrepancy filed yet.
               </p>
             </div>
@@ -7745,7 +7878,7 @@ function SampleVerificationScanScreen({
                   <Upload size={18} />
                 </div>
                 <p className="text-[12px] font-bold" style={{ color: textPrimary }}>+ Add Photo or Document</p>
-                <p className="text-[10px]" style={{ color: dark ? "rgba(255,255,255,0.40)" : "#94a3b8" }}>JPG, PNG, or PDF up to 10MB</p>
+                <p className="text-[11px] font-medium" style={{ color: textFaint }}>JPG, PNG, or PDF up to 10MB</p>
               </button>
             )}
             {attachmentError && (
@@ -7888,7 +8021,7 @@ function MeasurementCompareTable({
   dark?: boolean;
 }) {
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const accent = dark ? "#93c5fd" : "#0f2f8f";
   const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
   const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.10)";
@@ -7913,10 +8046,10 @@ function MeasurementCompareTable({
           borderBottom: `1px solid ${cardBorder}`,
         }}
       >
-        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
+        <p className="text-[12px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>
           Parameters
         </p>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-center" style={{ color: textMuted }}>
+        <p className="text-[12px] font-bold uppercase tracking-wider text-center" style={{ color: textMuted }}>
           Exporter
         </p>
         <p className="text-[10px] font-bold uppercase tracking-wider text-center" style={{ color: accent }}>
@@ -7958,7 +8091,7 @@ function MeasurementCompareTable({
                   {row.required && <span className="text-red-500 ml-0.5">*</span>}
                 </p>
                 {row.unit && (
-                  <p className="text-[9px] font-medium mt-0.5" style={{ color: dark ? "rgba(255,255,255,0.40)" : "#94a3b8" }}>
+                  <p className="text-[9px] font-medium mt-0.5" style={{ color: dark ? "rgba(255,255,255,0.70)" : FIELD_TEXT_FAINT }}>
                     {row.unit}
                   </p>
                 )}
@@ -8063,7 +8196,7 @@ function QrDetailsScreen({
     ? "linear-gradient(165deg, #0b1224 0%, #0f172a 42%, #111827 100%)"
     : "#f0f4ff";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const fieldBg = dark ? "rgba(15, 23, 42, 0.85)" : "#ffffff";
   const fieldBorder = dark ? "rgba(255,255,255,0.12)" : "#dce4f5";
   const readOnlyStyle = {
@@ -8249,7 +8382,7 @@ function LogInformationHubScreen({
 }) {
   const bg = dark ? "#0f172a" : "#f0f4ff";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.82)" : FIELD_TEXT_MUTED;
   const cardBg = dark ? "rgba(30, 41, 59, 0.55)" : "rgba(255, 255, 255, 0.55)";
   const cardBorder = dark ? "rgba(255,255,255,0.1)" : "rgba(15,47,143,0.14)";
   const iconColor = dark ? "#ffffff" : "#0f2f8f";
@@ -8789,7 +8922,7 @@ function DamageReportDialog({
                 <button
                   type="button"
                   onClick={() => setPhotoSheetOpen(false)}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
+                  className="field-touch w-12 h-12 rounded-xl flex items-center justify-center focus:outline-none"
                   style={{ background: "rgba(15,47,143,0.08)", color: "#0f2f8f" }}
                   aria-label="Close"
                 >
@@ -9151,12 +9284,15 @@ function LoadingLogsScanScreen({
     window.setTimeout(() => setVolumeFlash(false), 950);
   };
 
+  const loadingCompletionGate = evaluateLoadingCompletion(activeCount);
+  const canFinishLoading = viewOnly || loadingCompletionGate.canComplete;
+
   const runFinishComplete = () => {
     if (viewOnly) {
       onBack();
       return;
     }
-    if (activeCount === 0) return;
+    if (!loadingCompletionGate.canComplete) return;
     onComplete();
   };
 
@@ -9312,17 +9448,17 @@ function LoadingLogsScanScreen({
     ? "linear-gradient(165deg, #0b1224 0%, #0f172a 42%, #111827 100%)"
     : undefined;
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
-  const textMuted = dark ? "rgba(255,255,255,0.65)" : "#5a6a99";
+  const textMuted = dark ? "rgba(255,255,255,0.78)" : FIELD_TEXT_MUTED;
   const cardBg = dark ? "rgba(30, 41, 59, 0.78)" : "#ffffff";
-  const cardBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.12)";
+  const cardBorder = dark ? "rgba(255,255,255,0.14)" : "rgba(15,47,143,0.16)";
   const cardShadow = dark ? "0 2px 12px rgba(0,0,0,0.28)" : "0 2px 12px rgba(15,47,143,0.06)";
-  const chipBg = dark ? "rgba(255,255,255,0.06)" : "#f3f5f9";
+  const chipBg = dark ? "rgba(255,255,255,0.08)" : "#e8edf9";
   const fieldBg = dark ? "rgba(15, 23, 42, 0.85)" : "#f8faff";
-  const fieldBorder = dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)";
-  const dashedBorder = dark ? "rgba(255,255,255,0.16)" : "rgba(15,47,143,0.18)";
-  const iconMutedBg = dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.06)";
+  const fieldBorder = dark ? "rgba(255,255,255,0.16)" : "rgba(15,47,143,0.22)";
+  const dashedBorder = dark ? "rgba(255,255,255,0.22)" : "rgba(15,47,143,0.28)";
+  const iconMutedBg = dark ? "rgba(255,255,255,0.10)" : "rgba(15,47,143,0.08)";
   const accent = dark ? "#93c5fd" : "#0f2f8f";
-  const subtleText = dark ? "rgba(255,255,255,0.40)" : "#94a3b8";
+  const subtleText = dark ? "rgba(255,255,255,0.55)" : FIELD_TEXT_FAINT;
   const rowGlass = dark
     ? {
         backdropFilter: "blur(16px)",
@@ -9483,11 +9619,11 @@ function LoadingLogsScanScreen({
                   style={{ background: chipBg, border: `1px solid ${cardBorder}` }}
                 >
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Logs scanned</p>
+                    <p className="text-[12px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>Logs scanned</p>
                     <p className="text-[15px] font-bold tabular-nums mt-0.5" style={{ color: textPrimary }}>{activeCount}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>Damaged</p>
+                    <p className="text-[12px] font-bold uppercase tracking-wider" style={{ color: textMuted }}>Damaged</p>
                     <p className="text-[15px] font-bold tabular-nums mt-0.5" style={{ color: damagedLogs.length ? "#d4183d" : textPrimary }}>
                       {damagedLogs.length}
                     </p>
@@ -9518,24 +9654,24 @@ function LoadingLogsScanScreen({
                     <button
                       type="button"
                       onClick={openNewBargeForm}
-                      className="h-8 px-3 rounded-xl text-[12px] font-bold text-white flex items-center gap-1 focus:outline-none active:scale-[0.98] flex-shrink-0"
+                      className="pressable min-h-12 h-12 px-4 rounded-xl text-[13px] font-bold text-white flex items-center gap-1.5 focus:outline-none flex-shrink-0"
                       style={{ background: GRADIENT, boxShadow: "0 2px 8px rgba(15,47,143,0.28)" }}
                     >
-                      <Plus size={14} />
+                      <Plus size={16} />
                       New
                     </button>
                     )}
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-semibold" style={{ color: textMuted }}>
+                    <label className="text-[12px] font-bold" style={{ color: textMuted }}>
                       Select Barge / Stack
                     </label>
                     <button
                       type="button"
                       onClick={() => !viewOnly && setBargePickerOpen(v => !v)}
                       disabled={viewOnly}
-                      className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-sm text-left focus:outline-none disabled:cursor-default"
+                      className="pressable w-full min-h-12 flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-sm text-left focus:outline-none disabled:cursor-default"
                       style={{
                         background: fieldBg,
                         border: `1.5px solid ${bargePickerOpen || selectedBarge ? (dark ? "rgba(96,165,250,0.55)" : "rgba(15,47,143,0.35)") : fieldBorder}`,
@@ -9578,7 +9714,7 @@ function LoadingLogsScanScreen({
                                 setBargePickerOpen(false);
                                 setPhase("idle");
                               }}
-                              className={`chip-settle w-full text-left px-4 py-3 text-sm font-medium focus:outline-none ${active ? "is-active animate-selectSpring" : ""}`}
+                              className={`chip-settle pressable w-full text-left px-4 py-3.5 min-h-12 text-sm font-semibold focus:outline-none ${active ? "is-active animate-selectSpring" : ""}`}
                               style={{
                                 color: active ? accent : textPrimary,
                                 background: active
@@ -9808,9 +9944,15 @@ function LoadingLogsScanScreen({
               <button
                 type="button"
                 onClick={runFinishComplete}
-                disabled={!viewOnly && (activeCount === 0 || finishPulse)}
-                className={`w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98] disabled:opacity-45 ${finishPulse ? "animate-finishSuccess" : ""}`}
-                style={{ background: GRADIENT, boxShadow: viewOnly || activeCount > 0 ? "0 6px 18px rgba(15,47,143,0.30)" : "none" }}
+                disabled={!viewOnly && (!canFinishLoading || finishPulse)}
+                className={`pressable w-full min-h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none disabled:cursor-not-allowed ${finishPulse ? "animate-finishSuccess" : ""}`}
+                style={{
+                  background: canFinishLoading || viewOnly ? GRADIENT : (dark ? "rgba(255,255,255,0.14)" : "#64748b"),
+                  boxShadow: canFinishLoading || viewOnly ? "0 6px 18px rgba(15,47,143,0.30)" : "none",
+                  opacity: !viewOnly && !canFinishLoading ? 0.72 : 1,
+                }}
+                aria-disabled={!viewOnly && !canFinishLoading}
+                title={!viewOnly && !canFinishLoading ? loadingCompletionGate.blockers[0] : undefined}
               >
                 {viewOnly ? "Close" : finishPulse ? "Completed" : "Finish Loading Inspection"}
                 {!viewOnly && <CheckCircle2 size={16} className={finishPulse ? "animate-checkPop" : undefined} />}
@@ -9824,7 +9966,7 @@ function LoadingLogsScanScreen({
               <button
                 type="button"
                 onClick={() => setNcView("create")}
-                className="w-full h-11 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 focus:outline-none active:scale-[0.98]"
+                className="pressable w-full min-h-12 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 focus:outline-none"
                 style={{ background: GRADIENT, boxShadow: "0 4px 14px rgba(15,47,143,0.28)" }}
               >
                 <Plus size={16} />
@@ -10170,7 +10312,7 @@ function LoadingLogsScanScreen({
                 <button
                   type="button"
                   onClick={closeEvidenceSheet}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
+                  className="field-touch w-12 h-12 rounded-xl flex items-center justify-center focus:outline-none"
                   style={{ background: iconMutedBg, color: accent }}
                   aria-label="Close"
                 >
@@ -10287,7 +10429,7 @@ function LoadingLogsScanScreen({
                     setNewBargeOpen(false);
                     setLoadTypeOpen(false);
                   }}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none"
+                  className="field-touch w-12 h-12 rounded-xl flex items-center justify-center focus:outline-none"
                   style={{ background: iconMutedBg, color: accent }}
                   aria-label="Close"
                 >
@@ -10459,12 +10601,11 @@ export default function App() {
 
   const openFinishDialog = (
     key: "preShipment" | "loading",
-    taskId: string,
+    _taskId: string,
     onDone: (result: { inspectionComplete: boolean }) => void,
   ) => {
-    const progress = getInspectionProgress(taskId);
-    const existingEnd = key === "preShipment" ? progress.preShipmentEndDate : progress.loadingEndDate;
-    setFinishEndDate(existingEnd ?? todayISODate());
+    // Default end date to today for field completion.
+    setFinishEndDate(todayISODate());
     syncFinishOverlayBox();
     finishOnDoneRef.current = onDone;
     setFinishDialogKey(key);
@@ -10500,9 +10641,21 @@ export default function App() {
 
     let inspectionComplete = false;
     if (key === "preShipment") {
+      const draft = getPhysicalVerification(taskId);
+      const gate = evaluatePreShipmentCompletion(draft, scannedSampleLogs.length);
+      if (!gate.canComplete) {
+        onDone?.({ inspectionComplete: false });
+        return;
+      }
       setActiveInspectionStep("preShipment");
       inspectionComplete = finalizeActiveInspectionStep(taskId, endDate);
     } else {
+      const activeCount = allocatedLoadedLogs.filter(l => !l.excluded).length;
+      const gate = evaluateLoadingCompletion(activeCount);
+      if (!gate.canComplete) {
+        onDone?.({ inspectionComplete: false });
+        return;
+      }
       setActiveInspectionStep("loading");
       const current = getInspectionProgress(taskId);
       completeLoadingInspection(taskId, endDate);
@@ -10588,6 +10741,8 @@ export default function App() {
         nonConformanceReason: "",
         physicalStepComplete: true,
         sampleStepComplete: true,
+        noSamplesAvailable: false,
+        noSamplesReason: "",
       };
     }
     return EMPTY_PHYSICAL_VERIFICATION;
@@ -10631,6 +10786,15 @@ export default function App() {
   const finalizeActiveInspectionStep = (taskId: string, endDate?: string): boolean => {
     const step = activeInspectionStep;
     const draft = physicalVerificationById[taskId] ?? EMPTY_PHYSICAL_VERIFICATION;
+    if (step === "preShipment") {
+      const gate = evaluatePreShipmentCompletion(draft, scannedSampleLogs.length);
+      if (!gate.canComplete) return false;
+    }
+    if (step === "loading") {
+      const activeCount = allocatedLoadedLogs.filter(l => !l.excluded).length;
+      const gate = evaluateLoadingCompletion(activeCount);
+      if (!gate.canComplete) return false;
+    }
     updatePhysicalVerification(taskId, {
       volumeOk: draft.volumeOk ?? "yes",
       photoAdded: true,
@@ -10934,6 +11098,8 @@ export default function App() {
               setScreen("inspection-details");
               return;
             }
+            const activeCount = allocatedLoadedLogs.filter(l => !l.excluded).length;
+            if (!evaluateLoadingCompletion(activeCount).canComplete) return;
             openFinishDialog("loading", task.id, ({ inspectionComplete }) => {
               setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
             });
@@ -11010,6 +11176,18 @@ export default function App() {
             targetVolumeM3={task.logs * 21.875}
             physicalComplete={getPhysicalVerification(task.id).physicalStepComplete}
             sampleComplete={getPhysicalVerification(task.id).sampleStepComplete}
+            noSamplesAvailable={getPhysicalVerification(task.id).noSamplesAvailable}
+            noSamplesReason={getPhysicalVerification(task.id).noSamplesReason}
+            onNoSamplesChange={patch => {
+              if (inspectionViewOnly) return;
+              const nextReason = patch.noSamplesReason ?? getPhysicalVerification(task.id).noSamplesReason;
+              const nextAvailable = patch.noSamplesAvailable ?? getPhysicalVerification(task.id).noSamplesAvailable;
+              const waiveComplete = Boolean(nextAvailable && nextReason.trim());
+              updatePhysicalVerification(task.id, {
+                ...patch,
+                sampleStepComplete: scannedSampleLogs.length > 0 || waiveComplete,
+              });
+            }}
             onBack={() => setScreen("physical-verification")}
             onGoToPhysical={() => setScreen("physical-verification")}
             onScanned={record => {
@@ -11025,6 +11203,9 @@ export default function App() {
                 setScreen("physical-verification");
                 return;
               }
+              const draft = getPhysicalVerification(task.id);
+              const gate = evaluatePreShipmentCompletion(draft, scannedSampleLogs.length);
+              if (!gate.canComplete) return;
               openFinishDialog("preShipment", task.id, ({ inspectionComplete }) => {
                 setActiveScannedCode(null);
                 setScreen(inspectionComplete ? "schedule-inspection" : "inspection-details");
