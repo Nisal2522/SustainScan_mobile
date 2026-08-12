@@ -5,7 +5,7 @@ import {
   Moon, Sun, LogOut, ClipboardList, Package, RefreshCw, ArrowLeft,
   ScanLine, QrCode, Calendar, Search, ListFilter, X, Truck, CheckCircle2, ArrowRight,
   Ship, Anchor, CircleDollarSign, Layers, Container, Paperclip, Scale, FileText,
-  Clock, Plus, Camera, Upload, Home, Image as ImageIcon, Trash2, AlertTriangle,
+  Clock, Plus, Camera, Upload, Home, Image as ImageIcon, Trash2, AlertTriangle, Pencil,
 } from "lucide-react";
 import bgImage from "../imports/ChatGPT_Image_Apr_28__2026__03_22_59_PM__1___1_.png";
 import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
@@ -5816,6 +5816,7 @@ function VerificationStepPicker<T extends string>({
   onStepSelect,
   allDoneTitle,
   tablistLabel,
+  sequentialLock = true,
 }: {
   steps: VerificationStepConfig<T>[];
   activeStep: T;
@@ -5823,11 +5824,11 @@ function VerificationStepPicker<T extends string>({
   onStepSelect: (step: T) => void;
   allDoneTitle: string;
   tablistLabel: string;
+  sequentialLock?: boolean;
 }) {
   const activeIndex = Math.max(0, steps.findIndex(step => step.id === activeStep));
   const allDone = stepComplete.every(Boolean);
   const activeStepConfig = steps[activeIndex];
-  const nextLockedStep = steps.findIndex((_, index) => index > 0 && !stepComplete[index - 1]);
 
   return (
     <div
@@ -5865,7 +5866,7 @@ function VerificationStepPicker<T extends string>({
           const done = stepComplete[i];
           const active = activeIndex === i;
           const switchable = !active;
-          const locked = i > 0 && !stepComplete[i - 1];
+          const locked = sequentialLock && i > 0 && !stepComplete[i - 1];
           const Icon = step.icon;
 
           return (
@@ -8815,6 +8816,8 @@ interface AllocatedLoadedLog {
   bargeStackLabel: string;
   /** True when reported damaged and excluded from loaded volume (FR-07.2). */
   excluded: boolean;
+  inspectorMeasurements?: MeasurementValues;
+  inspectorComment?: string;
 }
 
 interface BargeStack {
@@ -8872,6 +8875,43 @@ const LOADING_QR_POOL: LoadingPoolLog[] = [
   { code: "SSC-LD-0000000105", serialNo: "151-651RN-0000000105", productName: "Burckella", volume: 2.12 },
   { code: "SSC-LD-0000000106", serialNo: "151-651RN-0000000106", productName: "Malas", volume: 1.81 },
 ];
+
+function buildRegisterLogFromLoadedLog(log: AllocatedLoadedLog): RegisterLogFormData {
+  const pool = LOADING_QR_POOL.find(p => p.code === log.code);
+  const serialTail = log.serialNo.includes("-") ? log.serialNo.split("-").pop() ?? log.serialNo : log.serialNo;
+  const declaredVolume = (pool?.volume ?? log.volume).toFixed(3);
+  return {
+    serialNo: serialTail,
+    regDate: "2026-07-12",
+    productGroup: "Group 1",
+    productType: "Round Log",
+    productName: log.productName,
+    lotNumber: "LOT-2026-042",
+    length: "10.0",
+    diameter: "11.6",
+    diameter1: "11.6",
+    diameter2: "11.4",
+    diameter3: "11.2",
+    diameter4: "11.0",
+    volume: declaredVolume,
+    defectVolume: "0.0",
+    note: log.bargeStackLabel ? `Allocated to ${log.bargeStackLabel}` : "Loaded during inspection",
+    status: "AVAILABLE",
+  };
+}
+
+function loadedLogToEditRecord(log: AllocatedLoadedLog): ScannedSampleLog {
+  const base = buildRegisterLogFromLoadedLog(log);
+  return {
+    code: log.code,
+    scannedAt: log.scannedAt,
+    status: "verified",
+    log: base,
+    previous: base,
+    inspectorMeasurements: log.inspectorMeasurements,
+    inspectorComment: log.inspectorComment,
+  };
+}
 
 function formatVolumeM3(value: number): string {
   return `${value.toFixed(3)} m³`;
@@ -9320,6 +9360,7 @@ function LoadingVerifyStepper({
       onStepSelect={onStepSelect}
       allDoneTitle="Loading inspection complete"
       tablistLabel="Loading steps"
+      sequentialLock={false}
     />
   );
 }
@@ -9352,6 +9393,7 @@ function LoadingLogsScanScreen({
   autoStart,
   onBack,
   onAllocated,
+  onLogUpdated,
   onDamageSaved,
   onScanConsumed,
   onComplete,
@@ -9366,6 +9408,7 @@ function LoadingLogsScanScreen({
   autoStart: boolean;
   onBack: () => void;
   onAllocated: (entry: AllocatedLoadedLog) => void;
+  onLogUpdated: (entry: AllocatedLoadedLog) => void;
   onDamageSaved: (entry: DamagedLoadedLog) => void;
   onScanConsumed: () => void;
   onComplete: () => void;
@@ -9399,6 +9442,7 @@ function LoadingLogsScanScreen({
   const [loadTypeOpen, setLoadTypeOpen] = useState(false);
   const [volumeFlash, setVolumeFlash] = useState(false);
   const [finishPulse, setFinishPulse] = useState(false);
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const evidencePhotosRef = useRef(evidencePhotos);
   evidencePhotosRef.current = evidencePhotos;
   const handledDetection = useRef(false);
@@ -9780,6 +9824,7 @@ function LoadingLogsScanScreen({
   ];
 
   const loadedLogs = allocatedLogs.filter(l => !l.excluded);
+  const editingLog = editingLogId ? loadedLogs.find(l => l.id === editingLogId) ?? null : null;
   const stepHint = !bargeReady && !isDamageMode
     ? "Choose where logs are going first, then scan"
     : phase === "scanning"
@@ -9796,6 +9841,28 @@ function LoadingLogsScanScreen({
       : { label: "Tap scanner to begin", color: textMuted, bg: chipBg };
   const loadedAnim = useCountUp(stats.loadedVolume, 520, `${stats.loadedVolume}-${activeCount}`);
   const declaredAnim = useCountUp(declaredVolume, 640, declaredVolume);
+
+  if (editingLog) {
+    return (
+      <QrDetailsScreen
+        record={loadedLogToEditRecord(editingLog)}
+        viewOnly={viewOnly}
+        dark={dark}
+        onBack={() => setEditingLogId(null)}
+        onFinish={({ measurements, comment }) => {
+          if (viewOnly) return;
+          const nextVolume = Number(measurements.volume);
+          onLogUpdated({
+            ...editingLog,
+            volume: Number.isNaN(nextVolume) ? editingLog.volume : nextVolume,
+            inspectorMeasurements: measurements,
+            inspectorComment: comment,
+          });
+          setEditingLogId(null);
+        }}
+      />
+    );
+  }
 
   return (
     <div
@@ -10247,7 +10314,34 @@ function LoadingLogsScanScreen({
                           {item.bargeStackLabel ? `${item.bargeStackLabel} · ` : ""}{item.productName} · {formatVolumeM3(item.volume)}
                         </p>
                       </div>
-                      <CheckCircle2 size={18} style={{ color: "#16a34a", flexShrink: 0 }} />
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {item.inspectorMeasurements ? (
+                          <span
+                            className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-bold uppercase tracking-wide"
+                            style={{
+                              background: dark ? "rgba(59,130,246,0.18)" : "rgba(15,47,143,0.12)",
+                              color: accent,
+                            }}
+                          >
+                            Edited
+                          </span>
+                        ) : (
+                          <CheckCircle2 size={18} style={{ color: "#16a34a" }} />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setEditingLogId(item.id)}
+                          aria-label={`Edit ${item.code}`}
+                          className="w-8 h-8 rounded-xl flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0f2f8f]/40 active:scale-[0.96] transition-transform"
+                          style={{
+                            background: dark ? "rgba(255,255,255,0.08)" : "rgba(15,47,143,0.08)",
+                            color: accent,
+                            border: `1px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(15,47,143,0.14)"}`,
+                          }}
+                        >
+                          <Pencil size={15} strokeWidth={2.25} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -11482,6 +11576,10 @@ export default function App() {
             if (inspectionViewOnly) return;
             setAllocatedLoadedLogs(prev => [entry, ...prev]);
             setLoadingScanCount(n => n + 1);
+          }}
+          onLogUpdated={entry => {
+            if (inspectionViewOnly) return;
+            setAllocatedLoadedLogs(prev => prev.map(l => (l.id === entry.id ? entry : l)));
           }}
           onDamageSaved={entry => {
             if (inspectionViewOnly) return;            setDamagedLoadedLogs(prev => {
