@@ -95,6 +95,14 @@ interface InspectionTask {
   status: InspectionStatus;
 }
 
+/** Average declared volume per log for schedule cards (demo). */
+const INSPECTION_VOLUME_M3_PER_LOG = 1.85;
+
+function formatInspectionVolumeM3(logCount: number): string {
+  const m3 = logCount * INSPECTION_VOLUME_M3_PER_LOG;
+  return `${m3.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m³`;
+}
+
 interface InspectionProgress {
   preShipment: SubInspectionStatus;
   loading: SubInspectionStatus;
@@ -2680,7 +2688,7 @@ function ScheduleInspectionScreen({
                           <Layers size={12} className="flex-shrink-0" /> Volume
                         </span>
                         <span className="text-[12px] sm:text-[13px] font-bold break-words leading-snug" style={{ color: textPrimary }}>
-                          {task.logs} logs
+                          {formatInspectionVolumeM3(task.logs)}
                         </span>
                       </div>
                     </div>
