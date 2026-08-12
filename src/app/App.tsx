@@ -2026,6 +2026,8 @@ function InventoryRow({ item, dark, variant = "exporter" }: {
   variant?: "exporter" | "cu";
 }) {
   const [expanded, setExpanded] = useState(false);
+  // Expand disabled on CU cards for now
+  const expandEnabled = variant !== "cu";
   const showModified = variant === "exporter";
   const showChangeQr = variant === "exporter";
   const textPrimary = dark ? "#ffffff" : "#0a1a4a";
@@ -2042,58 +2044,73 @@ function InventoryRow({ item, dark, variant = "exporter" }: {
   const volumePillBg = dark ? "rgba(59,130,246,0.16)" : "rgba(15,47,143,0.08)";
   const volumePillColor = dark ? "#93c5fd" : "#0f2f8f";
 
+  const headerInner = (
+    <>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-bold" style={{ color: textPrimary }}>{item.species}</span>
+          {showModified && item.modified && (
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+              style={{ background: "rgba(15,47,143,0.12)", color: "#0f2f8f" }}>Modified</span>
+          )}
+        </div>
+        {variant === "cu" ? (
+          <div className="mt-2 flex flex-wrap items-stretch gap-2">
+            <span
+              className="inline-flex items-center min-h-7 px-2.5 rounded-lg text-[11px] font-semibold"
+              style={{ background: metaPillBg, color: textPrimary, border: `1px solid ${metaPillBorder}` }}
+            >
+              {item.logGroup}
+            </span>
+            <span
+              className="inline-flex items-center gap-1.5 min-h-7 px-2.5 rounded-lg"
+              style={{ background: volumePillBg, color: volumePillColor, border: `1px solid ${metaPillBorder}` }}
+            >
+              <span className="text-[9px] font-semibold uppercase tracking-wide leading-none" style={{ color: dark ? "rgba(147,197,253,0.85)" : "rgba(15,47,143,0.65)" }}>
+                Total Volume
+              </span>
+              <span className="text-[11px] font-bold leading-none">
+                {item.volume} m³
+              </span>
+            </span>
+          </div>
+        ) : (
+          <p className="text-xs mt-0.5" style={{ color: textMuted }}>
+            {collapsedMeta}
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {(variant === "exporter" || expanded) && (
+          <span className="text-xs font-medium" style={{ color: textMuted }}>{item.date}</span>
+        )}
+        {expandEnabled && (
+          <ChevronDown size={14} style={{ color: textMuted, transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div className="rounded-2xl overflow-hidden" style={{ ...subCardGlass, background: rowBg, border: `1px solid ${rowBorder}`, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-      <button
-        type="button"
-        className="w-full px-4 py-3.5 flex items-start justify-between gap-3 text-left focus:outline-none"
-        onClick={() => setExpanded(v => !v)}
-        aria-expanded={expanded}
-      >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-bold" style={{ color: textPrimary }}>{item.species}</span>
-            {showModified && item.modified && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                style={{ background: "rgba(15,47,143,0.12)", color: "#0f2f8f" }}>Modified</span>
-            )}
-          </div>
-          {variant === "cu" ? (
-            <div className="mt-2 flex flex-wrap items-stretch gap-2">
-              <span
-                className="inline-flex items-center min-h-7 px-2.5 rounded-lg text-[11px] font-semibold"
-                style={{ background: metaPillBg, color: textPrimary, border: `1px solid ${metaPillBorder}` }}
-              >
-                {item.logGroup}
-              </span>
-              <span
-                className="inline-flex items-center gap-1.5 min-h-7 px-2.5 rounded-lg"
-                style={{ background: volumePillBg, color: volumePillColor, border: `1px solid ${metaPillBorder}` }}
-              >
-                <span className="text-[9px] font-semibold uppercase tracking-wide leading-none" style={{ color: dark ? "rgba(147,197,253,0.85)" : "rgba(15,47,143,0.65)" }}>
-                  Total Volume
-                </span>
-                <span className="text-[11px] font-bold leading-none">
-                  {item.volume} m³
-                </span>
-              </span>
-            </div>
-          ) : (
-            <p className="text-xs mt-0.5" style={{ color: textMuted }}>
-              {collapsedMeta}
-            </p>
-          )}
+      {expandEnabled ? (
+        <button
+          type="button"
+          className="w-full px-4 py-3.5 flex items-start justify-between gap-3 text-left focus:outline-none"
+          onClick={() => setExpanded(v => !v)}
+          aria-expanded={expanded}
+        >
+          {headerInner}
+        </button>
+      ) : (
+        // CU cards: static header — expand commented out for now
+        <div className="w-full px-4 py-3.5 flex items-start justify-between gap-3">
+          {headerInner}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {(variant === "exporter" || expanded) && (
-            <span className="text-xs font-medium" style={{ color: textMuted }}>{item.date}</span>
-          )}
-          <ChevronDown size={14} style={{ color: textMuted, transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
-        </div>
-      </button>
+      )}
 
-      {/* Expanded panel — same layout for every row (Attachment 1 style) */}
-      {expanded && (
+      {/* Expanded panel — disabled on CU cards for now */}
+      {expandEnabled && expanded && (
         <div style={{ borderTop: `1px solid ${rowBorder}` }}>
           <div className="px-4 pt-3 pb-4" style={{ background: expandedBg }}>
             <div className="grid grid-cols-2 gap-x-4 gap-y-3">
