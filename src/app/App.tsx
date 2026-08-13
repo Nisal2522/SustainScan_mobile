@@ -3013,7 +3013,6 @@ function getInspectionInfoSections(task: InspectionTask): InspectionInfoSection[
 }
 
 function getInspectionInfoSectionFields(sectionId: InspectionInfoSectionId, task: InspectionTask): [string, string][] {
-  const scheduleLabel = task.time;
   switch (sectionId) {
     case "shipment":
       return [
@@ -3025,8 +3024,6 @@ function getInspectionInfoSectionFields(sectionId: InspectionInfoSectionId, task
         ["Loading Point", task.location],
         ["Licence No.", "LIC-8821-B"],
         ["Advised Volume", `${(task.logs * 1.85).toFixed(2)} m³`],
-        ["Schedule", scheduleLabel],
-        ["Status", INSPECTION_STATUS_META[task.status].label],
       ];
     case "ape":
       // Rendered by ApprovedPriceEndorsementPanel — keep a short fallback list for safety.
@@ -3040,12 +3037,9 @@ function getInspectionInfoSectionFields(sectionId: InspectionInfoSectionId, task
     case "vessel":
       return [
         ["Vessel Name", "MV Pacific Timber"],
-        ["IMO Number", "IMO 9482017"],
         ["Shipping Agent", "Harbour Link Agency"],
         ["Agent Contact", "+675 720 4410"],
         ["ETA", task.day === "today" ? "08/02/2026" : task.day === "tomorrow" ? "09/02/2026" : "12/02/2026"],
-        ["Berth", "Berth 3 · Outer Quay"],
-        ["Flag", "Panama"],
       ];
     case "declared-logs":
       return [
@@ -3060,21 +3054,11 @@ function getInspectionInfoSectionFields(sectionId: InspectionInfoSectionId, task
     case "cargo":
       return [
         ["Buyer", "Qingdao Forest Trading Co."],
-        ["Destination Port", "Qingdao, China"],
-        ["Consignee", "QFT Import Desk"],
+        ["Destination", "Qingdao, China"],
         ["Buyer Address", "12 Harbour Rd, Huangdao, Qingdao"],
-        ["Incoterms", "FOB"],
-        ["Bill of Lading", "Pending issue"],
       ];
     case "attachments":
-      return [
-        ["Files Attached", "3 documents"],
-        ["APE Certificate", "APE-2026-118.pdf"],
-        ["Export Permit", "PNG-EXP-2026-0441.pdf"],
-        ["Packing List", "PL-SHIP-001.xlsx"],
-        ["Submitted By", task.exporter],
-        ["Submitted On", "31 Jan 2026"],
-      ];
+      return [];
     case "volume-variance":
       return [
         ["Variances Found", "10"],
@@ -3087,6 +3071,51 @@ function getInspectionInfoSectionFields(sectionId: InspectionInfoSectionId, task
         ["Last Checked", "01 Feb 2026"],
       ];
   }
+}
+
+const INSPECTION_ATTACHMENT_DOCUMENTS = [
+  "APE-2026-118.pdf",
+  "PNG-EXP-2026-0441.pdf",
+  "PL-SHIP-001.xlsx",
+] as const;
+
+function InspectionAttachmentRow({
+  fileName,
+  dark,
+  isFirst,
+  rowDivider,
+  textPrimary,
+  accent,
+}: {
+  fileName: string;
+  dark: boolean;
+  isFirst: boolean;
+  rowDivider: string;
+  textPrimary: string;
+  accent: string;
+}) {
+  return (
+    <div
+      className="py-2.5 flex items-center justify-between gap-3"
+      style={{ borderTop: isFirst ? undefined : `1px solid ${rowDivider}` }}
+    >
+      <p className="text-[13px] font-semibold truncate min-w-0 flex-1" style={{ color: textPrimary }}>
+        {fileName}
+      </p>
+      <button
+        type="button"
+        className="w-9 h-9 rounded-xl inline-flex items-center justify-center flex-shrink-0 focus:outline-none active:scale-[0.97] transition-transform"
+        style={{
+          background: dark ? "rgba(15,47,143,0.35)" : "rgba(15,47,143,0.08)",
+          color: accent,
+          border: dark ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(15,47,143,0.12)",
+        }}
+        aria-label={`View ${fileName}`}
+      >
+        <Eye size={18} strokeWidth={2.2} />
+      </button>
+    </div>
+  );
 }
 
 interface ApeLineItem {
@@ -5202,16 +5231,30 @@ function InspectionInfoDetailsScreen({
                                   borderTop: expanded ? `1px solid ${t.rowDivider}` : undefined,
                                 }}
                               >
-                                {fields.map(([label, val], i) => (
-                                  <div
-                                    key={label}
-                                    className="py-2.5 flex items-start justify-between gap-4"
-                                    style={{ borderTop: i === 0 ? undefined : `1px solid ${t.rowDivider}` }}
-                                  >
-                                    <p className="text-[12px] font-medium flex-shrink-0 pt-0.5" style={{ color: t.textMuted }}>{label}</p>
-                                    <p className="text-[13px] font-semibold text-right break-words leading-snug" style={{ color: t.textPrimary }}>{val}</p>
-                                  </div>
-                                ))}
+                                {section.id === "attachments" ? (
+                                  INSPECTION_ATTACHMENT_DOCUMENTS.map((fileName, i) => (
+                                    <InspectionAttachmentRow
+                                      key={fileName}
+                                      fileName={fileName}
+                                      dark={dark}
+                                      isFirst={i === 0}
+                                      rowDivider={t.rowDivider}
+                                      textPrimary={t.textPrimary}
+                                      accent={t.iconColor}
+                                    />
+                                  ))
+                                ) : (
+                                  fields.map(([label, val], i) => (
+                                    <div
+                                      key={label}
+                                      className="py-2.5 flex items-start justify-between gap-4"
+                                      style={{ borderTop: i === 0 ? undefined : `1px solid ${t.rowDivider}` }}
+                                    >
+                                      <p className="text-[12px] font-medium flex-shrink-0 pt-0.5" style={{ color: t.textMuted }}>{label}</p>
+                                      <p className="text-[13px] font-semibold text-right break-words leading-snug" style={{ color: t.textPrimary }}>{val}</p>
+                                    </div>
+                                  ))
+                                )}
                               </div>
                             </div>
                           </div>
