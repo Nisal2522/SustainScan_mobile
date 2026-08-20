@@ -4681,6 +4681,7 @@ type AttachmentFile = {
   category: string;
   uploaded: string;
   size: string;
+  remark?: string;
 };
 
 const ATTACHMENT_FILES: AttachmentFile[] = [
@@ -4815,6 +4816,14 @@ function AttachmentFileCard({
               Uploaded {file.uploaded} <span aria-hidden>•</span> {file.size}
             </span>
           </div>
+          {file.remark && (
+            <p
+              className="text-[12px] leading-snug mt-1.5 italic"
+              style={{ color: textMuted }}
+            >
+              “{file.remark}”
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0 self-center">
@@ -6126,6 +6135,8 @@ function PhysicalVerificationScreen({
   const [failDialogBox, setFailDialogBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [attachments, setAttachments] = useState<AttachmentFile[]>(ATTACHMENT_FILES);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<Omit<AttachmentFile, "remark"> | null>(null);
+  const [pendingAttachmentRemark, setPendingAttachmentRemark] = useState("");
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const evidencePhotosRef = useRef(evidencePhotos);
   evidencePhotosRef.current = evidencePhotos;
@@ -6287,15 +6298,31 @@ function PhysicalVerificationScreen({
     }
 
     setAttachmentError(null);
+    setPendingAttachmentRemark("");
+    setPendingAttachment({
+      fileName: file.name,
+      category: ext === "pdf" ? "DOCUMENT" : "PHOTO",
+      uploaded: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
+      size: formatAttachmentSize(file.size),
+    });
+  };
+
+  const confirmPendingAttachment = () => {
+    if (!pendingAttachment) return;
     setAttachments(prev => [
       ...prev,
       {
-        fileName: file.name,
-        category: ext === "pdf" ? "DOCUMENT" : "PHOTO",
-        uploaded: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
-        size: formatAttachmentSize(file.size),
+        ...pendingAttachment,
+        remark: pendingAttachmentRemark.trim() || undefined,
       },
     ]);
+    setPendingAttachment(null);
+    setPendingAttachmentRemark("");
+  };
+
+  const cancelPendingAttachment = () => {
+    setPendingAttachment(null);
+    setPendingAttachmentRemark("");
   };
 
   const handleNcTypeToggle = (type: string) => {
@@ -7003,6 +7030,48 @@ function PhysicalVerificationScreen({
               >
                 {attachmentError}
               </p>
+            )}
+
+            {pendingAttachment && (
+              <div
+                className="rounded-2xl p-3.5 flex flex-col gap-2.5 animate-panelIn"
+                style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: cardShadow }}
+              >
+                <p className="text-[12px] font-bold truncate" style={{ color: textPrimary }}>
+                  {pendingAttachment.fileName}
+                </p>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
+                    Remark (optional)
+                  </p>
+                  <textarea
+                    value={pendingAttachmentRemark}
+                    onChange={e => setPendingAttachmentRemark(e.target.value)}
+                    rows={2}
+                    placeholder="Add a remark for this attachment"
+                    className="w-full mt-1.5 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none"
+                    style={{ background: fieldBg, border: `1px solid ${fieldBorder}`, color: textPrimary }}
+                  />
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={cancelPendingAttachment}
+                    className="flex-1 min-h-11 rounded-xl text-[12px] font-bold focus:outline-none"
+                    style={{ background: iconMutedBg, color: textMuted }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmPendingAttachment}
+                    className="flex-1 min-h-11 rounded-xl text-[12px] font-bold text-white focus:outline-none"
+                    style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)" }}
+                  >
+                    Add Attachment
+                  </button>
+                </div>
+              </div>
             )}
 
             {attachments.map((file, i) => (
@@ -7795,6 +7864,8 @@ function SampleVerificationScanScreen({
   const [ncDescription, setNcDescription] = useState("");
   const [attachments, setAttachments] = useState<AttachmentFile[]>(ATTACHMENT_FILES);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<Omit<AttachmentFile, "remark"> | null>(null);
+  const [pendingAttachmentRemark, setPendingAttachmentRemark] = useState("");
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const next = SAMPLE_QR_POOL[scanCount % SAMPLE_QR_POOL.length];
 
@@ -7897,15 +7968,31 @@ function SampleVerificationScanScreen({
     }
 
     setAttachmentError(null);
+    setPendingAttachmentRemark("");
+    setPendingAttachment({
+      fileName: file.name,
+      category: ext === "pdf" ? "DOCUMENT" : "PHOTO",
+      uploaded: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
+      size: formatAttachmentSize(file.size),
+    });
+  };
+
+  const confirmPendingAttachment = () => {
+    if (!pendingAttachment) return;
     setAttachments(prev => [
       ...prev,
       {
-        fileName: file.name,
-        category: ext === "pdf" ? "DOCUMENT" : "PHOTO",
-        uploaded: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
-        size: formatAttachmentSize(file.size),
+        ...pendingAttachment,
+        remark: pendingAttachmentRemark.trim() || undefined,
       },
     ]);
+    setPendingAttachment(null);
+    setPendingAttachmentRemark("");
+  };
+
+  const cancelPendingAttachment = () => {
+    setPendingAttachment(null);
+    setPendingAttachmentRemark("");
   };
 
   const runFinishInspection = () => {
@@ -8250,6 +8337,47 @@ function SampleVerificationScanScreen({
               >
                 {attachmentError}
               </p>
+            )}
+            {pendingAttachment && (
+              <div
+                className="rounded-2xl p-3.5 flex flex-col gap-2.5 animate-panelIn"
+                style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: cardShadow }}
+              >
+                <p className="text-[12px] font-bold truncate" style={{ color: textPrimary }}>
+                  {pendingAttachment.fileName}
+                </p>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: textMuted }}>
+                    Remark (optional)
+                  </p>
+                  <textarea
+                    value={pendingAttachmentRemark}
+                    onChange={e => setPendingAttachmentRemark(e.target.value)}
+                    rows={2}
+                    placeholder="Add a remark for this attachment"
+                    className="w-full mt-1.5 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none"
+                    style={{ background: fieldBg, border: `1px solid ${fieldBorder}`, color: textPrimary }}
+                  />
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={cancelPendingAttachment}
+                    className="flex-1 min-h-11 rounded-xl text-[12px] font-bold focus:outline-none"
+                    style={{ background: iconMutedBg, color: textMuted }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmPendingAttachment}
+                    className="flex-1 min-h-11 rounded-xl text-[12px] font-bold text-white focus:outline-none"
+                    style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)" }}
+                  >
+                    Add Attachment
+                  </button>
+                </div>
+              </div>
             )}
             {attachments.map((file, i) => (
               <AttachmentFileCard
@@ -9104,11 +9232,8 @@ function DamageReportDialog({
           <div className="w-10 h-1 rounded-full" style={{ background: "rgba(15,47,143,0.18)" }} />
           <div className="w-full flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#d4183d" }}>
-                Damage report
-              </p>
-              <p className="text-[16px] font-bold mt-0.5" style={{ color: "#0a1a4a" }}>
-                What happened to this log?
+              <p className="text-[16px] font-bold" style={{ color: "#0a1a4a" }}>
+                Not Loaded Logs
               </p>
             </div>
             <button
@@ -9142,7 +9267,7 @@ function DamageReportDialog({
 
         <div className="flex flex-col gap-1.5 animate-riseIn" style={{ ["--rise-delay" as string]: "140ms" }}>
           <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#5a6a99" }}>
-            Damage reason <span style={{ color: "#d4183d" }}>*</span>
+            Reason <span style={{ color: "#d4183d" }}>*</span>
           </label>
           <input
             type="text"
@@ -9404,7 +9529,7 @@ function LoadingVerifyStepper({
 }) {
   const steps = [
     { id: "allocate" as const, label: "Load logs", hint: "Scan each log as it is loaded", icon: Container },
-    { id: "damage" as const, label: "Damaged logs", hint: "Scan and report any damaged logs", icon: AlertTriangle },
+    { id: "damage" as const, label: "Not Loaded Logs", hint: "Scan and report any damaged logs", icon: AlertTriangle },
   ];
 
   return (
@@ -9884,10 +10009,10 @@ function LoadingLogsScanScreen({
     ? "Choose where logs are going first, then scan"
     : phase === "scanning"
       ? isDamageMode
-        ? "Scanning damaged log QR code…"
+        ? "Scanning not loaded log QR code…"
         : `Scanning to ${selectedBarge?.label ?? "selected barge"}`
       : isDamageMode
-        ? "Tap the scanner when you see a damaged log"
+        ? "Tap the scanner when you see a log that wasn't loaded"
         : null;
   const volumeStatus = stats.outsideTolerance
     ? { label: "Outside limit — review needed", color: "#d4183d", bg: "rgba(212,24,61,0.08)" }
@@ -10406,7 +10531,7 @@ function LoadingLogsScanScreen({
                 <div className="flex flex-col gap-2.5">
                   <div className="flex items-baseline justify-between gap-2 px-0.5">
                     <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: textMuted }}>
-                      Damaged logs
+                      Not Loaded Logs
                     </p>
                     <span className="text-[11px] font-semibold" style={{ color: subtleText }}>
                       {damagedLogs.length} removed
@@ -10421,9 +10546,9 @@ function LoadingLogsScanScreen({
                       >
                         <AlertTriangle size={20} />
                       </span>
-                      <p className="text-[13px] font-bold" style={{ color: textPrimary }}>No damaged logs</p>
+                      <p className="text-[13px] font-bold" style={{ color: textPrimary }}>No logs marked as not loaded</p>
                       <p className="text-[11px] leading-relaxed max-w-[260px]" style={{ color: textMuted }}>
-                        Only scan here if a log is damaged. Good logs are scanned in Step 1.
+                        Only scan here if a log wasn't loaded. Loaded logs are scanned in Step 1.
                       </p>
                     </div>
                   ) : (
