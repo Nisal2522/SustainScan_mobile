@@ -1764,8 +1764,8 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
         {/* Form */}
         <div className="flex flex-col gap-5 px-5 pt-3 sm:pt-4 pb-10">
 
-          {/* Serial No */}
-          <FormField label="Serial No" required>
+          {/* Log No */}
+          <FormField label="Log No" required>
             <input
               className={inputCls}
               style={fieldStyle}
@@ -2108,7 +2108,7 @@ function InventoryRow({ item, dark, variant = "exporter" }: {
             <div className="grid grid-cols-2 gap-x-4 gap-y-3">
               {[
                 ["Log Group", item.logGroup],
-                ["Serial No.", item.serialNo],
+                ["Log No.", item.serialNo],
                 ["Batch No.", item.batchNo || "—"],
                 ["Def. Reason", item.defReason || "—"],
               ].map(([label, val]) => (
@@ -7278,7 +7278,7 @@ type LogCompareField = {
 };
 
 const LOG_COMPARE_FIELDS: LogCompareField[] = [
-  { key: "serialNo", label: "Serial No" },
+  { key: "serialNo", label: "Log No" },
   { key: "regDate", label: "Reg Date" },
   { key: "productGroup", label: "Product Group" },
   { key: "productType", label: "Product Type" },
@@ -8342,10 +8342,10 @@ const MEASUREMENT_ROWS: {
   { key: "diameter2", label: "D2", unit: "cm", inspectorInput: true },
   { key: "diameter3", label: "D3", unit: "cm", inspectorInput: true },
   { key: "diameter4", label: "D4", unit: "cm", inspectorInput: true },
-  { key: "diameter", label: "Avg.diamete", unit: "cm", required: true, inspectorInput: true },
-  { key: "length", label: "Length", unit: "m", required: true },
-  { key: "volume", label: "Volume", unit: "m³", required: true },
+  { key: "diameter", label: "Avg.diamete", unit: "cm", required: true },
+  { key: "length", label: "Length", unit: "m", required: true, inspectorInput: true },
   { key: "defectVolume", label: "Defect Vol.", unit: "m³", required: true, inspectorInput: true },
+  { key: "volume", label: "Volume", unit: "m³", required: true },
 ];
 
 /** Format numeric measurement values to one decimal place (e.g. 12 → 12.0). */
@@ -8547,7 +8547,7 @@ function QrDetailsScreen({
     if (record.inspectorMeasurements) return record.inspectorMeasurements;
     return {
       ...EMPTY_INSPECTOR_MEASUREMENTS,
-      length: formatMeasurementOneDecimal(exporterMeasurements.length),
+      diameter: formatMeasurementOneDecimal(exporterMeasurements.diameter),
       volume: formatMeasurementOneDecimal(exporterMeasurements.volume),
     };
   });
@@ -8609,7 +8609,7 @@ function QrDetailsScreen({
       <div className="w-full max-w-[480px] mx-auto min-h-screen flex flex-col">
         <div className="flex flex-col gap-5 px-5 pt-6" style={{ paddingBottom: BOTTOM_NAV_PAD }}>
 
-          <FormField label="Serial No" required dark={dark}>
+          <FormField label="Log No" required dark={dark}>
             <input className={inputCls} style={readOnlyStyle} value={log.serialNo} readOnly />
           </FormField>
 
