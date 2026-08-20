@@ -12,8 +12,8 @@ import sustainscanLogo from "../imports/logo_horizontal_transparent.png";
 import controlUnionLogo from "../imports/CU_Logo_4_White_1.png";
 import profilePhoto from "../imports/image.png";
 import qrCode from "../imports/image-1.png";
-import logEntryPhoto from "../imports/timber.png";
 import { OnboardingProvider, useOnboardingOptional } from "./components/OnboardingGuide";
+import { Log360Viewer } from "./components/Log360Viewer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1983,15 +1983,7 @@ function RegisterLogFormScreen({ onBack, prefill, isCU }: { onBack: () => void; 
           {/* Image — registered entry shows captured log photo */}
           <FormField label="Image" required={!viewOnly}>
             {viewOnly ? (
-              <div
-                className="w-full rounded-xl overflow-hidden"
-                style={{ border: "1px solid #dce4f5", background: "#ffffff" }}>
-                <img
-                  src={logEntryPhoto}
-                  alt="Registered log — timber"
-                  className="w-full h-52 object-contain p-2"
-                />
-              </div>
+              <Log360Viewer alt="Registered log — timber" />
             ) : (
               <button type="button"
                 className="w-full rounded-xl flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:bg-blue-50 focus:outline-none"
@@ -6642,7 +6634,7 @@ function PhysicalVerificationScreen({
                 <button
                   type="button"
                   onClick={() => {
-                    if (!nonConformanceReason.trim()) return;
+                    if (volumeOk === "no" && !nonConformanceReason.trim()) return;
                     if (volumeOk === "no") {
                       setVerificationFailedOpen(true);
                       return;
@@ -6658,13 +6650,13 @@ function PhysicalVerificationScreen({
                       }
                     }
                   }}
-                  disabled={!nonConformanceReason.trim()}
+                  disabled={volumeOk === "no" && !nonConformanceReason.trim()}
                   className="pressable w-full min-h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 focus:outline-none disabled:opacity-45 disabled:cursor-not-allowed"
                   style={{
                     background: volumeOk === "no"
                       ? "linear-gradient(135deg, #e11d48 0%, #be123c 100%)"
                       : "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
-                    boxShadow: !nonConformanceReason.trim()
+                    boxShadow: (volumeOk === "no" && !nonConformanceReason.trim())
                       ? "none"
                       : volumeOk === "no"
                         ? "0 6px 18px rgba(190,18,60,0.28)"
@@ -8686,12 +8678,7 @@ function QrDetailsScreen({
           </FormField>
 
           <FormField label="Image" dark={dark}>
-            <div
-              className="w-full rounded-xl overflow-hidden"
-              style={{ border: `1px solid ${fieldBorder}`, background: fieldBg }}
-            >
-              <img src={logEntryPhoto} alt="Scanned log — timber" className="w-full h-52 object-contain p-2" />
-            </div>
+            <Log360Viewer alt="Scanned log — timber" />
           </FormField>
 
           <div className="flex items-center gap-3 pt-1">
